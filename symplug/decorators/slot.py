@@ -28,7 +28,6 @@ def slot(func: Function, /) -> Function: ...
 @overload
 def slot(*, a: str, b: str) -> Callable[[Function], Function]: ...
 
-
 def slot(function: Optional[Function] = None, /, *, how_many: Optional[Union[str, int]] = None) -> Union[Function, Callable[[Function], Function]]:
     if function is not None:
         arguments = AddictionalArguments(
