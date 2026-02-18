@@ -3,6 +3,7 @@ from functools import partial, wraps
 from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, overload
 
 from sigmatch import PossibleCallMatcher
+from sigmatch.errors import SignatureMismatchError
 
 
 SlotPapameters = ParamSpec('Papameters')
@@ -34,10 +35,9 @@ class Slot:
 
     def _compare_signatures(self, slot_function: SlotFunction, plugin_function: PluginFunction) -> None:
         if self.signature is not None:
-            if not PossibleCallMatcher(self.signature).match(plugin_function):
-                raise ValueError()
+            PossibleCallMatcher(self.signature).match(plugin_function, raise_exception=True)
         elif not PossibleCallMatcher.from_callable(slot_function) & PossibleCallMatcher.from_callable(plugin_function):
-            raise ValueError()
+            raise SignatureMismatchError('No common calling method has been found between the slot and the plugin.')
 
 
 @overload
@@ -48,10 +48,12 @@ def slot(*, a: str, b: str) -> Callable[[SlotFunction], SlotFunction]: ...
 
 def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
     if function is not None:
+        if signature is not None:
+            PossibleCallMatcher(signature).match(function, raise_exception=True)
         arguments = AddictionalArguments(
             how_many=how_many,
         )
         decorator = wraps(function)(Slot(function, arguments, signature))
         return decorator
 
-    return partial(slot, how_many=how_many)
+    return partial(slot, how_many=how_many, signature=signature)
