@@ -1,3 +1,7 @@
+import pytest
+from full_match import match
+from sigmatch.errors import SignatureMismatchError
+
 from symplug import slot
 from symplug.decorators.slot import Slot
 
@@ -51,3 +55,37 @@ def test_i_can_call_slot():
     assert side_effects == [1, 3, 5, 5, 5, 6, 6, 6]
 
 
+def test_slot_have_not_comparing_signature_with_itself():
+    with pytest.raises(SignatureMismatchError, match=match('The signature of the callable object does not match the expected one.')):
+        @slot(signature='..')
+        def some_slot():
+            ...
+
+
+def test_plugin_have_not_comparing_signature_to_passed_one_to_slot():
+    @slot(signature='..')
+    def some_slot(a, b):
+        ...
+
+    with pytest.raises(SignatureMismatchError, match=match('The signature of the callable object does not match the expected one.')):
+        @some_slot.plugin('name')
+        def plugin():
+            ...
+
+
+@pytest.mark.parametrize(
+    ('folder'),
+    [
+        lambda x: x,
+        lambda x: x(),
+    ]
+)
+def test_plugin_have_not_comparing_signature_to_slot(folder):
+    @folder(slot)
+    def some_slot(a, b):
+        ...
+
+    with pytest.raises(SignatureMismatchError, match=match('No common calling method has been found between the slot and the plugin.')):
+        @some_slot.plugin('name')
+        def plugin():
+            ...
