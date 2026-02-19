@@ -1,4 +1,4 @@
-from symplug.components.code_representer import CodeRepresenter
+from symplug.components.slot_code_representer import SlotCodeRepresenter
 
 
 def test_function_with_one_single_ellipsis_is_empty(transformed):
@@ -53,15 +53,15 @@ def test_function_with_one_single_ellipsis_is_empty(transformed):
         """
         ...
 
-    assert CodeRepresenter(function_1).is_empty
-    assert CodeRepresenter(function_2).is_empty
-    assert CodeRepresenter(function_3).is_empty
-    assert CodeRepresenter(function_4).is_empty
-    assert CodeRepresenter(function_5).is_empty
-    assert CodeRepresenter(function_6).is_empty
-    assert CodeRepresenter(function_7).is_empty
-    assert CodeRepresenter(function_8).is_empty
-    assert CodeRepresenter(function_9).is_empty
+    assert SlotCodeRepresenter(function_1).is_empty
+    assert SlotCodeRepresenter(function_2).is_empty
+    assert SlotCodeRepresenter(function_3).is_empty
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+    assert SlotCodeRepresenter(function_6).is_empty
+    assert SlotCodeRepresenter(function_7).is_empty
+    assert SlotCodeRepresenter(function_8).is_empty
+    assert SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_one_single_pass_is_empty(transformed):
@@ -116,15 +116,15 @@ def test_function_with_one_single_pass_is_empty(transformed):
         """
         pass
 
-    assert CodeRepresenter(function_1).is_empty
-    assert CodeRepresenter(function_2).is_empty
-    assert CodeRepresenter(function_3).is_empty
-    assert CodeRepresenter(function_4).is_empty
-    assert CodeRepresenter(function_5).is_empty
-    assert CodeRepresenter(function_6).is_empty
-    assert CodeRepresenter(function_7).is_empty
-    assert CodeRepresenter(function_8).is_empty
-    assert CodeRepresenter(function_9).is_empty
+    assert SlotCodeRepresenter(function_1).is_empty
+    assert SlotCodeRepresenter(function_2).is_empty
+    assert SlotCodeRepresenter(function_3).is_empty
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+    assert SlotCodeRepresenter(function_6).is_empty
+    assert SlotCodeRepresenter(function_7).is_empty
+    assert SlotCodeRepresenter(function_8).is_empty
+    assert SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_one_single_ellipsis_and_one_single_pass_is_empty(transformed):
@@ -190,15 +190,15 @@ def test_function_with_one_single_ellipsis_and_one_single_pass_is_empty(transfor
         ...
         pass
 
-    assert CodeRepresenter(function_1).is_empty
-    assert CodeRepresenter(function_2).is_empty
-    assert CodeRepresenter(function_3).is_empty
-    assert CodeRepresenter(function_4).is_empty
-    assert CodeRepresenter(function_5).is_empty
-    assert CodeRepresenter(function_6).is_empty
-    assert CodeRepresenter(function_7).is_empty
-    assert CodeRepresenter(function_8).is_empty
-    assert CodeRepresenter(function_9).is_empty
+    assert SlotCodeRepresenter(function_1).is_empty
+    assert SlotCodeRepresenter(function_2).is_empty
+    assert SlotCodeRepresenter(function_3).is_empty
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+    assert SlotCodeRepresenter(function_6).is_empty
+    assert SlotCodeRepresenter(function_7).is_empty
+    assert SlotCodeRepresenter(function_8).is_empty
+    assert SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_two_ellipsises_is_empty(transformed):
@@ -264,15 +264,15 @@ def test_function_with_two_ellipsises_is_empty(transformed):
         ...
         ...
 
-    assert CodeRepresenter(function_1).is_empty
-    assert CodeRepresenter(function_2).is_empty
-    assert CodeRepresenter(function_3).is_empty
-    assert CodeRepresenter(function_4).is_empty
-    assert CodeRepresenter(function_5).is_empty
-    assert CodeRepresenter(function_6).is_empty
-    assert CodeRepresenter(function_7).is_empty
-    assert CodeRepresenter(function_8).is_empty
-    assert CodeRepresenter(function_9).is_empty
+    assert SlotCodeRepresenter(function_1).is_empty
+    assert SlotCodeRepresenter(function_2).is_empty
+    assert SlotCodeRepresenter(function_3).is_empty
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+    assert SlotCodeRepresenter(function_6).is_empty
+    assert SlotCodeRepresenter(function_7).is_empty
+    assert SlotCodeRepresenter(function_8).is_empty
+    assert SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_two_passes_is_empty(transformed):
@@ -337,15 +337,15 @@ def test_function_with_two_passes_is_empty(transformed):
         pass
         pass
 
-    assert CodeRepresenter(function_1).is_empty
-    assert CodeRepresenter(function_2).is_empty
-    assert CodeRepresenter(function_3).is_empty
-    assert CodeRepresenter(function_4).is_empty
-    assert CodeRepresenter(function_5).is_empty
-    assert CodeRepresenter(function_6).is_empty
-    assert CodeRepresenter(function_7).is_empty
-    assert CodeRepresenter(function_8).is_empty
-    assert CodeRepresenter(function_9).is_empty
+    assert SlotCodeRepresenter(function_1).is_empty
+    assert SlotCodeRepresenter(function_2).is_empty
+    assert SlotCodeRepresenter(function_3).is_empty
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+    assert SlotCodeRepresenter(function_6).is_empty
+    assert SlotCodeRepresenter(function_7).is_empty
+    assert SlotCodeRepresenter(function_8).is_empty
+    assert SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
@@ -409,15 +409,15 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
         ...
         print('kek')
 
-    assert not CodeRepresenter(function_1).is_empty
-    assert not CodeRepresenter(function_2).is_empty
-    assert not CodeRepresenter(function_3).is_empty
-    assert not CodeRepresenter(function_4).is_empty
-    assert not CodeRepresenter(function_5).is_empty
-    assert not CodeRepresenter(function_6).is_empty
-    assert not CodeRepresenter(function_7).is_empty
-    assert not CodeRepresenter(function_8).is_empty
-    assert not CodeRepresenter(function_9).is_empty
+    assert not SlotCodeRepresenter(function_1).is_empty
+    assert not SlotCodeRepresenter(function_2).is_empty
+    assert not SlotCodeRepresenter(function_3).is_empty
+    assert not SlotCodeRepresenter(function_4).is_empty
+    assert not SlotCodeRepresenter(function_5).is_empty
+    assert not SlotCodeRepresenter(function_6).is_empty
+    assert not SlotCodeRepresenter(function_7).is_empty
+    assert not SlotCodeRepresenter(function_8).is_empty
+    assert not SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
@@ -481,15 +481,15 @@ def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
         print('kek')
         ...
 
-    assert not CodeRepresenter(function_1).is_empty
-    assert not CodeRepresenter(function_2).is_empty
-    assert not CodeRepresenter(function_3).is_empty
-    assert not CodeRepresenter(function_4).is_empty
-    assert not CodeRepresenter(function_5).is_empty
-    assert not CodeRepresenter(function_6).is_empty
-    assert not CodeRepresenter(function_7).is_empty
-    assert not CodeRepresenter(function_8).is_empty
-    assert not CodeRepresenter(function_9).is_empty
+    assert not SlotCodeRepresenter(function_1).is_empty
+    assert not SlotCodeRepresenter(function_2).is_empty
+    assert not SlotCodeRepresenter(function_3).is_empty
+    assert not SlotCodeRepresenter(function_4).is_empty
+    assert not SlotCodeRepresenter(function_5).is_empty
+    assert not SlotCodeRepresenter(function_6).is_empty
+    assert not SlotCodeRepresenter(function_7).is_empty
+    assert not SlotCodeRepresenter(function_8).is_empty
+    assert not SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
@@ -553,15 +553,15 @@ def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
         pass
         print('kek')
 
-    assert not CodeRepresenter(function_1).is_empty
-    assert not CodeRepresenter(function_2).is_empty
-    assert not CodeRepresenter(function_3).is_empty
-    assert not CodeRepresenter(function_4).is_empty
-    assert not CodeRepresenter(function_5).is_empty
-    assert not CodeRepresenter(function_6).is_empty
-    assert not CodeRepresenter(function_7).is_empty
-    assert not CodeRepresenter(function_8).is_empty
-    assert not CodeRepresenter(function_9).is_empty
+    assert not SlotCodeRepresenter(function_1).is_empty
+    assert not SlotCodeRepresenter(function_2).is_empty
+    assert not SlotCodeRepresenter(function_3).is_empty
+    assert not SlotCodeRepresenter(function_4).is_empty
+    assert not SlotCodeRepresenter(function_5).is_empty
+    assert not SlotCodeRepresenter(function_6).is_empty
+    assert not SlotCodeRepresenter(function_7).is_empty
+    assert not SlotCodeRepresenter(function_8).is_empty
+    assert not SlotCodeRepresenter(function_9).is_empty
 
 
 def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
@@ -625,12 +625,12 @@ def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
         print('kek')
         pass
 
-    assert not CodeRepresenter(function_1).is_empty
-    assert not CodeRepresenter(function_2).is_empty
-    assert not CodeRepresenter(function_3).is_empty
-    assert not CodeRepresenter(function_4).is_empty
-    assert not CodeRepresenter(function_5).is_empty
-    assert not CodeRepresenter(function_6).is_empty
-    assert not CodeRepresenter(function_7).is_empty
-    assert not CodeRepresenter(function_8).is_empty
-    assert not CodeRepresenter(function_9).is_empty
+    assert not SlotCodeRepresenter(function_1).is_empty
+    assert not SlotCodeRepresenter(function_2).is_empty
+    assert not SlotCodeRepresenter(function_3).is_empty
+    assert not SlotCodeRepresenter(function_4).is_empty
+    assert not SlotCodeRepresenter(function_5).is_empty
+    assert not SlotCodeRepresenter(function_6).is_empty
+    assert not SlotCodeRepresenter(function_7).is_empty
+    assert not SlotCodeRepresenter(function_8).is_empty
+    assert not SlotCodeRepresenter(function_9).is_empty

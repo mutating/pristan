@@ -5,7 +5,7 @@ from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Any, ove
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
 
-from symplug.components.code_representer import CodeRepresenter
+from symplug.components.slot_code_representer import SlotCodeRepresenter
 
 
 SlotPapameters = ParamSpec('Papameters')
@@ -22,7 +22,7 @@ class AddictionalArguments:
 class Slot:
     def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_key: Optional[str]) -> None:
         self.slot_function = slot_function
-        self.slot_ast = CodeRepresenter(slot_function)
+        self.slot_ast = SlotCodeRepresenter(slot_function)
         self.arguments = arguments
         self.signature = signature
         self.slot_key = slot_key

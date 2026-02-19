@@ -5,7 +5,7 @@ from ast import parse, Pass, Expr, Constant
 from dill.source import getsource as dill_getsource  # type: ignore[import-untyped]
 
 
-class CodeRepresenter:
+class SlotCodeRepresenter:
     def __init__(self, function: Callable[..., Any]) -> None:
         self.function = function
 
