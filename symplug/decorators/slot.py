@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from functools import partial, wraps
-from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Any, overload
+from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Any, Type, DefaultDict, overload
+from collections import defaultdict
 
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
+from simtypes import check
+from denial import InnerNoneType
 
-from symplug.components.slot_code_representer import SlotCodeRepresenter
+from symplug.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
 
 
 SlotPapameters = ParamSpec('Papameters')
@@ -19,24 +22,62 @@ class AddictionalArguments:
     how_many: Optional[Union[str, int]]
 
 
+class Plugin:
+    def __init__(self, name: str, plugin_function: PluginFunction, expected_result_type: Union[InnerNoneType, Type[Any]]) -> None:
+        self.plugin_function = plugin_function
+        self.requested_name = name
+        self.name = name
+        self.expected_result_type = expected_result_type
+
+    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> PluginResult:
+        result = self.plugin_function(*args, **kwargs)
+
+        if self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type):
+            raise TypeError()
+
+        return result
+
+    def set_name(self, name: str) -> None:
+        self.name = name
+
+
 class Slot:
     def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_key: Optional[str]) -> None:
         self.slot_function = slot_function
-        self.slot_ast = SlotCodeRepresenter(slot_function)
+        self.code_representation = SlotCodeRepresenter(slot_function)
         self.arguments = arguments
         self.signature = signature
         self.slot_key = slot_key
-        self.plugins = []
+        self.plugins: List[Plugin] = []
+        self.plugins_by_requested_names: DefaultDict[str, Plugin] = defaultdict(list)
+
+        self._compare_signatures(self.slot_function, self.slot_function)
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> SlotResult:
+        if not self.code_representation.is_empty and not self.plugins:
+            plugins = [Plugin(self.slot_key if self.slot_key is not None else self.slot_function.__name__, self.slot_function, self.code_representation.returns_type)]
+        else:
+            plugins = self.plugins
+
+        if self.code_representation.returns_list:
+            return [plugin(*args, **kwargs) for plugin in plugins]
+
+        elif self.code_representation.returns_dict:
+            return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
+
         return self.slot_function(*args, **kwargs)
 
     def plugin(self, plugin_name: str) -> Callable[[PluginFunction], PluginFunction]:
         def decorator(plugin_function: PluginFunction) -> PluginFunction:
             self._compare_signatures(self.slot_function, plugin_function)
-            self.plugins.append(plugin_function)
+            self._add_plugin(plugin_name, plugin_function)
             return plugin_function
         return decorator
+
+    def _add_plugin(self, name: str, function: PluginFunction) -> None:
+        if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returns_type is not return_type_sentinel and self.plugins:
+            raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
+        self.plugins.append(Plugin(name, function, self.code_representation.returns_type))
 
     def _compare_signatures(self, slot_function: SlotFunction, plugin_function: PluginFunction) -> None:
         if self.signature is not None:
@@ -53,8 +94,6 @@ def slot(*, a: str, b: str) -> Callable[[SlotFunction], SlotFunction]: ...
 
 def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, key: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
     if function is not None:
-        if signature is not None:
-            PossibleCallMatcher(signature).match(function, raise_exception=True)
         arguments = AddictionalArguments(
             how_many=how_many,
         )
