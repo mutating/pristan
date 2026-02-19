@@ -1,7 +1,7 @@
 from functools import cached_property
 from inspect import getsource
 from ast import parse, Pass, Expr, Constant
-from typing import List, Type, Dict, Union, Any, get_args, get_origin, get_type_hints
+from typing import Type, Union, Any, get_args, get_origin, get_type_hints
 
 from dill.source import getsource as dill_getsource  # type: ignore[import-untyped]
 from denial import InnerNoneType
