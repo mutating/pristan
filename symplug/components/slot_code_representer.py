@@ -16,7 +16,7 @@ class SlotCodeRepresenter:
         except OSError:
             source_code = dill_getsource(self.function)
 
-        converted_source_code = self.clear_spaces_from_source_code(source_code)
+        converted_source_code = self._clear_spaces_from_source_code(source_code)
 
         tree = parse(converted_source_code)
         body = tree.body[0].body
@@ -28,7 +28,7 @@ class SlotCodeRepresenter:
         return True
 
     @staticmethod
-    def clear_spaces_from_source_code(source_code: str) -> str:
+    def _clear_spaces_from_source_code(source_code: str) -> str:
         splitted_source_code = source_code.split('\n')
 
         indent = 0
