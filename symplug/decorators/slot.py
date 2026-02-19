@@ -8,6 +8,7 @@ from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
 from simtypes import check
 from denial import InnerNoneType
+from packaging.version import Version
 
 from symplug.errors import TooManyPluginsError, PrimadonnaPluginError
 from symplug.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
