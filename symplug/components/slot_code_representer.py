@@ -21,14 +21,14 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return sentinel
 
-        elif get_origin(return_hint) is list:
+        elif list in (return_hint, get_origin(return_hint)):
             args = get_args(return_hint)
             if args:
                 return args[0]
             else:
                 return sentinel
 
-        elif get_origin(return_hint) is dict:
+        elif dict in (return_hint, get_origin(return_hint)):
             args = get_args(return_hint)
             if args:
                 if not args[0] is str or len(args) != 2:
@@ -47,7 +47,7 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return False
 
-        elif get_origin(return_hint) is list:
+        elif list in (return_hint, get_origin(return_hint)):
             return True
 
         return False
@@ -60,7 +60,7 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return False
 
-        elif get_origin(return_hint) is dict:
+        elif dict in (return_hint, get_origin(return_hint)):
             return True
 
         return False
