@@ -9,6 +9,7 @@ from sigmatch.errors import SignatureMismatchError
 from simtypes import check
 from denial import InnerNoneType
 
+from symplug.errors import TooManyPluginsError, PrimadonnaPluginError
 from symplug.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
 
 
@@ -43,12 +44,16 @@ class Plugin:
 
 
 class Slot:
-    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_name: Optional[str]) -> None:
+    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_name: Optional[str], max: Optional[int]) -> None:
+        if max is not None and max < 0:
+            raise ValueError('The maximum number of plugins cannot be less than zero.')
+
         self.slot_function = slot_function
         self.code_representation = SlotCodeRepresenter(slot_function)
         self.arguments = arguments
         self.signature = signature
         self.slot_name = slot_name
+        self.max_number_of_plugins = max
         self.plugins: List[Plugin] = []
         self.plugins_by_requested_names: DefaultDict[str, Plugin] = defaultdict(list)
         self.lock = Lock()
@@ -69,24 +74,29 @@ class Slot:
 
         return self.slot_function(*args, **kwargs)
 
-    def plugin(self, plugin_name: str) -> Callable[[PluginFunction], PluginFunction]:
+    def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction], PluginFunction]:
         if not plugin_name.isidentifier:
             raise ValueError('The plugin name must be a valid Python identifier.')
 
         def decorator(plugin_function: PluginFunction) -> PluginFunction:
             self._compare_signatures(self.slot_function, plugin_function)
-            self._add_plugin(plugin_name, plugin_function)
+            self._add_plugin(plugin_name, plugin_function, unique)
             return plugin_function
 
         return decorator
 
-    def _add_plugin(self, name: str, function: PluginFunction) -> None:
+    def _add_plugin(self, name: str, function: PluginFunction, unique: bool) -> None:
         if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returns_type is not return_type_sentinel and self.plugins:
             raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
 
         plugin = Plugin(name, function, self.code_representation.returns_type)
-        self.plugins.append(plugin)
+
         with self.lock:
+            if len(self.plugins) == self.max_number_of_plugins:
+                raise TooManyPluginsError(f'The maximum number of plugins for this slot is {self.max_number_of_plugins}.')
+            self.plugins.append(plugin)
+            if self.plugins_by_requested_names[name] and unique:
+                raise PrimadonnaPluginError(f'Plugin "{name}" claims to be unique, but there are other plugins with the same name.')
             self.plugins_by_requested_names[name].append(plugin)
             if len(self.plugins_by_requested_names[name]) > 1:
                 plugin.set_name(f'{name}-{len(self.plugins_by_requested_names[name])}')
@@ -104,12 +114,12 @@ def slot(func: SlotFunction, /) -> SlotFunction: ...
 @overload
 def slot(*, a: str, b: str) -> Callable[[SlotFunction], SlotFunction]: ...
 
-def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, name: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
+def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
     if function is not None:
         arguments = AddictionalArguments(
             how_many=how_many,
         )
-        decorator = wraps(function)(Slot(function, arguments, signature, name))
+        decorator = wraps(function)(Slot(function, arguments, signature, name, max))
         return decorator
 
     return partial(slot, how_many=how_many, signature=signature, name=name)
