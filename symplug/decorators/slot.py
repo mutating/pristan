@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from functools import partial, wraps
 from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Any, Type, DefaultDict, overload
 from collections import defaultdict
+from threading import Lock
 
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
@@ -42,20 +43,21 @@ class Plugin:
 
 
 class Slot:
-    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_key: Optional[str]) -> None:
+    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_name: Optional[str]) -> None:
         self.slot_function = slot_function
         self.code_representation = SlotCodeRepresenter(slot_function)
         self.arguments = arguments
         self.signature = signature
-        self.slot_key = slot_key
+        self.slot_name = slot_name
         self.plugins: List[Plugin] = []
         self.plugins_by_requested_names: DefaultDict[str, Plugin] = defaultdict(list)
+        self.lock = Lock()
 
         self._compare_signatures(self.slot_function, self.slot_function)
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> SlotResult:
         if not self.code_representation.is_empty and not self.plugins:
-            plugins = [Plugin(self.slot_key if self.slot_key is not None else self.slot_function.__name__, self.slot_function, self.code_representation.returns_type)]
+            plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, self.code_representation.returns_type)]
         else:
             plugins = self.plugins
 
@@ -68,16 +70,26 @@ class Slot:
         return self.slot_function(*args, **kwargs)
 
     def plugin(self, plugin_name: str) -> Callable[[PluginFunction], PluginFunction]:
+        if not plugin_name.isidentifier:
+            raise ValueError('The plugin name must be a valid Python identifier.')
+
         def decorator(plugin_function: PluginFunction) -> PluginFunction:
             self._compare_signatures(self.slot_function, plugin_function)
             self._add_plugin(plugin_name, plugin_function)
             return plugin_function
+
         return decorator
 
     def _add_plugin(self, name: str, function: PluginFunction) -> None:
         if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returns_type is not return_type_sentinel and self.plugins:
             raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
-        self.plugins.append(Plugin(name, function, self.code_representation.returns_type))
+
+        plugin = Plugin(name, function, self.code_representation.returns_type)
+        self.plugins.append(plugin)
+        with self.lock:
+            self.plugins_by_requested_names[name].append(plugin)
+            if len(self.plugins_by_requested_names[name]) > 1:
+                plugin.set_name(f'{name}-{len(self.plugins_by_requested_names[name])}')
 
     def _compare_signatures(self, slot_function: SlotFunction, plugin_function: PluginFunction) -> None:
         if self.signature is not None:
@@ -92,12 +104,12 @@ def slot(func: SlotFunction, /) -> SlotFunction: ...
 @overload
 def slot(*, a: str, b: str) -> Callable[[SlotFunction], SlotFunction]: ...
 
-def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, key: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
+def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, name: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
     if function is not None:
         arguments = AddictionalArguments(
             how_many=how_many,
         )
-        decorator = wraps(function)(Slot(function, arguments, signature, key))
+        decorator = wraps(function)(Slot(function, arguments, signature, name))
         return decorator
 
-    return partial(slot, how_many=how_many, signature=signature, key=key)
+    return partial(slot, how_many=how_many, signature=signature, name=name)
