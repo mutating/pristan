@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from functools import partial, wraps
-from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, overload
+from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Any, overload
 
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
+
+from symplug.components.code_representer import CodeRepresenter
 
 
 SlotPapameters = ParamSpec('Papameters')
@@ -16,11 +18,14 @@ PluginFunction = Callable[SlotPapameters, PluginResult]
 class AddictionalArguments:
     how_many: Optional[Union[str, int]]
 
+
 class Slot:
-    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str]) -> None:
+    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_key: Optional[str]) -> None:
         self.slot_function = slot_function
+        self.slot_ast = CodeRepresenter(slot_function)
         self.arguments = arguments
         self.signature = signature
+        self.slot_key = slot_key
         self.plugins = []
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> SlotResult:
@@ -46,14 +51,14 @@ def slot(func: SlotFunction, /) -> SlotFunction: ...
 @overload
 def slot(*, a: str, b: str) -> Callable[[SlotFunction], SlotFunction]: ...
 
-def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
+def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, key: Optional[str] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
     if function is not None:
         if signature is not None:
             PossibleCallMatcher(signature).match(function, raise_exception=True)
         arguments = AddictionalArguments(
             how_many=how_many,
         )
-        decorator = wraps(function)(Slot(function, arguments, signature))
+        decorator = wraps(function)(Slot(function, arguments, signature, key))
         return decorator
 
-    return partial(slot, how_many=how_many, signature=signature)
+    return partial(slot, how_many=how_many, signature=signature, key=key)
