@@ -1,10 +1,12 @@
 from functools import cached_property
-from inspect import getsource
+from inspect import getsource, getmodule
 from ast import parse, Pass, Expr, Constant
-from typing import Type, Union, Any, get_args, get_origin, get_type_hints
+from typing import Type, Union, Any, Optional, get_args, get_origin, get_type_hints
+from importlib.metadata import version, PackageNotFoundError
 
 from dill.source import getsource as dill_getsource  # type: ignore[import-untyped]
 from denial import InnerNoneType
+from packaging.version import Version
 
 
 sentinel = InnerNoneType()
@@ -12,6 +14,18 @@ sentinel = InnerNoneType()
 class SlotCodeRepresenter:
     def __init__(self, function: Callable[..., Any]) -> None:
         self.function = function
+
+    @cached_property
+    def base_module(self) -> str:
+        return getmodule(self.function).__name__.split('.')[0]
+
+    @cached_property
+    def package_version(self) -> Optional[Version]:
+        try:
+            version_identifier = version(self.base_module)
+            return Version(version_identifier)
+        except PackageNotFoundError:
+            return None
 
     @cached_property
     def returns_type(self) -> Union[InnerNoneType, Type[Any]]:
