@@ -1,3 +1,4 @@
+from denial import InnerNoneType
 from symplug.components.slot_code_representer import SlotCodeRepresenter
 
 
@@ -634,3 +635,64 @@ def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
     assert not SlotCodeRepresenter(function_7).is_empty
     assert not SlotCodeRepresenter(function_8).is_empty
     assert not SlotCodeRepresenter(function_9).is_empty
+
+
+def test_just_list_is_list(transformed, list_type):
+    @transformed
+    def function() -> list_type:
+        ...
+
+    print(SlotCodeRepresenter(function).returns_type)
+    assert SlotCodeRepresenter(function).returns_list
+    assert not SlotCodeRepresenter(function).returns_dict
+    assert isinstance(SlotCodeRepresenter(function).returns_type, InnerNoneType)
+
+
+def test_just_dict_is_dict(transformed, dict_type):
+    @transformed
+    def function() -> dict_type:
+        ...
+
+    assert SlotCodeRepresenter(function).returns_dict
+    assert not SlotCodeRepresenter(function).returns_list
+    assert isinstance(SlotCodeRepresenter(function).returns_type, InnerNoneType)
+
+
+def test_dict_with_parameters_is_dict(transformed, subscribable_dict_type):
+    @transformed
+    def function() -> subscribable_dict_type[str, str]:
+        ...
+
+    assert SlotCodeRepresenter(function).returns_dict
+    assert not SlotCodeRepresenter(function).returns_list
+    assert SlotCodeRepresenter(function).returns_type is str
+
+
+def test_list_with_parameters_is_list(transformed, subscribable_list_type):
+    @transformed
+    def function() -> subscribable_list_type[str]:
+        ...
+
+    assert SlotCodeRepresenter(function).returns_list
+    assert not SlotCodeRepresenter(function).returns_dict
+    assert SlotCodeRepresenter(function).returns_type is str
+
+
+def test_empty_hint_returns_sentinel(transformed):
+    @transformed
+    def function():
+        ...
+
+    assert not SlotCodeRepresenter(function).returns_list
+    assert not SlotCodeRepresenter(function).returns_dict
+    assert isinstance(SlotCodeRepresenter(function).returns_type, InnerNoneType)
+
+
+def test_returning_another_objects(transformed):
+    @transformed
+    def function() -> int:
+        ...
+
+    assert not SlotCodeRepresenter(function).returns_list
+    assert not SlotCodeRepresenter(function).returns_dict
+    assert SlotCodeRepresenter(function).returns_type is int

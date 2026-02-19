@@ -1,3 +1,6 @@
+from typing import List, Dict
+from sys import version_info
+
 import pytest
 from transfunctions import transfunction
 
@@ -12,3 +15,23 @@ def transformed(request):
         if request.param == 'generator':
             return transfunction(function, check_decorators=False).get_generator_function()
     return transformator_function
+
+
+@pytest.fixture(params=[Dict, dict])
+def dict_type(request):
+    return request.param
+
+
+@pytest.fixture(params=[List, list])
+def list_type(request):
+    return request.param
+
+
+@pytest.fixture(params=([List] if version_info < (3, 9) else [List, list]))
+def subscribable_list_type(request):
+    return request.param
+
+
+@pytest.fixture(params=([Dict] if version_info < (3, 9) else [Dict, dict]))
+def subscribable_dict_type(request):
+    return request.param
