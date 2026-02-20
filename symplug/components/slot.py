@@ -13,8 +13,6 @@ from symplug.common_types import SlotPapameters, SlotResult, SlotFunction, Plugi
 from symplug.components.plugin import Plugin
 
 
-
-
 class Slot:
     def __init__(self, slot_function: SlotFunction, signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool) -> None:
         if max is not None and max < 0:
