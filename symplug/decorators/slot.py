@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import partial, wraps
-from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Any, Type, DefaultDict, overload
+from typing import Callable, List, Dict, Optional, ParamSpec, TypeVar, Union, Any, Type, DefaultDict, overload
 from collections import defaultdict
 from threading import Lock
 
@@ -26,16 +26,17 @@ class AddictionalArguments:
 
 
 class Plugin:
-    def __init__(self, name: str, plugin_function: PluginFunction, expected_result_type: Union[InnerNoneType, Type[Any]]) -> None:
+    def __init__(self, name: str, plugin_function: PluginFunction, expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool) -> None:
         self.plugin_function = plugin_function
         self.requested_name = name
         self.name = name
         self.expected_result_type = expected_result_type
+        self.type_check = type_check
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> PluginResult:
         result = self.plugin_function(*args, **kwargs)
 
-        if self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type):
+        if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type):
             raise TypeError()
 
         return result
@@ -45,7 +46,7 @@ class Plugin:
 
 
 class Slot:
-    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_name: Optional[str], max: Optional[int]) -> None:
+    def __init__(self, slot_function: SlotFunction, arguments: AddictionalArguments, signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool) -> None:
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
@@ -55,6 +56,7 @@ class Slot:
         self.signature = signature
         self.slot_name = slot_name
         self.max_number_of_plugins = max
+        self.type_check = type_check
         self.plugins: List[Plugin] = []
         self.plugins_by_requested_names: DefaultDict[str, Plugin] = defaultdict(list)
         self.lock = Lock()
@@ -63,7 +65,20 @@ class Slot:
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> SlotResult:
         if not self.code_representation.is_empty and not self.plugins:
-            plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, self.code_representation.returns_type)]
+            if self.code_representation.returns_list:
+                if self.code_representation.returns_type is return_type_sentinel:
+                    returns_type = List
+                else:
+                    returns_type = List[self.code_representation.returns_type]
+            elif self.code_representation.returns_dict and self.code_representation.returns_type is return_type_sentinel:
+                if self.code_representation.returns_type is return_type_sentinel:
+                    returns_type = Dict
+                else:
+                    returns_type = Dict[str, self.code_representation.returns_type]
+            else:
+                returns_type = self.code_representation.returns_type
+
+            plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check)]
         else:
             plugins = self.plugins
 
@@ -73,10 +88,11 @@ class Slot:
         elif self.code_representation.returns_dict:
             return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
 
-        return self.slot_function(*args, **kwargs)
+        for plugin in plugins:
+            plugin(*args, **kwargs)
 
     def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction], PluginFunction]:
-        if not plugin_name.isidentifier:
+        if callable(plugin_name) or not plugin_name.isidentifier:
             raise ValueError('The plugin name must be a valid Python identifier.')
 
         def decorator(plugin_function: PluginFunction) -> PluginFunction:
@@ -90,7 +106,7 @@ class Slot:
         if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returns_type is not return_type_sentinel and self.plugins:
             raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
 
-        plugin = Plugin(name, function, self.code_representation.returns_type)
+        plugin = Plugin(name, function, self.code_representation.returns_type, self.type_check)
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:
@@ -115,12 +131,12 @@ def slot(func: SlotFunction, /) -> SlotFunction: ...
 @overload
 def slot(*, a: str, b: str) -> Callable[[SlotFunction], SlotFunction]: ...
 
-def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
+def slot(function: Optional[SlotFunction] = None, /, *, how_many: Optional[Union[str, int]] = None, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True) -> Union[SlotFunction, Callable[[SlotFunction], SlotFunction]]:
     if function is not None:
         arguments = AddictionalArguments(
             how_many=how_many,
         )
-        decorator = wraps(function)(Slot(function, arguments, signature, name, max))
+        decorator = wraps(function)(Slot(function, arguments, signature, name, max, type_check))
         return decorator
 
     return partial(slot, how_many=how_many, signature=signature, name=name)
