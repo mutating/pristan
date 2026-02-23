@@ -1,4 +1,4 @@
-# pristan
+![logo](https://raw.githubusercontent.com/pomponchik/pristan/develop/docs/assets/logo_1.svg)
 
 ## Требования
 
