@@ -7,10 +7,10 @@ from sigmatch.errors import SignatureMismatchError
 
 from packaging.version import Version
 
-from symplug.errors import TooManyPluginsError, PrimadonnaPluginError
-from symplug.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
-from symplug.common_types import SlotPapameters, SlotResult, SlotFunction, PluginFunction
-from symplug.components.plugin import Plugin
+from pristan.errors import TooManyPluginsError, PrimadonnaPluginError
+from pristan.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
+from pristan.common_types import SlotPapameters, SlotResult, SlotFunction, PluginFunction
+from pristan.components.plugin import Plugin
 
 
 class Slot:

@@ -3,7 +3,7 @@ requires = ["setuptools==68.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "symplug"
+name = "pristan"
 version = "0.0.1"
 authors = [{ name = "Evgeniy Blinov", email = "zheni-b@yandex.ru" }]
 description = ""
@@ -39,10 +39,10 @@ classifiers = [
 keywords = []
 
 [tool.setuptools.package-data]
-"symplug" = ["py.typed"]
+"pristan" = ["py.typed"]
 
 [tool.mutmut]
-paths_to_mutate = "symplug"
+paths_to_mutate = "pristan"
 runner = "pytest"
 
 [tool.pytest.ini_options]
@@ -54,5 +54,5 @@ lint.select = ["ERA001", "YTT", "ASYNC", "BLE", "B", "A", "COM", "INP", "PIE", "
 format.quote-style = "single"
 
 [project.urls]
-'Source' = 'https://github.com/pomponchik/symplug'
-'Tracker' = 'https://github.com/pomponchik/symplug/issues'
+'Source' = 'https://github.com/pomponchik/pristan'
+'Tracker' = 'https://github.com/pomponchik/pristan/issues'

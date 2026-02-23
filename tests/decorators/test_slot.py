@@ -2,8 +2,8 @@ import pytest
 from full_match import match
 from sigmatch.errors import SignatureMismatchError
 
-from symplug import slot
-from symplug.decorators.slot import Slot
+from pristan import slot
+from pristan.decorators.slot import Slot
 
 
 def test_slot_is_not_a_function():

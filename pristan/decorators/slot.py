@@ -1,8 +1,8 @@
 from functools import partial, wraps
 from typing import Callable, Optional, Union, overload
 
-from symplug.common_types import SlotFunction
-from symplug.components.slot import Slot
+from pristan.common_types import SlotFunction
+from pristan.components.slot import Slot
 
 
 @overload

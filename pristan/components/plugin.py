@@ -3,8 +3,8 @@ from typing import Union, Any, Type
 from simtypes import check
 from denial import InnerNoneType
 
-from symplug.common_types import SlotPapameters, PluginResult, PluginFunction
-from symplug.components.slot_code_representer import sentinel as return_type_sentinel
+from pristan.common_types import SlotPapameters, PluginResult, PluginFunction
+from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 
 
 class Plugin:

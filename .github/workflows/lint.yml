@@ -35,7 +35,7 @@ jobs:
 
       - name: Run ruff
         shell: bash
-        run: ruff check symplug
+        run: ruff check pristan
 
       - name: Run ruff for tests
         shell: bash
@@ -43,7 +43,7 @@ jobs:
 
       - name: Run mypy
         shell: bash
-        run: mypy --strict symplug
+        run: mypy --strict pristan
 
       - name: Run mypy for tests
         shell: bash

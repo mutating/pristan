@@ -1,5 +1,5 @@
 from denial import InnerNoneType
-from symplug.components.slot_code_representer import SlotCodeRepresenter
+from pristan.components.slot_code_representer import SlotCodeRepresenter
 
 
 def test_function_with_one_single_ellipsis_is_empty(transformed):
