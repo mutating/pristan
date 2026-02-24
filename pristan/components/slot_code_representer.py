@@ -46,7 +46,7 @@ class SlotCodeRepresenter:
             args = get_args(return_hint)
             if args:
                 if not args[0] is str or len(args) != 2:
-                    raise TypeError()
+                    raise TypeError('Incorrect type annotation for the dict.')
                 return args[1]
             else:
                 return sentinel
