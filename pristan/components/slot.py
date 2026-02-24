@@ -85,6 +85,7 @@ class Slot:
                 for other_plugin in self.plugins_by_requested_names[name]:
                     if other_plugin.unique:
                         self.plugins_by_requested_names[name].pop()
+                        self.plugins.pop()
                         raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
 
     def _compare_signatures(self, slot_function: SlotFunction, plugin_function: PluginFunction) -> None:
