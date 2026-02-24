@@ -1,4 +1,6 @@
 from denial import InnerNoneType
+from printo import descript_data_object
+
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 
 
@@ -696,3 +698,10 @@ def test_returning_another_objects(transformed):
     assert not SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
     assert SlotCodeRepresenter(function).returning_type is int
+
+
+def test_base_module():
+    def function(): ...
+
+    assert SlotCodeRepresenter(descript_data_object).base_module == 'printo'
+    assert SlotCodeRepresenter(function).base_module == 'tests'
