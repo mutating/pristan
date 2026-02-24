@@ -33,17 +33,17 @@ class Slot:
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> SlotResult:
         if not self.code_representation.is_empty and not self.plugins:
             if self.code_representation.returns_list:
-                if self.code_representation.returns_type is return_type_sentinel:
+                if self.code_representation.returning_type is return_type_sentinel:
                     returns_type = List
                 else:
-                    returns_type = List[self.code_representation.returns_type]
-            elif self.code_representation.returns_dict and self.code_representation.returns_type is return_type_sentinel:
-                if self.code_representation.returns_type is return_type_sentinel:
+                    returns_type = List[self.code_representation.returning_type]
+            elif self.code_representation.returns_dict and self.code_representation.returning_type is return_type_sentinel:
+                if self.code_representation.returning_type is return_type_sentinel:
                     returns_type = Dict
                 else:
-                    returns_type = Dict[str, self.code_representation.returns_type]
+                    returns_type = Dict[str, self.code_representation.returning_type]
             else:
-                returns_type = self.code_representation.returns_type
+                returns_type = self.code_representation.returning_type
 
             plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)]
         else:
@@ -70,10 +70,10 @@ class Slot:
         return decorator
 
     def _add_plugin(self, name: str, function: PluginFunction, unique: bool) -> None:
-        if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returns_type is not return_type_sentinel and self.plugins:
+        if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returning_type is not return_type_sentinel and self.plugins:
             raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
 
-        plugin = Plugin(name, function, self.code_representation.returns_type, self.type_check, unique)
+        plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:

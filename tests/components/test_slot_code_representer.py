@@ -642,10 +642,10 @@ def test_just_list_is_list(transformed, list_type):
     def function() -> list_type:
         ...
 
-    print(SlotCodeRepresenter(function).returns_type)
+    print(SlotCodeRepresenter(function).returning_type)
     assert SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
-    assert isinstance(SlotCodeRepresenter(function).returns_type, InnerNoneType)
+    assert isinstance(SlotCodeRepresenter(function).returning_type, InnerNoneType)
 
 
 def test_just_dict_is_dict(transformed, dict_type):
@@ -655,7 +655,7 @@ def test_just_dict_is_dict(transformed, dict_type):
 
     assert SlotCodeRepresenter(function).returns_dict
     assert not SlotCodeRepresenter(function).returns_list
-    assert isinstance(SlotCodeRepresenter(function).returns_type, InnerNoneType)
+    assert isinstance(SlotCodeRepresenter(function).returning_type, InnerNoneType)
 
 
 def test_dict_with_parameters_is_dict(transformed, subscribable_dict_type):
@@ -665,7 +665,7 @@ def test_dict_with_parameters_is_dict(transformed, subscribable_dict_type):
 
     assert SlotCodeRepresenter(function).returns_dict
     assert not SlotCodeRepresenter(function).returns_list
-    assert SlotCodeRepresenter(function).returns_type is str
+    assert SlotCodeRepresenter(function).returning_type is str
 
 
 def test_list_with_parameters_is_list(transformed, subscribable_list_type):
@@ -675,7 +675,7 @@ def test_list_with_parameters_is_list(transformed, subscribable_list_type):
 
     assert SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
-    assert SlotCodeRepresenter(function).returns_type is str
+    assert SlotCodeRepresenter(function).returning_type is str
 
 
 def test_empty_hint_returns_sentinel(transformed):
@@ -685,7 +685,7 @@ def test_empty_hint_returns_sentinel(transformed):
 
     assert not SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
-    assert isinstance(SlotCodeRepresenter(function).returns_type, InnerNoneType)
+    assert isinstance(SlotCodeRepresenter(function).returning_type, InnerNoneType)
 
 
 def test_returning_another_objects(transformed):
@@ -695,4 +695,4 @@ def test_returning_another_objects(transformed):
 
     assert not SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
-    assert SlotCodeRepresenter(function).returns_type is int
+    assert SlotCodeRepresenter(function).returning_type is int
