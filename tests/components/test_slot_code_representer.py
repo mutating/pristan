@@ -1,5 +1,6 @@
 from denial import InnerNoneType
 from printo import descript_data_object
+from packaging.version import Version
 
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 
@@ -705,3 +706,10 @@ def test_base_module():
 
     assert SlotCodeRepresenter(descript_data_object).base_module == 'printo'
     assert SlotCodeRepresenter(function).base_module == 'tests'
+
+
+def test_package_version():
+    def function(): ...
+
+    assert SlotCodeRepresenter(descript_data_object).package_version == Version('0.0.14')
+    assert SlotCodeRepresenter(function).package_version is None
