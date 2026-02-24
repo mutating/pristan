@@ -8,12 +8,13 @@ from pristan.components.slot_code_representer import sentinel as return_type_sen
 
 
 class Plugin:
-    def __init__(self, name: str, plugin_function: PluginFunction, expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool) -> None:
+    def __init__(self, name: str, plugin_function: PluginFunction, expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:
         self.plugin_function = plugin_function
         self.requested_name = name
         self.name = name
         self.expected_result_type = expected_result_type
         self.type_check = type_check
+        self.unique = unique
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> PluginResult:
         result = self.plugin_function(*args, **kwargs)

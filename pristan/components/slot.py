@@ -45,7 +45,7 @@ class Slot:
             else:
                 returns_type = self.code_representation.returns_type
 
-            plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check)]
+            plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)]
         else:
             plugins = self.plugins
 
@@ -73,17 +73,19 @@ class Slot:
         if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returns_type is not return_type_sentinel and self.plugins:
             raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
 
-        plugin = Plugin(name, function, self.code_representation.returns_type, self.type_check)
+        plugin = Plugin(name, function, self.code_representation.returns_type, self.type_check, unique)
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:
                 raise TooManyPluginsError(f'The maximum number of plugins for this slot is {self.max_number_of_plugins}.')
             self.plugins.append(plugin)
-            if self.plugins_by_requested_names[name] and unique:
-                raise PrimadonnaPluginError(f'Plugin "{name}" claims to be unique, but there are other plugins with the same name.')
             self.plugins_by_requested_names[name].append(plugin)
             if len(self.plugins_by_requested_names[name]) > 1:
                 plugin.set_name(f'{name}-{len(self.plugins_by_requested_names[name])}')
+                for other_plugin in self.plugins_by_requested_names[name]:
+                    if other_plugin.unique:
+                        self.plugins_by_requested_names[name].pop()
+                        raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
 
     def _compare_signatures(self, slot_function: SlotFunction, plugin_function: PluginFunction) -> None:
         if self.signature is not None:
