@@ -1,9 +1,11 @@
+from enum import unique
 import pytest
 from full_match import match
 from sigmatch.errors import SignatureMismatchError
 
 from pristan import slot
 from pristan.decorators.slot import Slot
+from pristan.errors import PrimadonnaPluginError
 
 
 def test_slot_is_not_a_function():
@@ -100,3 +102,81 @@ def test_run_1_plugin_with_emplty_list_hint(folder, list_type):
     assert some_slot(1, 2) == [5]
 
     assert bread_crumbs == [4]
+
+
+@pytest.mark.parametrize(
+    ('folder'),
+    [
+        lambda x: x,
+        lambda x: x(),
+    ]
+)
+def test_2_not_unique_plugins_with_same_names(folder):
+    @folder(slot)
+    def some_slot(a, b):
+        ...
+
+    @some_slot.plugin('kek')
+    def plugin_1(a, b):
+        ...
+
+    @some_slot.plugin('kek')
+    def plugin_2(a, b):
+        ...
+
+    @some_slot.plugin('kek')
+    def plugin_3(a, b):
+        ...
+
+    assert [x.name for x in some_slot.plugins] == ['kek', 'kek-2', 'kek-3']
+    assert [x.name for x in some_slot.plugins_by_requested_names['kek']] == ['kek', 'kek-2', 'kek-3']
+
+
+@pytest.mark.parametrize(
+    ('folder'),
+    [
+        lambda x: x,
+        lambda x: x(),
+    ]
+)
+def test_2_plugins_with_same_names_and_first_one_is_unique(folder):
+    @folder(slot)
+    def some_slot(a, b):
+        ...
+
+    @some_slot.plugin('kek', unique=True)
+    def plugin_1(a, b):
+        ...
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Plugin "kek" claims to be unique, but there are other plugins with the same name.')):
+        @some_slot.plugin('kek')
+        def plugin_2(a, b):
+            ...
+
+    assert [x.name for x in some_slot.plugins] == ['kek']
+    assert [x.name for x in some_slot.plugins_by_requested_names['kek']] == ['kek']
+
+
+@pytest.mark.parametrize(
+    ('folder'),
+    [
+        lambda x: x,
+        lambda x: x(),
+    ]
+)
+def test_2_plugins_with_same_names_and_second_one_is_unique(folder):
+    @folder(slot)
+    def some_slot(a, b):
+        ...
+
+    @some_slot.plugin('kek')
+    def plugin_1(a, b):
+        ...
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Plugin "kek-2" claims to be unique, but there are other plugins with the same name.')):
+        @some_slot.plugin('kek', unique=True)
+        def plugin_2(a, b):
+            ...
+
+    assert [x.name for x in some_slot.plugins] == ['kek']
+    assert [x.name for x in some_slot.plugins_by_requested_names['kek']] == ['kek']

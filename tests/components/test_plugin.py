@@ -1,0 +1,45 @@
+from typing import List, Union
+
+import pytest
+from full_match import match
+
+from pristan.components.plugin import Plugin
+
+
+def test_i_can_run_plugin():
+    assert Plugin('some_name', lambda x, y: x + y, int, True, True)(1, 2) == 3
+    assert Plugin('some_name', lambda x, y: x + y, str, False, True)(1, 2) == 3
+    assert Plugin('some_name', lambda x, y: x + y, int, True, False)(1, 2) == 3
+    assert Plugin('some_name', lambda x, y: x + y, str, False, False)(1, 2) == 3
+
+
+def test_type_check_is_not_passed_without_ignore():
+    plugin_name = 'some_name'
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type str.')):
+        Plugin(plugin_name, lambda x, y: x + y, str, True, True)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type List.')):
+        Plugin(plugin_name, lambda x, y: x + y, List, True, True)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
+        Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, True)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type str.')):
+        Plugin(plugin_name, lambda x, y: x + y, str, True, False)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type List.')):
+        Plugin(plugin_name, lambda x, y: x + y, List, True, False)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
+        Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, False)(1, 2)
+
+
+def test_set_name():
+    plugin = Plugin('some_name', lambda x, y: x + y, int, True, True)
+
+    assert plugin.name == 'some_name'
+
+    plugin.set_name('kek')
+
+    assert plugin.name == 'kek'
