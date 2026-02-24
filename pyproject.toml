@@ -11,7 +11,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     'sigmatch>=0.0.7',
-    'simtypes>=0.0.10',
+    'simtypes>=0.0.12',
     'denial>=0.0.11',
     'printo>=0.0.14',
     'dill==0.4.0',
