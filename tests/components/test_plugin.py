@@ -43,3 +43,10 @@ def test_set_name():
     plugin.set_name('kek')
 
     assert plugin.name == 'kek'
+
+
+def test_repr():
+    def some_function(a, b): ...
+
+    assert repr(Plugin('some_name', lambda x, y: x + y, int, True, True)) == "Plugin('some_name', plugin_function=λ, expected_result_type=int, type_check=True, unique=True)"
+    assert repr(Plugin('some_name', some_function, int, True, True)) == "Plugin('some_name', plugin_function=some_function, expected_result_type=int, type_check=True, unique=True)"

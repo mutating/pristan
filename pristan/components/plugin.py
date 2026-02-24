@@ -2,6 +2,7 @@ from typing import Union, Any, Type
 
 from simtypes import check
 from denial import InnerNoneType
+from printo import descript_data_object
 
 from pristan.common_types import SlotPapameters, PluginResult, PluginFunction
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
@@ -15,6 +16,18 @@ class Plugin:
         self.expected_result_type = expected_result_type
         self.type_check = type_check
         self.unique = unique
+
+    def __repr__(self) -> str:
+        return descript_data_object(
+            type(self).__name__,
+            (self.name,),
+            {
+                'plugin_function': self.plugin_function,
+                'expected_result_type': self.expected_result_type,
+                'type_check': self.type_check,
+                'unique': self.unique,
+            },
+        )
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> PluginResult:
         result = self.plugin_function(*args, **kwargs)
