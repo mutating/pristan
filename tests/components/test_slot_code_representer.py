@@ -1,3 +1,5 @@
+import pytest
+from full_match import match
 from denial import InnerNoneType
 from printo import descript_data_object
 from packaging.version import Version
@@ -713,3 +715,15 @@ def test_package_version():
 
     assert SlotCodeRepresenter(descript_data_object).package_version == Version('0.0.14')
     assert SlotCodeRepresenter(function).package_version is None
+
+
+def test_wrong_dict_type_annotation(subscribable_dict_type):
+    def function() -> subscribable_dict_type[str]: ...
+
+    if subscribable_dict_type is dict:
+        with pytest.raises(TypeError, match=match('Incorrect type annotation for the dict.')):
+            SlotCodeRepresenter(function).returning_type
+
+    else:
+        with pytest.raises(TypeError, match=match('Too few arguments for typing.Dict; actual 1, expected 2')):
+            SlotCodeRepresenter(function).returning_type
