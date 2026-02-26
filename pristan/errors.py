@@ -6,3 +6,6 @@ class TooManyPluginsError(Exception):
 
 class PrimadonnaPluginError(Exception):
     ...
+
+class StrangeTypeAnnotationError(Exception):
+    ...

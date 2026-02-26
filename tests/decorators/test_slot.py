@@ -5,7 +5,7 @@ from sigmatch.errors import SignatureMismatchError
 
 from pristan import slot
 from pristan.decorators.slot import Slot
-from pristan.errors import PrimadonnaPluginError, TooManyPluginsError
+from pristan.errors import PrimadonnaPluginError, TooManyPluginsError, StrangeTypeAnnotationError
 
 
 def test_slot_is_not_a_function():
@@ -181,4 +181,11 @@ def test_exceeding_the_limit_1000_of_plugins():
     with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 1000.')):
         @some_slot.plugin('kek')
         def kek(a, b):
+            ...
+
+
+def test_strange_slot_return_type_annotation(folder):
+    with pytest.raises(StrangeTypeAnnotationError, match=match('The return type annotation for a slot must be either a list or a dict, or remain empty.')):
+        @folder(slot)
+        def some_slot(a, b) -> int:
             ...

@@ -7,7 +7,7 @@ from sigmatch.errors import SignatureMismatchError
 
 from packaging.version import Version
 
-from pristan.errors import TooManyPluginsError, PrimadonnaPluginError
+from pristan.errors import TooManyPluginsError, PrimadonnaPluginError, StrangeTypeAnnotationError
 from pristan.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
 from pristan.common_types import SlotPapameters, SlotResult, SlotFunction, PluginFunction
 from pristan.components.plugin import Plugin
@@ -19,7 +19,11 @@ class Slot:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
         self.slot_function = slot_function
-        self.code_representation = SlotCodeRepresenter(slot_function)
+        self.code_representation = SlotCodeRepresenter(self.slot_function)
+
+        if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returning_type is not return_type_sentinel:
+            raise StrangeTypeAnnotationError('The return type annotation for a slot must be either a list or a dict, or remain empty.')
+
         self.signature = signature
         self.slot_name = slot_name
         self.max_number_of_plugins = max
@@ -70,9 +74,6 @@ class Slot:
         return decorator
 
     def _add_plugin(self, name: str, function: PluginFunction, unique: bool) -> None:
-        if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returning_type is not return_type_sentinel and self.plugins:
-            raise TypeError('You cannot register more than one plugin if the slot is not specified as returning a collection.')
-
         plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)
 
         with self.lock:
