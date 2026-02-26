@@ -22,8 +22,8 @@ from pristan.errors import (
 
 
 class Slot:
-    def __init__(self, slot_function: SlotFunction, signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool) -> None:
-        if max is not None and max < 0:
+    def __init__(self, slot_function: SlotFunction, signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool) -> None:
+        if max_plugins is not None and max_plugins < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
         self.slot_function = slot_function
@@ -34,7 +34,7 @@ class Slot:
 
         self.signature = signature
         self.slot_name = slot_name
-        self.max_number_of_plugins = max
+        self.max_number_of_plugins = max_plugins
         self.type_check = type_check
         self.plugins: List[Plugin] = []
         self.plugins_by_requested_names: DefaultDict[str, Plugin] = defaultdict(list)

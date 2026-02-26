@@ -144,7 +144,7 @@ def test_2_plugins_with_same_names_and_second_one_is_unique(folder):
 
 
 def test_exceeding_the_limit_0_of_plugins():
-    @slot(max=0)
+    @slot(max_plugins=0)
     def some_slot(a, b):
         ...
 
@@ -155,7 +155,7 @@ def test_exceeding_the_limit_0_of_plugins():
 
 
 def test_exceeding_the_limit_1_of_plugins():
-    @slot(max=1)
+    @slot(max_plugins=1)
     def some_slot(a, b):
         ...
 
@@ -172,7 +172,7 @@ def test_exceeding_the_limit_1_of_plugins():
 def test_exceeding_the_limit_1000_of_plugins():
     allowed_number_of_plugins = 1000
 
-    @slot(max=allowed_number_of_plugins)
+    @slot(max_plugins=allowed_number_of_plugins)
     def some_slot(a, b):
         ...
 
