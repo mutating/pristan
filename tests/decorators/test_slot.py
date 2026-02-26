@@ -203,3 +203,10 @@ def test_plugin_name_is_not_valid_python_identifier(folder):
         @some_slot.plugin('lol kek')
         def some_plugin(a, b):
             ...
+
+
+def test_slot_return_type_is_dict_but_keys_are_not_str(folder, subscribable_dict_type):
+    with pytest.raises(TypeError, match=match('Incorrect type annotation for the dict.')):
+        @folder(slot)
+        def some_slot(a, b) -> subscribable_dict_type[int, int]:
+            ...

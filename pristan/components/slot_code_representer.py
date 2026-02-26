@@ -22,6 +22,7 @@ sentinel = InnerNoneType()
 class SlotCodeRepresenter:
     def __init__(self, function: Callable[..., Any]) -> None:
         self.function = function
+        self.returning_type  # noqa: B018
 
     @cached_property
     def base_module(self) -> str:
