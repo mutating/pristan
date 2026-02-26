@@ -64,17 +64,16 @@ class Slot:
 
             return result
 
-        else:
-            plugins = self.plugins
+        plugins = self.plugins
 
-            if self.code_representation.returns_list:
-                return [plugin(*args, **kwargs) for plugin in plugins]
+        if self.code_representation.returns_list:
+            return [plugin(*args, **kwargs) for plugin in plugins]
 
-            if self.code_representation.returns_dict:
-                return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
+        if self.code_representation.returns_dict:
+            return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
 
-            for plugin in plugins:
-                plugin(*args, **kwargs)
+        for plugin in plugins:
+            plugin(*args, **kwargs)
 
     def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction], PluginFunction]:
         if callable(plugin_name) or not plugin_name.isidentifier():

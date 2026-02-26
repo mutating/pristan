@@ -535,16 +535,16 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
         return 12
 
     @folder(slot)
-    def some_slot_2(a, b) -> subscribable_dict_type[str, str]:
+    def some_slot_2(a, b) -> subscribable_dict_type[str, str]:  # noqa: ARG001
         return bread_crumbs[-1]
 
     @folder(slot)
     def some_slot_3(a, b) -> subscribable_dict_type[str, str]:
-        return {12: bread_crumbs[-1]}
+        return {a + b: bread_crumbs[-1]}
 
     @folder(slot)
     def some_slot_4(a, b) -> subscribable_dict_type[str, str]:
-        return {bread_crumbs[-1]: 12}
+        return {bread_crumbs[-1]: a + b}
 
     with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot" return value 12 does not match the expected type Dict.')):
         some_slot(1, 2)
@@ -552,10 +552,10 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
     with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot_2" return value \'run_slot_3\' does not match the expected type Dict.')):
         some_slot_2(1, 2)
 
-    with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_3" return value {12: \'run_slot_3\'} does not match the expected type Dict.')):
+    with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_3" return value {3: \'run_slot_3\'} does not match the expected type Dict.')):
         some_slot_3(1, 2)
 
-    with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_4" return value {\'run_slot_3\': 12} does not match the expected type Dict.')):
+    with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_4" return value {\'run_slot_3\': 3} does not match the expected type Dict.')):
         some_slot_4(1, 2)
 
     assert bread_crumbs == ['run_slot_3']
@@ -581,11 +581,11 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
     @folder(slot)
     def some_slot_2(a, b) -> list_type:
-        return 12
+        return a + b
 
     with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot" return value \'run_slot_3\' does not match the expected type List.')):
         some_slot(1, 2)
-    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot_2" return value 12 does not match the expected type List.')):
+    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot_2" return value 3 does not match the expected type List.')):
         some_slot_2(1, 2)
 
     assert bread_crumbs == ['run_slot_3']
@@ -611,17 +611,17 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
     @folder(slot)
     def some_slot_2(a, b) -> subscribable_list_type[str]:
-        return 12
+        return a + b
 
     @folder(slot)
     def some_slot_3(a, b) -> subscribable_list_type[str]:
-        return [12]
+        return [a + b]
 
     with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot" return value \'run_slot_3\' does not match the expected type List.')):
         some_slot(1, 2)
-    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot_2" return value 12 does not match the expected type List.')):
+    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot_2" return value 3 does not match the expected type List.')):
         some_slot_2(1, 2)
-    with pytest.raises(TypeError, match=match('The type list of the plugin\'s "some_slot_3" return value [12] does not match the expected type List.')):
+    with pytest.raises(TypeError, match=match('The type list of the plugin\'s "some_slot_3" return value [3] does not match the expected type List.')):
         some_slot_3(1, 2)
 
     assert bread_crumbs == ['run_slot_3']
