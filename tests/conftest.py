@@ -37,13 +37,6 @@ def subscribable_dict_type(request):
     return request.param
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 @pytest.fixture(params=(lambda x: x, lambda x: x()))
 def folder(request):
     return request.param
