@@ -366,7 +366,27 @@ def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(sub
     assert some_slot(1, 2) == [4, 5, 6]
 
 
-def test_run_slot_without_type_annotation(folder, subscribable_list_type):
+def test_run_slot_without_type_annotation(folder):
+    bread_crumbs = []
+
     @folder(slot)
-    def some_slot(a, b) -> subscribable_list_type[str]:
+    def some_slot(a, b):
         ...
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(a + b + 1)
+        return bread_crumbs[-1]
+
+    @some_slot.plugin('name2')
+    def function_2(a, b):
+        bread_crumbs.append(a + b + 2)
+        return bread_crumbs[-1]
+
+    @some_slot.plugin('name2')
+    def function_3(a, b):
+        bread_crumbs.append(a + b + 3)
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) is None
+    assert bread_crumbs == [4, 5, 6]
