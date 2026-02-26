@@ -1,6 +1,3 @@
-class StrangeUseOfTheDecorator(Exception):
-    ...
-
 class TooManyPluginsError(Exception):
     ...
 
