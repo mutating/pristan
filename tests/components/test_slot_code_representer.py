@@ -300,30 +300,30 @@ def test_function_with_two_passes_is_empty(transformed):
 def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
     @transformed
     def function_1():
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_2(a, b):
-        print('kek')
+        return a + b
 
     @transformed
     def function_3(a, b, c=None):
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_4():
         """kek"""
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_5(a, b):
         """kek"""
-        print('kek')
+        return a + b
 
     @transformed
     def function_6(a, b, c=None):
         """kek"""
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_7():
@@ -331,7 +331,7 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_8(a, b):
@@ -339,7 +339,7 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b
 
     @transformed
     def function_9(a, b, c=None):
@@ -347,7 +347,7 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b + c
 
     assert not SlotCodeRepresenter(function_1).is_empty
     assert not SlotCodeRepresenter(function_2).is_empty
@@ -363,30 +363,30 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
 def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
     @transformed
     def function_1():
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_2(a, b):
-        print('kek')
+        return a + b
 
     @transformed
     def function_3(a, b, c=None):
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_4():
         """kek"""
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_5(a, b):
         """kek"""
-        print('kek')
+        return a + b
 
     @transformed
     def function_6(a, b, c=None):
         """kek"""
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_7():
@@ -394,7 +394,7 @@ def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_8(a, b):
@@ -402,7 +402,7 @@ def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b
 
     @transformed
     def function_9(a, b, c=None):
@@ -410,7 +410,7 @@ def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b + c
 
     assert not SlotCodeRepresenter(function_1).is_empty
     assert not SlotCodeRepresenter(function_2).is_empty
@@ -426,30 +426,30 @@ def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):
 def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
     @transformed
     def function_1():
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_2(a, b):
-        print('kek')
+        return a + b
 
     @transformed
     def function_3(a, b, c=None):
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_4():
         """kek"""
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_5(a, b):
         """kek"""
-        print('kek')
+        return a + b
 
     @transformed
     def function_6(a, b, c=None):
         """kek"""
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_7():
@@ -457,7 +457,7 @@ def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_8(a, b):
@@ -465,7 +465,7 @@ def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b
 
     @transformed
     def function_9(a, b, c=None):
@@ -473,7 +473,7 @@ def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b + c
 
     assert not SlotCodeRepresenter(function_1).is_empty
     assert not SlotCodeRepresenter(function_2).is_empty
@@ -489,30 +489,30 @@ def test_function_with_pass_and_some_code_after_is_not_empty(transformed):
 def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
     @transformed
     def function_1():
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_2(a, b):
-        print('kek')
+        return a + b
 
     @transformed
     def function_3(a, b, c=None):
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_4():
         """kek"""
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_5(a, b):
         """kek"""
-        print('kek')
+        return a + b
 
     @transformed
     def function_6(a, b, c=None):
         """kek"""
-        print('kek')
+        return a + b + c
 
     @transformed
     def function_7():
@@ -520,7 +520,7 @@ def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        print('kek')  # noqa: T201
 
     @transformed
     def function_8(a, b):
@@ -528,7 +528,7 @@ def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b
 
     @transformed
     def function_9(a, b, c=None):
@@ -536,7 +536,7 @@ def test_function_with_pass_and_some_code_before_is_not_empty(transformed):
         kek
         lol
         """
-        print('kek')
+        return a + b + c
 
     assert not SlotCodeRepresenter(function_1).is_empty
     assert not SlotCodeRepresenter(function_2).is_empty
@@ -554,7 +554,6 @@ def test_just_list_is_list(transformed, list_type):
     def function() -> list_type:
         ...
 
-    print(SlotCodeRepresenter(function).returning_type)
     assert SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
     assert isinstance(SlotCodeRepresenter(function).returning_type, InnerNoneType)
@@ -629,8 +628,8 @@ def test_wrong_dict_type_annotation(subscribable_dict_type):
 
     if subscribable_dict_type is dict:
         with pytest.raises(TypeError, match=match('Incorrect type annotation for the dict.')):
-            SlotCodeRepresenter(function).returning_type
+            SlotCodeRepresenter(function).returning_type  # noqa: B018
 
     else:
         with pytest.raises(TypeError, match=match('Too few arguments for typing.Dict; actual 1, expected 2')):
-            SlotCodeRepresenter(function).returning_type
+            SlotCodeRepresenter(function).returning_type  # noqa: B018
