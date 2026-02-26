@@ -364,3 +364,9 @@ def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(sub
         return a + b + 3
 
     assert some_slot(1, 2) == [4, 5, 6]
+
+
+def test_run_slot_without_type_annotation(folder, subscribable_list_type):
+    @folder(slot)
+    def some_slot(a, b) -> subscribable_list_type[str]:
+        ...
