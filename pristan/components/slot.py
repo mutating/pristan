@@ -57,18 +57,24 @@ class Slot:
             else:
                 returns_type = self.code_representation.returning_type
 
-            plugins = [Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)]
+            result = Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)
+
+            if self.code_representation.returning_type is return_type_sentinel and not self.code_representation.returns_dict and not self.code_representation.returns_list:
+                result = None
+
+            return result
+
         else:
             plugins = self.plugins
 
-        if self.code_representation.returns_list:
-            return [plugin(*args, **kwargs) for plugin in plugins]
+            if self.code_representation.returns_list:
+                return [plugin(*args, **kwargs) for plugin in plugins]
 
-        if self.code_representation.returns_dict:
-            return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
+            if self.code_representation.returns_dict:
+                return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
 
-        for plugin in plugins:
-            plugin(*args, **kwargs)
+            for plugin in plugins:
+                plugin(*args, **kwargs)
 
     def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction], PluginFunction]:
         if callable(plugin_name) or not plugin_name.isidentifier():
