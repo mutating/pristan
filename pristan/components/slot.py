@@ -1,16 +1,24 @@
-from typing import Callable, List, Dict, Optional, DefaultDict
 from collections import defaultdict
 from threading import Lock
+from typing import Callable, DefaultDict, Dict, List, Optional
 
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
 
-from packaging.version import Version
-
-from pristan.errors import TooManyPluginsError, PrimadonnaPluginError, StrangeTypeAnnotationError
-from pristan.components.slot_code_representer import SlotCodeRepresenter, sentinel as return_type_sentinel
-from pristan.common_types import SlotPapameters, SlotResult, SlotFunction, PluginFunction
+from pristan.common_types import (
+    PluginFunction,
+    SlotFunction,
+    SlotPapameters,
+    SlotResult,
+)
 from pristan.components.plugin import Plugin
+from pristan.components.slot_code_representer import SlotCodeRepresenter
+from pristan.components.slot_code_representer import sentinel as return_type_sentinel
+from pristan.errors import (
+    PrimadonnaPluginError,
+    StrangeTypeAnnotationError,
+    TooManyPluginsError,
+)
 
 
 class Slot:
@@ -56,7 +64,7 @@ class Slot:
         if self.code_representation.returns_list:
             return [plugin(*args, **kwargs) for plugin in plugins]
 
-        elif self.code_representation.returns_dict:
+        if self.code_representation.returns_dict:
             return {plugin.name: plugin(*args, **kwargs) for plugin in plugins}
 
         for plugin in plugins:

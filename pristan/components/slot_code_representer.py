@@ -1,13 +1,12 @@
+from ast import Constant, Expr, Pass, parse
 from functools import cached_property
-from inspect import getsource, getmodule
-from ast import parse, Pass, Expr, Constant
-from typing import Type, Union, Any, Optional, get_args, get_origin, get_type_hints
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
+from inspect import getmodule
+from typing import Any, Optional, Type, Union, get_args, get_origin, get_type_hints
 
-from getsources import getclearsource
 from denial import InnerNoneType
+from getsources import getclearsource
 from packaging.version import Version
-
 
 sentinel = InnerNoneType()
 
@@ -35,21 +34,19 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return sentinel
 
-        elif list in (return_hint, get_origin(return_hint)):
+        if list in (return_hint, get_origin(return_hint)):
             args = get_args(return_hint)
             if args:
                 return args[0]
-            else:
-                return sentinel
+            return sentinel
 
-        elif dict in (return_hint, get_origin(return_hint)):
+        if dict in (return_hint, get_origin(return_hint)):
             args = get_args(return_hint)
             if args:
-                if not args[0] is str or len(args) != 2:
+                if args[0] is not str or len(args) != 2:
                     raise TypeError('Incorrect type annotation for the dict.')
                 return args[1]
-            else:
-                return sentinel
+            return sentinel
 
         return return_hint
 
@@ -61,7 +58,7 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return False
 
-        elif list in (return_hint, get_origin(return_hint)):
+        if list in (return_hint, get_origin(return_hint)):
             return True
 
         return False
@@ -74,7 +71,7 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return False
 
-        elif dict in (return_hint, get_origin(return_hint)):
+        if dict in (return_hint, get_origin(return_hint)):
             return True
 
         return False

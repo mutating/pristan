@@ -1,5 +1,5 @@
-from typing import List, Dict
 from sys import version_info
+from typing import Dict, List
 
 import pytest
 from transfunctions import transfunction

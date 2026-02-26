@@ -1,11 +1,14 @@
-from enum import unique
 import pytest
 from full_match import match
 from sigmatch.errors import SignatureMismatchError
 
 from pristan import slot
 from pristan.decorators.slot import Slot
-from pristan.errors import PrimadonnaPluginError, TooManyPluginsError, StrangeTypeAnnotationError
+from pristan.errors import (
+    PrimadonnaPluginError,
+    StrangeTypeAnnotationError,
+    TooManyPluginsError,
+)
 
 
 def test_slot_is_not_a_function():

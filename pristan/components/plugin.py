@@ -1,10 +1,10 @@
-from typing import Union, Any, Type
+from typing import Any, Type, Union
 
-from simtypes import check
 from denial import InnerNoneType
 from printo import descript_data_object
+from simtypes import check
 
-from pristan.common_types import SlotPapameters, PluginResult, PluginFunction
+from pristan.common_types import PluginFunction, PluginResult, SlotPapameters
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 
 
@@ -33,7 +33,7 @@ class Plugin:
         result = self.plugin_function(*args, **kwargs)
 
         if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type):
-            raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {repr(result)} does not match the expected type {self.expected_result_type.__name__}.')
+            raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self.expected_result_type.__name__}.')
 
         return result
 
