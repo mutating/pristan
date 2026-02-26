@@ -49,7 +49,7 @@ class Slot:
                     returns_type = List
                 else:
                     returns_type = List[self.code_representation.returning_type]
-            elif self.code_representation.returns_dict and self.code_representation.returning_type is return_type_sentinel:
+            elif self.code_representation.returns_dict:
                 if self.code_representation.returning_type is return_type_sentinel:
                     returns_type = Dict
                 else:
