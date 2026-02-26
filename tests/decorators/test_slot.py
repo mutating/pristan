@@ -138,3 +138,47 @@ def test_2_plugins_with_same_names_and_second_one_is_unique(folder):
 
     assert [x.name for x in some_slot.plugins] == ['kek']
     assert [x.name for x in some_slot.plugins_by_requested_names['kek']] == ['kek']
+
+
+def test_exceeding_the_limit_0_of_plugins():
+    @slot(max=0)
+    def some_slot(a, b):
+        ...
+
+    with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 0.')):
+        @some_slot.plugin('kek')
+        def kek(a, b):
+            ...
+
+
+def test_exceeding_the_limit_1_of_plugins():
+    @slot(max=1)
+    def some_slot(a, b):
+        ...
+
+    @some_slot.plugin('kek')
+    def kek(a, b):
+        ...
+
+    with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 1.')):
+        @some_slot.plugin('kek2')
+        def kek(a, b):
+            ...
+
+
+def test_exceeding_the_limit_1000_of_plugins():
+    allowed_number_of_plugins = 1000
+
+    @slot(max=allowed_number_of_plugins)
+    def some_slot(a, b):
+        ...
+
+    for index in range(allowed_number_of_plugins):
+        @some_slot.plugin(f'kek{index}')
+        def kek(a, b):
+            ...
+
+    with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 1000.')):
+        @some_slot.plugin('kek')
+        def kek(a, b):
+            ...
