@@ -5,7 +5,7 @@ from sigmatch.errors import SignatureMismatchError
 
 from pristan import slot
 from pristan.decorators.slot import Slot
-from pristan.errors import PrimadonnaPluginError
+from pristan.errors import PrimadonnaPluginError, TooManyPluginsError
 
 
 def test_slot_is_not_a_function():
@@ -39,13 +39,6 @@ def test_plugin_have_not_comparing_signature_to_passed_one_to_slot():
             ...
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 def test_plugin_have_not_comparing_signature_to_slot(folder):
     @folder(slot)
     def some_slot(a, b):
@@ -57,13 +50,6 @@ def test_plugin_have_not_comparing_signature_to_slot(folder):
             ...
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 def test_run_1_plugin_without_hints(folder):
     bread_crumbs = []
 
@@ -80,13 +66,6 @@ def test_run_1_plugin_without_hints(folder):
     assert bread_crumbs == [4]
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 def test_run_1_plugin_with_emplty_list_hint(folder, list_type):
     bread_crumbs = []
 
@@ -104,13 +83,6 @@ def test_run_1_plugin_with_emplty_list_hint(folder, list_type):
     assert bread_crumbs == [4]
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 def test_2_not_unique_plugins_with_same_names(folder):
     @folder(slot)
     def some_slot(a, b):
@@ -132,13 +104,6 @@ def test_2_not_unique_plugins_with_same_names(folder):
     assert [x.name for x in some_slot.plugins_by_requested_names['kek']] == ['kek', 'kek-2', 'kek-3']
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 def test_2_plugins_with_same_names_and_first_one_is_unique(folder):
     @folder(slot)
     def some_slot(a, b):
@@ -157,13 +122,6 @@ def test_2_plugins_with_same_names_and_first_one_is_unique(folder):
     assert [x.name for x in some_slot.plugins_by_requested_names['kek']] == ['kek']
 
 
-@pytest.mark.parametrize(
-    ('folder'),
-    [
-        lambda x: x,
-        lambda x: x(),
-    ]
-)
 def test_2_plugins_with_same_names_and_second_one_is_unique(folder):
     @folder(slot)
     def some_slot(a, b):
