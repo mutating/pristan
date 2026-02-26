@@ -554,9 +554,17 @@ def test_just_list_is_list(transformed, list_type):
     def function() -> list_type:
         ...
 
+    @transformed
+    def function2(a, b) -> list_type:
+        return [a + b]
+
     assert SlotCodeRepresenter(function).returns_list
     assert not SlotCodeRepresenter(function).returns_dict
     assert isinstance(SlotCodeRepresenter(function).returning_type, InnerNoneType)
+
+    assert SlotCodeRepresenter(function2).returns_list
+    assert not SlotCodeRepresenter(function2).returns_dict
+    assert isinstance(SlotCodeRepresenter(function2).returning_type, InnerNoneType)
 
 
 def test_just_dict_is_dict(transformed, dict_type):

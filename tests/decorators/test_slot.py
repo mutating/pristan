@@ -390,3 +390,69 @@ def test_run_slot_without_type_annotation(folder):
 
     assert some_slot(1, 2) is None
     assert bread_crumbs == [4, 5, 6]
+
+
+def test_run_not_empty_default_function_without_plugins_without_annotations(folder):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b):
+        bread_crumbs.append(f'run_slot_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) is None
+    assert bread_crumbs == ['run_slot_3']
+
+    bread_crumbs.pop()
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(f'run_plugin_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) is None
+    assert bread_crumbs == ['run_plugin_3']
+
+
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation(folder, dict_type):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b) -> dict_type:
+        bread_crumbs.append(f'run_slot_{a + b}')
+        return {'some_slot': bread_crumbs[-1]}
+
+    assert some_slot(1, 2) == {'some_slot': 'run_slot_3'}
+    assert bread_crumbs == ['run_slot_3']
+
+    bread_crumbs.pop()
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(f'run_plugin_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) == {'name1': 'run_plugin_3'}
+    assert bread_crumbs == ['run_plugin_3']
+
+
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation(folder, list_type):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b) -> list_type:
+        bread_crumbs.append(f'run_slot_{a + b}')
+        return [bread_crumbs[-1]]
+
+    assert some_slot(1, 2) == ['run_slot_3']
+    assert bread_crumbs == ['run_slot_3']
+
+    bread_crumbs.pop()
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(f'run_plugin_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) == ['run_plugin_3']
+    assert bread_crumbs == ['run_plugin_3']
