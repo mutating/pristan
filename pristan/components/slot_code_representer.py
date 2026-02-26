@@ -2,7 +2,16 @@ from ast import Constant, Expr, Pass, parse
 from functools import cached_property
 from importlib.metadata import PackageNotFoundError, version
 from inspect import getmodule
-from typing import Any, Optional, Type, Union, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Optional,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from denial import InnerNoneType
 from getsources import getclearsource
@@ -58,10 +67,7 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return False
 
-        if list in (return_hint, get_origin(return_hint)):
-            return True
-
-        return False
+        return list in (return_hint, get_origin(return_hint))
 
     @cached_property
     def returns_dict(self) -> bool:
@@ -71,10 +77,7 @@ class SlotCodeRepresenter:
         if return_hint is sentinel:
             return False
 
-        if dict in (return_hint, get_origin(return_hint)):
-            return True
-
-        return False
+        return dict in (return_hint, get_origin(return_hint))
 
     @cached_property
     def is_empty(self) -> bool:

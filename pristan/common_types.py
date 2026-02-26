@@ -1,6 +1,6 @@
 from typing import Callable, List, Optional, ParamSpec, TypeVar
 
-SlotPapameters = ParamSpec('Papameters')
+SlotPapameters = ParamSpec('SlotPapameters')
 PluginResult = TypeVar('PluginResult')
 SlotResult = Optional[List[PluginResult]]
 SlotFunction = Callable[SlotPapameters, SlotResult]
