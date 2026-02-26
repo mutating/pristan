@@ -189,3 +189,14 @@ def test_strange_slot_return_type_annotation(folder):
         @folder(slot)
         def some_slot(a, b) -> int:
             ...
+
+
+def test_plugin_name_is_not_valid_python_identifier(folder):
+    @folder(slot)
+    def some_slot(a, b):
+        ...
+
+    with pytest.raises(ValueError, match=match('The plugin name must be a valid Python identifier.')):
+        @some_slot.plugin('lol kek')
+        def some_plugin(a, b):
+            ...
