@@ -63,7 +63,7 @@ class Slot:
             plugin(*args, **kwargs)
 
     def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction], PluginFunction]:
-        if callable(plugin_name) or not plugin_name.isidentifier:
+        if callable(plugin_name) or not plugin_name.isidentifier():
             raise ValueError('The plugin name must be a valid Python identifier.')
 
         def decorator(plugin_function: PluginFunction) -> PluginFunction:
