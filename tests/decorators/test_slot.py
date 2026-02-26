@@ -287,3 +287,80 @@ def test_run_slot_with_not_empty_wrong_dict_annotation_but_type_check_is_off(sub
         return a + b + 3
 
     assert some_slot(1, 2) == {'name1': 4, 'name2': 5, 'name2-2': 6}
+
+
+def test_run_slot_with_empty_list_annotation(folder, list_type):
+    @folder(slot)
+    def some_slot(a, b) -> list_type:
+        ...
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        return a + b + 1
+
+    @some_slot.plugin('name2')
+    def function_2(a, b):
+        return a + b + 2
+
+    @some_slot.plugin('name2')
+    def function_3(a, b):
+        return a + b + 3
+
+    assert some_slot(1, 2) == [4, 5, 6]
+
+
+def test_run_slot_with_not_empty_list_annotation(folder, subscribable_list_type):
+    @folder(slot)
+    def some_slot(a, b) -> subscribable_list_type[int]:
+        ...
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        return a + b + 1
+
+    @some_slot.plugin('name2')
+    def function_2(a, b):
+        return a + b + 2
+
+    @some_slot.plugin('name2')
+    def function_3(a, b):
+        return a + b + 3
+
+    assert some_slot(1, 2) == [4, 5, 6]
+
+
+def test_run_slot_with_not_empty_wrong_list_annotation(folder, subscribable_list_type):
+    @folder(slot)
+    def some_slot(a, b) -> subscribable_list_type[str]:
+        ...
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        return a + b + 1
+
+    @some_slot.plugin('name2')
+    def function_2(a, b):
+        return a + b + 2
+
+    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "name1" return value 4 does not match the expected type str.')):
+        some_slot(1, 2)
+
+
+def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(subscribable_list_type):
+    @slot(type_check=False)
+    def some_slot(a, b) -> subscribable_list_type[str]:
+        ...
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        return a + b + 1
+
+    @some_slot.plugin('name2')
+    def function_2(a, b):
+        return a + b + 2
+
+    @some_slot.plugin('name2')
+    def function_3(a, b):
+        return a + b + 3
+
+    assert some_slot(1, 2) == [4, 5, 6]
