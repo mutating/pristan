@@ -505,7 +505,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
 
 @pytest.mark.skipif(version_info <= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type(folder, dict_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type_new_pythons(folder, dict_type):
     bread_crumbs = []
 
     @folder(slot)
