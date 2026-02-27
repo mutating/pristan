@@ -504,6 +504,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
     assert bread_crumbs == ['run_plugin_3']
 
 
+@pytest.mark.skipif(version_info <= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type(folder, dict_type):
     bread_crumbs = []
 
@@ -513,6 +514,31 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
         return bread_crumbs[-1]
 
     with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot" return value \'run_slot_3\' does not match the expected type Dict.')):
+        some_slot(1, 2)
+
+    assert bread_crumbs == ['run_slot_3']
+
+    bread_crumbs.pop()
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(f'run_plugin_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) == {'name1': 'run_plugin_3'}
+    assert bread_crumbs == ['run_plugin_3']
+
+
+@pytest.mark.skipif(version_info >= (3, 10), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type(folder, dict_type):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b) -> dict_type:
+        bread_crumbs.append(f'run_slot_{a + b}')
+        return bread_crumbs[-1]
+
+    with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot" return value \'run_slot_3\' does not match the expected type typing.Dict.')):
         some_slot(1, 2)
 
     assert bread_crumbs == ['run_slot_3']
