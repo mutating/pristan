@@ -554,7 +554,8 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type(folder, subscribable_dict_type):
+@pytest.mark.skipif(version_info <= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type_new_pythons(folder, subscribable_dict_type):
     bread_crumbs = []
 
     @folder(slot)
@@ -584,6 +585,52 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
         some_slot_3(1, 2)
 
     with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_4" return value {\'run_slot_3\': 3} does not match the expected type Dict.')):
+        some_slot_4(1, 2)
+
+    assert bread_crumbs == ['run_slot_3']
+
+    bread_crumbs.pop()
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(f'run_plugin_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) == {'name1': 'run_plugin_3'}
+    assert bread_crumbs == ['run_plugin_3']
+
+
+@pytest.mark.skipif(version_info >= (3, 10), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type_new_pythons(folder, subscribable_dict_type):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b) -> subscribable_dict_type[str, str]:
+        bread_crumbs.append(f'run_slot_{a + b}')
+        return 12
+
+    @folder(slot)
+    def some_slot_2(a, b) -> subscribable_dict_type[str, str]:  # noqa: ARG001
+        return bread_crumbs[-1]
+
+    @folder(slot)
+    def some_slot_3(a, b) -> subscribable_dict_type[str, str]:
+        return {a + b: bread_crumbs[-1]}
+
+    @folder(slot)
+    def some_slot_4(a, b) -> subscribable_dict_type[str, str]:
+        return {bread_crumbs[-1]: a + b}
+
+    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot" return value 12 does not match the expected type typing.Dict[str, str].')):
+        some_slot(1, 2)
+
+    with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot_2" return value \'run_slot_3\' does not match the expected type typing.Dict[str, str].')):
+        some_slot_2(1, 2)
+
+    with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_3" return value {3: \'run_slot_3\'} does not match the expected type typing.Dict[str, str].')):
+        some_slot_3(1, 2)
+
+    with pytest.raises(TypeError, match=match('The type dict of the plugin\'s "some_slot_4" return value {\'run_slot_3\': 3} does not match the expected type typing.Dict[str, str].')):
         some_slot_4(1, 2)
 
     assert bread_crumbs == ['run_slot_3']
