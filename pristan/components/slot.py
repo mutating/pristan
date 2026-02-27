@@ -34,7 +34,7 @@ from pristan.errors import (
 
 
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool) -> None:
+    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool) -> None:  # type: ignore[type-arg]
         if max_plugins is not None and max_plugins < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
@@ -89,18 +89,19 @@ class Slot(Generic[PluginResult]):
         for plugin in plugins:
             plugin(*args, **kwargs)
 
-    def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:
+    def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg]
         if callable(plugin_name) or not plugin_name.isidentifier():
             raise ValueError('The plugin name must be a valid Python identifier.')
 
-        def decorator(plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> PluginFunction[SlotPapameters, PluginResult]:
-            self._compare_signatures(self.slot_function, plugin_function)  # type: ignore[arg-type]
+        def decorator(plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg]
+            # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
+            self._compare_signatures(self.slot_function, plugin_function)  # type: ignore[arg-type, unused-ignore]
             self._add_plugin(plugin_name, plugin_function, unique)
             return plugin_function
 
         return decorator
 
-    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool) -> None:
+    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool) -> None:  # type: ignore[type-arg]
         plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)
 
         with self.lock:
@@ -116,7 +117,7 @@ class Slot(Generic[PluginResult]):
                         self.plugins.pop()
                         raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
 
-    def _compare_signatures(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> None:
+    def _compare_signatures(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> None:  # type: ignore[type-arg]
         if self.signature is not None:
             PossibleCallMatcher(self.signature).match(plugin_function, raise_exception=True)
         elif not PossibleCallMatcher.from_callable(slot_function) & PossibleCallMatcher.from_callable(plugin_function):

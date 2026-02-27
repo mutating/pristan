@@ -9,5 +9,5 @@ except ImportError:  # pragma: no cover
 SlotPapameters = ParamSpec('SlotPapameters')
 PluginResult = TypeVar('PluginResult')
 SlotResult = Optional[Union[List[PluginResult], Dict[str, PluginResult]]]
-SlotFunction = Callable[SlotPapameters, Optional[Union[List[PluginResult], Dict[str, PluginResult]]]]  # type: ignore[valid-type, unused-ignore]
-PluginFunction = Callable[SlotPapameters, PluginResult]
+SlotFunction = Callable[SlotPapameters, Optional[Union[List[PluginResult], Dict[str, PluginResult]]]]  # type: ignore[valid-type, misc, unused-ignore]
+PluginFunction = Callable[SlotPapameters, PluginResult]  # type: ignore[valid-type, unused-ignore]

@@ -37,7 +37,7 @@ class Plugin(Generic[PluginResult]):
         if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type, strict=True):  # type: ignore[arg-type]
             raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self._get_class_name(self.expected_result_type)}.')  # type: ignore[union-attr, unused-ignore]
 
-        return result
+        return result  # type: ignore[no-any-return]
 
     def set_name(self, name: str) -> None:
         self.name = name
