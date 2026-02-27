@@ -601,6 +601,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
     assert bread_crumbs == ['run_plugin_3']
 
 
+@pytest.mark.skipif(version_info >= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type(folder, subscribable_list_type):
     bread_crumbs = []
 
