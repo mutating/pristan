@@ -1,7 +1,7 @@
 from functools import partial, wraps
 from typing import Callable, Optional, Union, overload
 
-from pristan.common_types import SlotFunction, SlotPapameters, PluginResult
+from pristan.common_types import PluginResult, SlotFunction, SlotPapameters
 from pristan.components.slot import Slot
 
 

@@ -1,17 +1,27 @@
 from collections import defaultdict
 from threading import Lock
-from typing import Callable, DefaultDict, Dict, List, Optional, Type, Any, Union, Generic
+from typing import (
+    Any,
+    Callable,
+    DefaultDict,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Type,
+    Union,
+)
 
+from denial import InnerNoneType
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
-from denial import InnerNoneType
 
 from pristan.common_types import (
     PluginFunction,
+    PluginResult,
     SlotFunction,
     SlotPapameters,
     SlotResult,
-    PluginResult,
 )
 from pristan.components.plugin import Plugin
 from pristan.components.slot_code_representer import SlotCodeRepresenter

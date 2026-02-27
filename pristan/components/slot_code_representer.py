@@ -35,12 +35,11 @@ class SlotCodeRepresenter:
     def package_version(self) -> Optional[Version]:
         if self.base_module is None:
             return None
-        else:
-            try:
-                version_identifier = version(self.base_module)
-                return Version(version_identifier)
-            except PackageNotFoundError:
-                return None
+        try:
+            version_identifier = version(self.base_module)
+            return Version(version_identifier)
+        except PackageNotFoundError:
+            return None
 
     @cached_property
     def returning_type(self) -> Union[InnerNoneType, Type[Any]]:

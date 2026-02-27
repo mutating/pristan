@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, ParamSpec, TypeVar, Union, Dict
+from typing import Callable, Dict, List, Optional, ParamSpec, TypeVar, Union
 
 SlotPapameters = ParamSpec('SlotPapameters')
 PluginResult = TypeVar('PluginResult')
