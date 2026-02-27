@@ -43,7 +43,11 @@ class SlotCodeRepresenter:
 
     @cached_property
     def returning_type(self) -> Union[InnerNoneType, Type[Any]]:
-        hints = get_type_hints(self.function)
+        try:
+            hints = get_type_hints(self.function)
+        except TypeError:
+            return sentinel
+
         return_hint = hints.get('return', sentinel)
 
         if return_hint is sentinel:
