@@ -47,7 +47,7 @@ def test_type_check_is_not_passed_without_ignore():
     with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type typing.List.')):
         Plugin(plugin_name, lambda x, y: x + y, List, True, True)(1, 2)
 
-    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type typing.Union[typing.List, str].')):
         Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, True)(1, 2)
 
     with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type str.')):
@@ -56,7 +56,7 @@ def test_type_check_is_not_passed_without_ignore():
     with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type typing.List.')):
         Plugin(plugin_name, lambda x, y: x + y, List, True, False)(1, 2)
 
-    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type typing.Union[typing.List, str].')):
         Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, False)(1, 2)
 
 
