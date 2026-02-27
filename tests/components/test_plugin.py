@@ -1,5 +1,5 @@
-from typing import List, Union
 from sys import version_info
+from typing import List, Union
 
 import pytest
 from full_match import match
