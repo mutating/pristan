@@ -1,3 +1,5 @@
+from sys import version_info
+
 import pytest
 from full_match import match
 from sigmatch.errors import SignatureMismatchError
@@ -603,6 +605,43 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
 @pytest.mark.skipif(version_info >= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type(folder, subscribable_list_type):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b) -> subscribable_list_type[str]:
+        bread_crumbs.append(f'run_slot_{a + b}')
+        return bread_crumbs[-1]
+
+    @folder(slot)
+    def some_slot_2(a, b) -> subscribable_list_type[str]:
+        return a + b
+
+    @folder(slot)
+    def some_slot_3(a, b) -> subscribable_list_type[str]:
+        return [a + b]
+
+    with pytest.raises(TypeError, match=match('The type str of the plugin\'s "some_slot" return value \'run_slot_3\' does not match the expected type typing.List[str].')):
+        some_slot(1, 2)
+    with pytest.raises(TypeError, match=match('The type int of the plugin\'s "some_slot_2" return value 3 does not match the expected type typing.List[str].')):
+        some_slot_2(1, 2)
+    with pytest.raises(TypeError, match=match('The type list of the plugin\'s "some_slot_3" return value [3] does not match the expected type typing.List[str].')):
+        some_slot_3(1, 2)
+
+    assert bread_crumbs == ['run_slot_3']
+
+    bread_crumbs.pop()
+
+    @some_slot.plugin('name1')
+    def function_1(a, b):
+        bread_crumbs.append(f'run_plugin_{a + b}')
+        return bread_crumbs[-1]
+
+    assert some_slot(1, 2) == ['run_plugin_3']
+    assert bread_crumbs == ['run_plugin_3']
+
+
+@pytest.mark.skipif(version_info <= (3, 8), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type_new_pythons(folder, subscribable_list_type):
     bread_crumbs = []
 
     @folder(slot)
