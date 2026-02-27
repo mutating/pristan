@@ -644,3 +644,8 @@ def test_wrong_dict_type_annotation(subscribable_dict_type):
     else:
         with pytest.raises(TypeError, match=match('Too few arguments for typing.Dict; actual 1, expected 2')):
             SlotCodeRepresenter(function).returning_type  # noqa: B018
+
+
+def test_base_module_and_package_version_are_none_when_cant_get_module():
+    assert SlotCodeRepresenter(1).base_module is None
+    assert SlotCodeRepresenter(1).package_version is None
