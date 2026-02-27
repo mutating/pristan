@@ -43,6 +43,6 @@ class Plugin(Generic[PluginResult]):
     @staticmethod
     def _get_class_name(_type: Any) -> str:
         try:
-            return _type.__name__
+            return _type.__name__  # type: ignore[no-any-return]
         except AttributeError:  # pragma: no cover
             return str(_type)

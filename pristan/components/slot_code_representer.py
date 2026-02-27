@@ -29,12 +29,12 @@ class SlotCodeRepresenter:
         module = getmodule(self.function)
         if module is not None:
             return module.__name__.split('.')[0]
-        return None
+        return None  # pragma: no cover
 
     @cached_property
     def package_version(self) -> Optional[Version]:
         if self.base_module is None:
-            return None
+            return None  # pragma: no cover
         try:
             version_identifier = version(self.base_module)
             return Version(version_identifier)
@@ -42,12 +42,8 @@ class SlotCodeRepresenter:
             return None
 
     @cached_property
-    def returning_type(self) -> Union[InnerNoneType, Type[Any]]:  # noqa: PLR0911
-        try:
-            hints = get_type_hints(self.function)
-        except TypeError:
-            return sentinel
-
+    def returning_type(self) -> Union[InnerNoneType, Type[Any]]:
+        hints = get_type_hints(self.function)
         return_hint = hints.get('return', sentinel)
 
         if return_hint is sentinel:
