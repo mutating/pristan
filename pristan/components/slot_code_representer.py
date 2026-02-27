@@ -25,16 +25,22 @@ class SlotCodeRepresenter:
         self.returning_type  # noqa: B018
 
     @cached_property
-    def base_module(self) -> str:
-        return getmodule(self.function).__name__.split('.')[0]
+    def base_module(self) -> Optional[str]:
+        module = getmodule(self.function)
+        if module is not None:
+            return module.__name__.split('.')[0]
+        return None
 
     @cached_property
     def package_version(self) -> Optional[Version]:
-        try:
-            version_identifier = version(self.base_module)
-            return Version(version_identifier)
-        except PackageNotFoundError:
+        if self.base_module is None:
             return None
+        else:
+            try:
+                version_identifier = version(self.base_module)
+                return Version(version_identifier)
+            except PackageNotFoundError:
+                return None
 
     @cached_property
     def returning_type(self) -> Union[InnerNoneType, Type[Any]]:
@@ -47,7 +53,7 @@ class SlotCodeRepresenter:
         if list in (return_hint, get_origin(return_hint)):
             args = get_args(return_hint)
             if args:
-                return args[0]
+                return args[0]  # type: ignore[no-any-return]
             return sentinel
 
         if dict in (return_hint, get_origin(return_hint)):
@@ -55,10 +61,10 @@ class SlotCodeRepresenter:
             if args:
                 if args[0] is not str or len(args) != 2:
                     raise TypeError('Incorrect type annotation for the dict.')
-                return args[1]
+                return args[1]  # type: ignore[no-any-return]
             return sentinel
 
-        return return_hint
+        return return_hint  # type: ignore[no-any-return]
 
     @cached_property
     def returns_list(self) -> bool:
@@ -85,7 +91,7 @@ class SlotCodeRepresenter:
         converted_source_code = getclearsource(self.function)
 
         tree = parse(converted_source_code)
-        body = tree.body[0].body
+        body = tree.body[0].body  # type: ignore[attr-defined]
 
         for body_statement in body:
             if not (isinstance(body_statement, Pass) or (isinstance(body_statement, Expr) and isinstance(body_statement.value, Constant) and (body_statement.value.value is Ellipsis or isinstance(body_statement.value.value, str)))):

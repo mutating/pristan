@@ -1,4 +1,4 @@
-from typing import Any, Type, Union
+from typing import Any, Type, Union, Generic
 
 from denial import InnerNoneType
 from printo import descript_data_object
@@ -8,8 +8,8 @@ from pristan.common_types import PluginFunction, PluginResult, SlotPapameters
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 
 
-class Plugin:
-    def __init__(self, name: str, plugin_function: PluginFunction, expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:
+class Plugin(Generic[PluginResult]):
+    def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:
         self.plugin_function = plugin_function
         self.requested_name = name
         self.name = name
@@ -29,11 +29,11 @@ class Plugin:
             },
         )
 
-    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.args) -> PluginResult:
-        result = self.plugin_function(*args, **kwargs)
+    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> PluginResult:
+        result = self.plugin_function(*args, **kwargs)  # type: ignore[arg-type]
 
-        if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type, strict=True):
-            raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self.expected_result_type.__name__}.')
+        if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type, strict=True):  # type: ignore[arg-type]
+            raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self.expected_result_type.__name__}.')  # type: ignore[union-attr]
 
         return result
 
