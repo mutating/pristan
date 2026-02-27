@@ -33,7 +33,7 @@ class Plugin(Generic[PluginResult]):
         result = self.plugin_function(*args, **kwargs)  # type: ignore[arg-type]
 
         if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type, strict=True):  # type: ignore[arg-type]
-            raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self._get_class_name(self.expected_result_type)}.')  # type: ignore[union-attr]
+            raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self._get_class_name(self.expected_result_type)}.')  # type: ignore[union-attr, unused-ignore]
 
         return result
 
@@ -41,7 +41,7 @@ class Plugin(Generic[PluginResult]):
         self.name = name
 
     @staticmethod
-    def _get_class_name(_type: Any):
+    def _get_class_name(_type: Any) -> str:
         try:
             return _type.__name__
         except AttributeError:  # pragma: no cover
