@@ -102,7 +102,7 @@ class Slot(Generic[PluginResult]):
         return decorator
 
     def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool) -> None:  # type: ignore[type-arg, unused-ignore]
-        plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)
+        plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)  # type: ignore[type-arg]
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:
