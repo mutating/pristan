@@ -52,7 +52,8 @@ class Slot(Generic[PluginResult]):
         self.plugins_by_requested_names: DefaultDict[str, List[Plugin[PluginResult]]] = defaultdict(list)
         self.lock = Lock()
 
-        self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type]
+        # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
+        self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type, unused-ignore]
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
         if not self.code_representation.is_empty and not self.plugins:
@@ -69,7 +70,8 @@ class Slot(Generic[PluginResult]):
             else:
                 returns_type = self.code_representation.returning_type
 
-            result: SlotResult[PluginResult] = Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)  # type: ignore[assignment]
+            # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
+            result: SlotResult[PluginResult] = Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)  # type: ignore[assignment, unused-ignore]
 
             if self.code_representation.returning_type is return_type_sentinel and not self.code_representation.returns_dict and not self.code_representation.returns_list:
                 result = None
