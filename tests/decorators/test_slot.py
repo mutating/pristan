@@ -73,7 +73,7 @@ def test_run_1_plugin_with_emplty_list_hint(folder, list_type):
     bread_crumbs = []
 
     @folder(slot)
-    def some_slot(a, b) -> list_type:
+    def some_slot(a, b) -> list_type:  # type: ignore[return]
         bread_crumbs.append(a + b)
 
     @some_slot.plugin('name')
@@ -190,7 +190,7 @@ def test_exceeding_the_limit_1000_of_plugins():
 def test_strange_slot_return_type_annotation(folder):
     with pytest.raises(StrangeTypeAnnotationError, match=match('The return type annotation for a slot must be either a list or a dict, or remain empty.')):
         @folder(slot)
-        def some_slot(a, b) -> int:
+        def some_slot(a, b) -> int:  # type: ignore[empty-body]
             ...
 
 

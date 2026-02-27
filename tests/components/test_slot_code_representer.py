@@ -609,7 +609,7 @@ def test_empty_hint_returns_sentinel(transformed):
 
 def test_returning_another_objects(transformed):
     @transformed
-    def function() -> int:
+    def function() -> int:  # type: ignore[empty-body]
         ...
 
     assert not SlotCodeRepresenter(function).returns_list
