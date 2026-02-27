@@ -633,7 +633,7 @@ def test_package_version():
     assert SlotCodeRepresenter(function).package_version is None
 
 
-@pytest.mark.skipif(version_info >= (3, 13), reason='On new versions of Python, it is not possible to pass the wrong number of arguments.')
+@pytest.mark.skipif(version_info >= (3, 12), reason='On new versions of Python, it is not possible to pass the wrong number of arguments.')
 def test_wrong_dict_type_annotation(subscribable_dict_type):
     def function() -> subscribable_dict_type[str]: ...
 
