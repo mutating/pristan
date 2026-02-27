@@ -1,4 +1,9 @@
-from typing import Callable, Dict, List, Optional, ParamSpec, TypeVar, Union
+from typing import Callable, Dict, List, Optional, TypeVar, Union
+
+try:
+    from typing import ParamSpec
+except ImportError:
+    from typing_extensions import ParamSpec
 
 SlotPapameters = ParamSpec('SlotPapameters')
 PluginResult = TypeVar('PluginResult')
