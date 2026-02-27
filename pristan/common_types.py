@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Optional, TypeVar, Union
 try:
     from typing import ParamSpec
 except ImportError:  # pragma: no cover
-    from typing_extensions import ParamSpec  # typing: ignore[assignment]
+    from typing_extensions import ParamSpec  # type: ignore[assignment]
 
 SlotPapameters = ParamSpec('SlotPapameters')
 PluginResult = TypeVar('PluginResult')
