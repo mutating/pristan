@@ -42,7 +42,7 @@ class SlotCodeRepresenter:
             return None
 
     @cached_property
-    def returning_type(self) -> Union[InnerNoneType, Type[Any]]:
+    def returning_type(self) -> Union[InnerNoneType, Type[Any]]:  # noqa: PLR0911
         try:
             hints = get_type_hints(self.function)
         except TypeError:
