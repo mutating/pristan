@@ -1,7 +1,7 @@
 from typing import Callable, Dict, List, Optional, TypeVar, Union
 
 try:
-    from typing import ParamSpec
+    from typing import ParamSpec  # type: ignore[attr-defined]
 except ImportError:  # pragma: no cover
     from typing_extensions import ParamSpec  # type: ignore[assignment, unused-ignore]
 

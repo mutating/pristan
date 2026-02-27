@@ -9,7 +9,7 @@ from pristan.components.slot_code_representer import sentinel as return_type_sen
 
 
 class Plugin(Generic[PluginResult]):
-    def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:
+    def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:  # type: ignore[type-arg]
         self.plugin_function = plugin_function
         self.requested_name = name
         self.name = name
@@ -30,7 +30,8 @@ class Plugin(Generic[PluginResult]):
         )
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> PluginResult:
-        result = self.plugin_function(*args, **kwargs)  # type: ignore[arg-type]
+        # TODO: try to delete this "type: ignore" comment if python 3.8 deleted from CI
+        result = self.plugin_function(*args, **kwargs)  # type: ignore[arg-type, unused-ignore]
 
         if self.type_check and self.expected_result_type is not return_type_sentinel and not check(result, self.expected_result_type, strict=True):  # type: ignore[arg-type]
             raise TypeError(f'The type {type(result).__name__} of the plugin\'s "{self.name}" return value {result!r} does not match the expected type {self._get_class_name(self.expected_result_type)}.')  # type: ignore[union-attr, unused-ignore]
