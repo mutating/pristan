@@ -1,4 +1,5 @@
 from typing import List, Union
+from sys import version_info
 
 import pytest
 from full_match import match
@@ -13,7 +14,8 @@ def test_i_can_run_plugin():
     assert Plugin('some_name', lambda x, y: x + y, str, False, False)(1, 2) == 3
 
 
-def test_type_check_is_not_passed_without_ignore():
+@pytest.mark.skipif(version_info <= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_type_check_is_not_passed_without_ignore_new_pythons():
     plugin_name = 'some_name'
 
     with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type str.')):
@@ -29,6 +31,29 @@ def test_type_check_is_not_passed_without_ignore():
         Plugin(plugin_name, lambda x, y: x + y, str, True, False)(1, 2)
 
     with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type List.')):
+        Plugin(plugin_name, lambda x, y: x + y, List, True, False)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
+        Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, False)(1, 2)
+
+
+@pytest.mark.skipif(version_info >= (3, 10), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_type_check_is_not_passed_without_ignore():
+    plugin_name = 'some_name'
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type str.')):
+        Plugin(plugin_name, lambda x, y: x + y, str, True, True)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type typing.List.')):
+        Plugin(plugin_name, lambda x, y: x + y, List, True, True)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
+        Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, True)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type str.')):
+        Plugin(plugin_name, lambda x, y: x + y, str, True, False)(1, 2)
+
+    with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type typing.List.')):
         Plugin(plugin_name, lambda x, y: x + y, List, True, False)(1, 2)
 
     with pytest.raises(TypeError, match=match(f'The type int of the plugin\'s "{plugin_name}" return value 3 does not match the expected type Union.')):
