@@ -2,7 +2,7 @@ from typing import Callable, Dict, List, Optional, TypeVar, Union
 
 try:
     from typing import ParamSpec
-except ImportError:
+except ImportError:  # pragma: no cover
     from typing_extensions import ParamSpec  # typing: ignore[assignment]
 
 SlotPapameters = ParamSpec('SlotPapameters')
