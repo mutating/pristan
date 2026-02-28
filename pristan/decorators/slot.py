@@ -7,10 +7,10 @@ from pristan.components.slot import Slot
 
 # TODO: concider to delete all "type: ignore" comments with "unused-ignore"'s in this file if python 3.8 deleted from the matrix
 @overload
-def slot(func: SlotFunction[SlotPapameters, PluginResult], /) -> SlotFunction[SlotPapameters, PluginResult]: ...  # pragma: no branch  # type: ignore[type-arg]
+def slot(func: SlotFunction[SlotPapameters, PluginResult], /) -> SlotFunction[SlotPapameters, PluginResult]: ...  # type: ignore[type-arg] # pragma: no branch
 
 @overload
-def slot(*, a: str, b: str) -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # pragma: no branch  # type: ignore[type-arg]
+def slot(*, a: str, b: str) -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # type: ignore[type-arg] # pragma: no branch
 
 def slot(function: Optional[SlotFunction[SlotPapameters, PluginResult]] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True) -> Union[SlotFunction[SlotPapameters, PluginResult], Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]]:  # type: ignore[misc, type-arg, unused-ignore]
     if function is not None:
