@@ -647,7 +647,7 @@ def test_wrong_dict_type_annotation(subscribable_dict_type):
             SlotCodeRepresenter(function).returning_type  # noqa: B018
 
     else:
-        with pytest.raises(TypeError, match=match('Too few parameters for typing.Dict; actual 1, expected at least 2')):  # noqa: PT012
+        with pytest.raises(TypeError, match=match('Too few parameters for typing.Dict; actual 1, expected 2')):  # noqa: PT012
             def function() -> subscribable_dict_type[str]: ...
 
             SlotCodeRepresenter(function).returning_type  # noqa: B018
