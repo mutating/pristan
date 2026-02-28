@@ -14,7 +14,7 @@ def test_i_can_run_plugin():
     assert Plugin('some_name', lambda x, y: x + y, str, False, False)(1, 2) == 3
 
 
-@pytest.mark.skipif(version_info < (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+@pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_type_check_is_not_passed_without_ignore_new_pythons():
     plugin_name = 'some_name'
 
@@ -37,7 +37,7 @@ def test_type_check_is_not_passed_without_ignore_new_pythons():
         Plugin(plugin_name, lambda x, y: x + y, Union[List, str], True, False)(1, 2)
 
 
-@pytest.mark.skipif(version_info >= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+@pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_type_check_is_not_passed_without_ignore():
     plugin_name = 'some_name'
 
