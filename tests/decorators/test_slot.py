@@ -646,8 +646,8 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
     assert bread_crumbs == ['run_plugin_3']
 
 
-@pytest.mark.skipif(version_info <= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type(folder, list_type):
+@pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type_new_pythons(folder, list_type):
     bread_crumbs = []
 
     @folder(slot)
@@ -677,8 +677,8 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
     assert bread_crumbs == ['run_plugin_3']
 
 
-@pytest.mark.skipif(version_info >= (3, 10), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type_new_pythons(folder, list_type):
+@pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type(folder, list_type):
     bread_crumbs = []
 
     @folder(slot)
