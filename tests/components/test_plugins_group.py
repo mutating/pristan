@@ -152,6 +152,15 @@ def test_contains_with_not_valid_names():
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-0" is not a valid name for a plugin.')):
         'kek-0' in group
 
+    with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
+        123 in group
+
+    with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
+        False in group
+
+    with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
+        None in group
+
 
 def test_contains_plugins():
     caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
