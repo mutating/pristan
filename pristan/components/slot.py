@@ -1,5 +1,5 @@
 try:
-    from importlib_metadata import entry_points
+    from importlib_metadata import entry_points  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover
     from importlib.metadata import entry_points
 
