@@ -3,7 +3,7 @@ try:
         entry_points,  # type: ignore[import-not-found, unused-ignore]
     )
 except ImportError:  # type: ignore[assignment, unused-ignore] # pragma: no cover
-    from importlib.metadata import (
+    from importlib.metadata import (  # type: ignore[assignment, unused-ignore]
         entry_points,  # type: ignore[assignment, unused-ignore]
     )
 
