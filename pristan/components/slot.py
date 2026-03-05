@@ -1,3 +1,4 @@
+from importlib.metadata import entry_points
 from threading import RLock
 from typing import (
     Callable,
@@ -5,7 +6,6 @@ from typing import (
     Generic,
     Optional,
 )
-from importlib.metadata import entry_points
 
 from printo import descript_data_object
 from sigmatch import PossibleCallMatcher
