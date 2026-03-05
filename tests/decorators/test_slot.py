@@ -833,6 +833,10 @@ def test_getitem_good_key(folder):
     assert len(some_slot['name']) == 2
     assert [x.name for x in some_slot['name']] == ['name', 'name-2']
 
+    assert some_slot['name-1']
+    assert len(some_slot['name-1']) == 1
+    assert [x.name for x in some_slot['name-1']] == ['name']
+
     assert some_slot['name-2']
     assert len(some_slot['name-2']) == 1
     assert [x.name for x in some_slot['name-2']] == ['name-2']
