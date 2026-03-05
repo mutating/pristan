@@ -840,3 +840,41 @@ def test_getitem_good_key(folder):
     assert not some_slot['kek']
     assert len(some_slot['kek']) == 0
     assert [x.name for x in some_slot['kek']] == []
+
+
+def test_getitem_call(folder):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot():
+        bread_crumbs.append('some_slot')
+
+    @some_slot.plugin('name')
+    def plugin_1():
+        bread_crumbs.append('plugin_1')
+
+    @some_slot.plugin('name')
+    def plugin_2():
+        bread_crumbs.append('plugin_2')
+
+    @some_slot.plugin('name2')
+    def plugin_3():
+        bread_crumbs.append('plugin_3')
+
+    some_slot['name']()
+
+    assert bread_crumbs == ['plugin_1', 'plugin_2']
+
+    bread_crumbs.clear()
+
+    some_slot['name2']()
+
+    assert bread_crumbs == ['plugin_3']
+
+    bread_crumbs.clear()
+
+    some_slot['kek']()
+
+    assert bread_crumbs == ['some_slot']
+
+    bread_crumbs.clear()
