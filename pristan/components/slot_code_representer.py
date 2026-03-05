@@ -16,6 +16,7 @@ from typing import (
 from denial import InnerNoneType
 from getsources import getclearsource
 from packaging.version import Version
+from printo import descript_data_object
 
 sentinel = InnerNoneType()
 
@@ -23,6 +24,9 @@ class SlotCodeRepresenter:
     def __init__(self, function: Callable[..., Any]) -> None:
         self.function = function
         self.returning_type  # noqa: B018
+
+    def __repr__(self) -> str:
+        return descript_data_object(type(self).__name__, [self.function], {})
 
     @cached_property
     def base_module(self) -> Optional[str]:
