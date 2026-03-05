@@ -1,4 +1,3 @@
-from functools import partial
 from threading import Lock
 from typing import (
     Callable,
@@ -19,7 +18,7 @@ from pristan.common_types import (
 )
 from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
-from pristan.components.slot_caller import SlotCaller
+from pristan.components.slot_caller import SlotCaller, CallerWithPlugins
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 from pristan.errors import (
@@ -49,7 +48,7 @@ class Slot(Generic[PluginResult]):
 
         self.caller = SlotCaller(self.code_representation, self.slot_name, self.slot_function, self.type_check)
         self.plugins = PluginsGroup(self.caller)
-        self.backed_caller = partial(self.caller, self.plugins)
+        self.backed_caller = CallerWithPlugins(self.caller, self.plugins.plugins)
 
         # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
         self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type, unused-ignore]
@@ -59,6 +58,9 @@ class Slot(Generic[PluginResult]):
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
+
+    def __getitem__(self, key: str) -> CallerWithPlugins:
+        return self.plugins[key]
 
     def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if callable(plugin_name) or not plugin_name.isidentifier():
