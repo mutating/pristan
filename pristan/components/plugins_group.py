@@ -23,7 +23,7 @@ class PluginsGroup:
     def __repr__(self) -> str:
         return descript_data_object(type(self).__name__, [self.caller], {'plugins': self.plugins}, filters={'plugins': lambda x: bool(self.plugins)})
 
-    def __nonzero__(self) -> bool:
+    def __bool__(self) -> bool:
         return bool(self.plugins)
 
     def __len__(self) -> int:
