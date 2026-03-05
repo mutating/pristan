@@ -16,6 +16,7 @@ dependencies = [
     'printo>=0.0.14',
     'getsources>=0.0.2',
     'packaging>=26.0',
+    'importlib-metadata; python_version < "3.10"',
 ]
 classifiers = [
     "Operating System :: OS Independent",

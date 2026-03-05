@@ -1,4 +1,8 @@
-from importlib.metadata import entry_points
+try:
+    from importlib_metadata import entry_points
+except ImportError:  # pragma: no cover
+    from importlib.metadata import entry_points
+
 from threading import RLock
 from typing import (
     Callable,
