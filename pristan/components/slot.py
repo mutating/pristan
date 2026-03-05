@@ -8,6 +8,7 @@ from typing import (
 
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
+from printo import descript_data_object
 
 from pristan.common_types import (
     PluginFunction,
@@ -41,6 +42,7 @@ class Slot(Generic[PluginResult]):
 
         self.signature = signature
         self.slot_name = slot_name
+        self.slot_function = slot_function
         self.max_number_of_plugins = max_plugins
         self.type_check = type_check
 
@@ -61,6 +63,18 @@ class Slot(Generic[PluginResult]):
 
     def __getitem__(self, key: str) -> CallerWithPlugins:
         return self.plugins[key]
+
+    def __repr__(self) -> str:
+        return descript_data_object(
+            type(self).__name__,
+            [self.slot_function],
+            {
+                'signature': self.signature,
+                'slot_name': self.slot_name,
+                'max_plugins': self.max_number_of_plugins,
+                'type_check': self.type_check,
+            },
+        )
 
     def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if callable(plugin_name) or not plugin_name.isidentifier():

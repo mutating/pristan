@@ -23,7 +23,16 @@ class SlotCaller(Generic[PluginResult]):
         self.type_check = type_check
 
     def __repr__(self) -> str:
-        return descript_data_object(type(self).__name__, [self.code_representation, self.slot_name, self.slot_function, self.type_check], {})
+        return descript_data_object(
+            type(self).__name__,
+            [],
+            {
+                'code_representation': self.code_representation,
+                'slot_name': self.slot_name,
+                'slot_function': self.slot_function,
+                'type_check': self.type_check,
+            },
+        )
 
     def __call__(self, plugins: Union[PluginsGroup, List[Plugin[PluginResult]]], *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
         if not self.code_representation.is_empty and not plugins:
@@ -67,7 +76,14 @@ class CallerWithPlugins:
         return self.caller(self.plugins, *args, **kwargs)
 
     def __repr__(self) -> str:
-        return descript_data_object(type(self).__name__, [self.caller, self.plugins], {})
+        return descript_data_object(
+            type(self).__name__,
+            [],
+            {
+                'caller': self.caller,
+                'plugins': self.plugins,
+            },
+        )
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
