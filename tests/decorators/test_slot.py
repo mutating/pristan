@@ -106,7 +106,7 @@ def test_2_not_unique_plugins_with_same_names(folder):
         ...
 
     assert [x.name for x in some_slot] == ['kek', 'kek-2', 'kek-3']
-    assert [x.name for x in some_slot.plugins.plugins_by_requested_names['kek']] == ['kek', 'kek-2', 'kek-3']
+    assert [x.name for x in some_slot['kek'].plugins] == ['kek', 'kek-2', 'kek-3']
 
 
 def test_2_plugins_with_same_names_and_first_one_is_unique(folder):
@@ -124,7 +124,7 @@ def test_2_plugins_with_same_names_and_first_one_is_unique(folder):
             ...
 
     assert [x.name for x in some_slot] == ['kek']
-    assert [x.name for x in some_slot.plugins.plugins_by_requested_names['kek']] == ['kek']
+    assert [x.name for x in some_slot['kek'].plugins] == ['kek']
 
 
 def test_2_plugins_with_same_names_and_second_one_is_unique(folder):
@@ -142,7 +142,7 @@ def test_2_plugins_with_same_names_and_second_one_is_unique(folder):
             ...
 
     assert [x.name for x in some_slot] == ['kek']
-    assert [x.name for x in some_slot.plugins.plugins_by_requested_names['kek']] == ['kek']
+    assert [x.name for x in some_slot['kek'].plugins] == ['kek']
 
 
 def test_exceeding_the_limit_0_of_plugins():
