@@ -11,7 +11,7 @@ class PluginsGroup:
     """
     The class is a collection of plugins.
 
-    All collection operations are not thread-safe.
+    All collection operations are totally not thread-safe.
     """
 
     def __init__(self, caller: 'SlotCaller', plugins: Optional[List['Plugin[PluginResult]']] = None) -> None:
@@ -54,7 +54,7 @@ class PluginsGroup:
         elif isinstance(item, Plugin):
             return item.requested_name in self.plugins_by_requested_names and any(x.name == item.name for x in self.plugins_by_requested_names[item.requested_name])
         else:
-            raise TypeError()
+            raise TypeError('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')
 
     def __getitem__(self, key: str):
         if key.isidentifier():
@@ -64,11 +64,18 @@ class PluginsGroup:
                 return partial(self.caller, [])
 
         elif self._is_identifier_with_number(key):
-            ...
+            splitted = key.split('-')
+            first_part = splitted[0]
+            second_part = splitted[1]
+            if first_part not in self.plugins_by_requested_names:
+                return partial(self.caller, [])
+            for plugin in self.plugins_by_requested_names[first_part]:
+                if (second_part == '1' and plugin.name == first_part) or plugin.name == key:
+                    return partial(self.caller, [plugin])
+            return partial(self.caller, [])
+
         else:
-            raise KeyError()
-
-
+            raise KeyError('You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").')
 
     @staticmethod
     def _is_identifier_with_number(name: str) -> bool:
