@@ -12,7 +12,7 @@ def slot(func: SlotFunction[SlotPapameters, PluginResult], /) -> SlotFunction[Sl
 @overload
 def slot(*, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # pragma: no branch
 
-def slot(function: Optional[SlotFunction[SlotPapameters, PluginResult]] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Union[SlotFunction[SlotPapameters, PluginResult], Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]]:  # type: ignore[misc, type-arg, unused-ignore]
+def slot(function: Optional[SlotFunction[SlotPapameters, PluginResult]] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Union[SlotFunction[SlotPapameters, PluginResult], Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]]:  # type: ignore[misc, type-arg, unused-ignore] # noqa: PLR0913
     if function is not None:
         return wraps(function)(Slot(function, signature, name, max_plugins, type_check, entrypoint_group))  # type: ignore[arg-type, return-value, unused-ignore]
 
