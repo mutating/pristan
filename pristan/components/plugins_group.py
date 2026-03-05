@@ -41,6 +41,9 @@ class PluginsGroup:
             if self._is_identifier_with_number(item):
                 splitted = item.split('-')
                 first_part = splitted[0]
+                second_part = splitted[1]
+                if second_part == '1':
+                    return first_part in self
                 if first_part not in self.plugins_by_requested_names:
                     return False
                 for plugin in self.plugins_by_requested_names[first_part]:
