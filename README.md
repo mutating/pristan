@@ -5,7 +5,7 @@ This is a library designed for creating plugins. What is a plugin? In terms of t
 But there are already other plugin libraries! How is this one different? Here are a few things:
 
 - Maximum simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they simply replace or supplement this function.
-- Modern design based on decorators and type annotations.
+- Modern "pythonic" design based on decorators and type annotations.
 - Type safety, thread safety, safety of your soul.
 
 
