@@ -878,3 +878,59 @@ def test_getitem_call(folder):
     assert bread_crumbs == ['some_slot']
 
     bread_crumbs.clear()
+
+
+def test_getitem_call_with_parameters(folder):
+    bread_crumbs = []
+
+    @folder(slot)
+    def some_slot(a, b=3):
+        bread_crumbs.append(f'some_slot_{a}_{b}')
+
+    @some_slot.plugin('name')
+    def plugin_1(a, b=4):
+        bread_crumbs.append(f'plugin_1_{a}_{b}')
+
+    @some_slot.plugin('name')
+    def plugin_2(a, b=5):
+        bread_crumbs.append(f'plugin_2_{a}_{b}')
+
+    @some_slot.plugin('name2')
+    def plugin_3(a, b=6):
+        bread_crumbs.append(f'plugin_3_{a}_{b}')
+
+    some_slot['name'](1)
+
+    assert bread_crumbs == ['plugin_1_1_4', 'plugin_2_1_5']
+
+    bread_crumbs.clear()
+
+    some_slot['name2'](1)
+
+    assert bread_crumbs == ['plugin_3_1_6']
+
+    bread_crumbs.clear()
+
+    some_slot['kek'](1)
+
+    assert bread_crumbs == ['some_slot_1_3']
+
+    bread_crumbs.clear()
+
+    some_slot['name'](1, 2)
+
+    assert bread_crumbs == ['plugin_1_1_2', 'plugin_2_1_2']
+
+    bread_crumbs.clear()
+
+    some_slot['name2'](1, 2)
+
+    assert bread_crumbs == ['plugin_3_1_2']
+
+    bread_crumbs.clear()
+
+    some_slot['kek'](1, 2)
+
+    assert bread_crumbs == ['some_slot_1_2']
+
+    bread_crumbs.clear()
