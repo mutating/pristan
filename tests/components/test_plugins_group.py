@@ -17,8 +17,8 @@ def test_bool():
 def test_repr():
     caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
 
-    assert repr(PluginsGroup(caller)) == 'PluginsGroup(SlotCaller(SlotCodeRepresenter(λ), \'kek\', λ, False))'
-    assert repr(PluginsGroup(caller, plugins=[Plugin('name', lambda x: x, int, False, False)])) == 'PluginsGroup(SlotCaller(SlotCodeRepresenter(λ), \'kek\', λ, False), plugins=[Plugin(\'name\', plugin_function=λ, expected_result_type=int, type_check=False, unique=False)])'
+    assert repr(PluginsGroup(caller)) == 'PluginsGroup(SlotCaller(code_representation=SlotCodeRepresenter(λ), slot_name=\'kek\', slot_function=λ, type_check=False))'
+    assert repr(PluginsGroup(caller, plugins=[Plugin('name', lambda x: x, int, False, False)])) == 'PluginsGroup(SlotCaller(code_representation=SlotCodeRepresenter(λ), slot_name=\'kek\', slot_function=λ, type_check=False), plugins=[Plugin(\'name\', plugin_function=λ, expected_result_type=int, type_check=False, unique=False)])'
 
 
 def test_it_saves_default_plugins_without_renaming():

@@ -934,3 +934,47 @@ def test_getitem_call_with_parameters(folder):
     assert bread_crumbs == ['some_slot_1_2']
 
     bread_crumbs.clear()
+
+
+def test_repr(folder):
+    @folder(slot)
+    def some_slot(a, b=3):
+        ...
+
+    @slot(name='name')
+    def some_slot_2(a, b=3):
+        ...
+
+    @slot(name='name2', signature='..')
+    def some_slot_3(a, b=3):
+        ...
+
+    @slot(name='name3', signature='..', max_plugins=3)
+    def some_slot_4(a, b=3):
+        ...
+
+    @slot(name='name4', signature='..', max_plugins=3, type_check=False)
+    def some_slot_5(a, b=3):
+        ...
+
+    assert repr(some_slot) == 'Slot(some_slot, signature=None, slot_name=None, max_plugins=None, type_check=True)'
+    assert repr(some_slot_2) == 'Slot(some_slot_2, signature=None, slot_name=\'name\', max_plugins=None, type_check=True)'
+    assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\', max_plugins=None, type_check=True)'
+    assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max_plugins=3, type_check=True)'
+    assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max_plugins=3, type_check=False)'
+
+
+def test_getitem_repr(folder):
+    @folder(slot)
+    def some_slot(a, b=3):
+        ...
+
+    @some_slot.plugin('name')
+    def some_plugin(a, b=3):
+        ...
+
+    @some_slot.plugin('name')
+    def some_plugin_2(a, b=3):
+        ...
+
+    assert repr(some_slot['name']) == 'CallerWithPlugins(caller=SlotCaller(code_representation=SlotCodeRepresenter(some_slot), slot_name=None, slot_function=some_slot, type_check=True), plugins=[Plugin(\'name\', plugin_function=some_plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'name-2\', plugin_function=some_plugin_2, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
