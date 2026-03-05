@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Generic, Union, Type, Optional
+from typing import Any, Dict, Generic, List, Optional, Type, Union
 
 from denial import InnerNoneType
 from printo import descript_data_object

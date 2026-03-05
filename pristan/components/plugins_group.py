@@ -1,10 +1,8 @@
-from typing import List, DefaultDict, Generator, Any, Optional
 from collections import defaultdict
 from functools import partial
+from typing import Any, DefaultDict, Generator, List, Optional
 
 from printo import descript_data_object
-
-from pristan.errors import PrimadonnaPluginError
 
 
 class PluginsGroup:
@@ -40,7 +38,7 @@ class PluginsGroup:
         if isinstance(item, str):
             if item.isidentifier():
                 return item in self.plugins_by_requested_names
-            elif self._is_identifier_with_number(item):
+            if self._is_identifier_with_number(item):
                 splitted = item.split('-')
                 first_part = splitted[0]
                 if first_part not in self.plugins_by_requested_names:
@@ -49,22 +47,19 @@ class PluginsGroup:
                     if plugin.name == item:
                         return True
                 return False
-            else:
-                raise ValueError(f'The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "{item}" is not a valid name for a plugin.')
-        elif isinstance(item, Plugin):
+            raise ValueError(f'The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "{item}" is not a valid name for a plugin.')
+        if isinstance(item, Plugin):
             return item.requested_name in self.plugins_by_requested_names and any(x.name == item.name for x in self.plugins_by_requested_names[item.requested_name])
-        else:
-            raise TypeError('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')
+        raise TypeError('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')
 
     def __getitem__(self, key: str):
         if isinstance(key, str):
             if key.isidentifier():
                 if key in self.plugins_by_requested_names:
                     return partial(self.caller, [x for x in self.plugins_by_requested_names[key]])
-                else:
-                    return partial(self.caller, [])
+                return partial(self.caller, [])
 
-            elif self._is_identifier_with_number(key):
+            if self._is_identifier_with_number(key):
                 splitted = key.split('-')
                 first_part = splitted[0]
                 second_part = splitted[1]

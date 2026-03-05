@@ -1,18 +1,12 @@
+from functools import partial
 from threading import Lock
 from typing import (
-    Any,
     Callable,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    Union,
     Generator,
+    Generic,
+    Optional,
 )
-from functools import partial
 
-from denial import InnerNoneType
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
 
@@ -25,9 +19,9 @@ from pristan.common_types import (
 )
 from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
+from pristan.components.slot_caller import SlotCaller
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
-from pristan.components.slot_caller import SlotCaller
 from pristan.errors import (
     PrimadonnaPluginError,
     StrangeTypeAnnotationError,

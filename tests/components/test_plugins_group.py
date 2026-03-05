@@ -1,8 +1,8 @@
 import pytest
 from full_match import match
 
-from pristan.components.plugins_group import PluginsGroup
 from pristan.components.plugin import Plugin
+from pristan.components.plugins_group import PluginsGroup
 from pristan.components.slot_caller import SlotCaller
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 
