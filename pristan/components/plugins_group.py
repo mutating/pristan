@@ -55,7 +55,7 @@ class PluginsGroup(Generic[PluginResult]):
             raise ValueError(f'The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "{item}" is not a valid name for a plugin.')
 
         if isinstance(item, Plugin):
-            return item.requested_name in self.plugins_by_requested_names and any(x.name == item.name for x in self.plugins_by_requested_names[item.requested_name])
+            return item.requested_name in self.plugins_by_requested_names and any(x.name == item.name for x in self.plugins_by_requested_names[item.requested_name])  # pragma: no branch
 
         raise TypeError('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')
 
