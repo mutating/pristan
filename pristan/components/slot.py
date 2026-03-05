@@ -1,5 +1,5 @@
 try:
-    from importlib_metadata import (
+    from importlib_metadata import (  # type: ignore[import-not-found, unused-ignore]
         entry_points,  # type: ignore[import-not-found, unused-ignore]
     )
 except ImportError:  # type: ignore[assignment, unused-ignore] # pragma: no cover
