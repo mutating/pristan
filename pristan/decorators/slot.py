@@ -10,7 +10,7 @@ from pristan.components.slot import Slot
 def slot(func: SlotFunction[SlotPapameters, PluginResult], /) -> SlotFunction[SlotPapameters, PluginResult]: ...  # type: ignore[type-arg, unused-ignore] # pragma: no branch
 
 @overload
-def slot(*, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # pragma: no branch
+def slot(*, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # type: ignore[type-arg, unused-ignore] # pragma: no branch
 
 def slot(function: Optional[SlotFunction[SlotPapameters, PluginResult]] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Union[SlotFunction[SlotPapameters, PluginResult], Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]]:  # type: ignore[misc, type-arg, unused-ignore] # noqa: PLR0913
     if function is not None:
