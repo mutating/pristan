@@ -14,7 +14,7 @@ class PluginsGroup:
     All collection operations are totally not thread-safe.
     """
 
-    def __init__(self, caller: 'SlotCaller', plugins: Optional[List[Plugin[PluginResult]]] = None) -> None:  # noqa: F821
+    def __init__(self, caller: 'SlotCaller', plugins: Optional[List[Plugin[PluginResult]]] = None) -> None:  # type: ignore[name-defined] # noqa: F821
         self.caller = caller
         self.plugins: List[Plugin[PluginResult]] = []
         self.plugins_by_requested_names: DefaultDict[str, List[Plugin[PluginResult]]] = defaultdict(list)
@@ -59,7 +59,7 @@ class PluginsGroup:
 
         raise TypeError('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')
 
-    def __getitem__(self, key: str) -> 'CallerWithPlugins':  # noqa: F821
+    def __getitem__(self, key: str) -> 'CallerWithPlugins':  # type: ignore[name-defined] # noqa: F821
         from pristan.components.slot_caller import CallerWithPlugins  # noqa: PLC0415
 
         if isinstance(key, str):
