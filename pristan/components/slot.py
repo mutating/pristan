@@ -6,9 +6,9 @@ from typing import (
     Optional,
 )
 
+from printo import descript_data_object
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
-from printo import descript_data_object
 
 from pristan.common_types import (
     PluginFunction,
@@ -19,7 +19,7 @@ from pristan.common_types import (
 )
 from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
-from pristan.components.slot_caller import SlotCaller, CallerWithPlugins
+from pristan.components.slot_caller import CallerWithPlugins, SlotCaller
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 from pristan.errors import (

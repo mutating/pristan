@@ -1,8 +1,10 @@
 from collections import defaultdict
-from functools import partial
 from typing import Any, DefaultDict, Generator, List, Optional
 
 from printo import descript_data_object
+
+from pristan.common_types import PluginResult
+from pristan.components.plugin import Plugin
 
 
 class PluginsGroup:
@@ -12,16 +14,16 @@ class PluginsGroup:
     All collection operations are totally not thread-safe.
     """
 
-    def __init__(self, caller: 'SlotCaller', plugins: Optional[List['Plugin[PluginResult]']] = None) -> None:
+    def __init__(self, caller: 'SlotCaller', plugins: Optional[List[Plugin[PluginResult]]] = None) -> None:  # noqa: F821
         self.caller = caller
-        self.plugins: List['Plugin[PluginResult]'] = []
-        self.plugins_by_requested_names: DefaultDict[str, List['Plugin[PluginResult]']] = defaultdict(list)
+        self.plugins: List[Plugin[PluginResult]] = []
+        self.plugins_by_requested_names: DefaultDict[str, List[Plugin[PluginResult]]] = defaultdict(list)
 
         if plugins:
             self.add(*plugins)
 
     def __repr__(self) -> str:
-        return descript_data_object(type(self).__name__, [self.caller], {'plugins': self.plugins}, filters={'plugins': lambda x: bool(self.plugins)})
+        return descript_data_object(type(self).__name__, [self.caller], {'plugins': self.plugins}, filters={'plugins': lambda x: bool(self.plugins)})  # noqa: ARG005
 
     def __bool__(self) -> bool:
         return bool(self.plugins)
@@ -33,7 +35,7 @@ class PluginsGroup:
         yield from self.plugins
 
     def __contains__(self, item: Any) -> bool:
-        from pristan.components.plugin import Plugin
+        from pristan.components.plugin import Plugin  # noqa: PLC0415
 
         if isinstance(item, str):
             if item.isidentifier():
@@ -57,8 +59,8 @@ class PluginsGroup:
 
         raise TypeError('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')
 
-    def __getitem__(self, key: str) -> 'CallerWithPlugins':
-        from pristan.components.slot_caller import CallerWithPlugins
+    def __getitem__(self, key: str) -> 'CallerWithPlugins':  # noqa: F821
+        from pristan.components.slot_caller import CallerWithPlugins  # noqa: PLC0415
 
         if isinstance(key, str):
             if key.isidentifier():
@@ -81,7 +83,7 @@ class PluginsGroup:
 
     @staticmethod
     def _is_identifier_with_number(name: str) -> bool:
-        return '-' in name and (lambda parts: len(parts) == 2 and parts[0].isidentifier() and parts[1].isdigit() and parts[1] != '0')(name.split('-'))
+        return '-' in name and (lambda parts: len(parts) == 2 and parts[0].isidentifier() and parts[1].isdigit() and parts[1] != '0')(name.split('-'))  # noqa: PLC3002
 
     def add(self, *plugins: 'Plugin[PluginResult]') -> None:
         for plugin in plugins:

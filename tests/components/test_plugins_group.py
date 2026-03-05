@@ -138,28 +138,28 @@ def test_contains_with_not_valid_names():
     group = PluginsGroup(caller, plugins=plugins)
 
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-kek" is not a valid name for a plugin.')):
-        'kek-kek' in group
+        'kek-kek' in group  # noqa: B015
 
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-2-2" is not a valid name for a plugin.')):
-        'kek-2-2' in group
+        'kek-2-2' in group  # noqa: B015
 
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek--" is not a valid name for a plugin.')):
-        'kek--' in group
+        'kek--' in group  # noqa: B015
 
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "@" is not a valid name for a plugin.')):
-        '@' in group
+        '@' in group  # noqa: B015
 
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-0" is not a valid name for a plugin.')):
-        'kek-0' in group
+        'kek-0' in group  # noqa: B015
 
     with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
-        123 in group
+        123 in group  # noqa: B015
 
     with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
-        False in group
+        False in group  # noqa: B015
 
     with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
-        None in group
+        None in group  # noqa: B015
 
 
 def test_contains_plugins():
