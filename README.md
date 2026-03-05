@@ -1,5 +1,24 @@
 ![logo](https://raw.githubusercontent.com/pomponchik/pristan/develop/docs/assets/logo_1.svg)
 
+This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically “pulls itself” into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating powerful and easily extensible libraries.
+
+But there are already other plugin libraries! How is this one different? Here are a few things:
+
+- Maximum simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they simply replace or supplement this function.
+- Modern design based on decorators and type annotations.
+- Type safety, thread safety, safety of your soul.
+
+
+
+
+
+
+
+
+
+
+
+
 ## Требования
 
 - Архитектура: слот-плагин. Базовая библиотека задает "слот": специальный объект, определяющий формат плагина и осуществляющий его поиск. Библиотека с плагином импортирует слот и регистрируется в нем.
