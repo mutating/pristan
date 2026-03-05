@@ -117,12 +117,15 @@ def test_contains_by_name():
     group = PluginsGroup(caller, plugins=plugins)
 
     assert 'name' in group
+    assert 'name-1' in group
     assert 'name2' in group
     assert 'name-2' in group
 
     assert 'name3' not in group
     assert 'name-3' not in group
     assert 'kek' not in group
+    assert 'kek-2' not in group
+    assert 'kek-1' not in group
 
 
 def test_contains_with_not_valid_names():
@@ -145,6 +148,9 @@ def test_contains_with_not_valid_names():
 
     with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "@" is not a valid name for a plugin.')):
         '@' in group
+
+    with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-0" is not a valid name for a plugin.')):
+        'kek-0' in group
 
 
 def test_contains_plugins():
