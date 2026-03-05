@@ -68,3 +68,12 @@ class CallerWithPlugins:
 
     def __repr__(self) -> str:
         return descript_data_object(type(self).__name__, [self.caller, self.plugins], {})
+
+    def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
+        yield from self.plugins
+
+    def __bool__(self) -> bool:
+        return bool(self.plugins)
+
+    def __len__(self) -> int:
+        return len(self.plugins)
