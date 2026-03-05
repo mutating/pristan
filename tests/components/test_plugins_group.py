@@ -162,3 +162,25 @@ def test_contains_plugins():
 
     assert Plugin('name3', lambda x: x, int, False, False) not in group
     assert Plugin('name-3', lambda x: x, int, False, False) not in group
+
+
+def test_getitem_bad_key():
+    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    plugins = [
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name2', lambda x: x, int, False, False),
+    ]
+    group = PluginsGroup(caller, plugins=plugins)
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        group['kek-kek']
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        group['kek--']
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        group[123]
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        group[True]
