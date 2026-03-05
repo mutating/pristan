@@ -225,3 +225,7 @@ def test_getitem_good_key():
     assert not group['kek']
     assert len(group['kek']) == 0
     assert [x.name for x in group['kek']] == []
+
+    assert not group['kek-2']
+    assert len(group['kek-2']) == 0
+    assert [x.name for x in group['kek-2']] == []
