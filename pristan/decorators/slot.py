@@ -10,10 +10,10 @@ from pristan.components.slot import Slot
 def slot(func: SlotFunction[SlotPapameters, PluginResult], /) -> SlotFunction[SlotPapameters, PluginResult]: ...  # type: ignore[type-arg, unused-ignore] # pragma: no branch
 
 @overload
-def slot(*, a: str, b: str) -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # type: ignore[type-arg, unused-ignore] # pragma: no branch
+def slot(*, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]: ...  # pragma: no branch
 
-def slot(function: Optional[SlotFunction[SlotPapameters, PluginResult]] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True) -> Union[SlotFunction[SlotPapameters, PluginResult], Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]]:  # type: ignore[misc, type-arg, unused-ignore]
+def slot(function: Optional[SlotFunction[SlotPapameters, PluginResult]] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max_plugins: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan') -> Union[SlotFunction[SlotPapameters, PluginResult], Callable[[SlotFunction[SlotPapameters, PluginResult]], SlotFunction[SlotPapameters, PluginResult]]]:  # type: ignore[misc, type-arg, unused-ignore]
     if function is not None:
-        return wraps(function)(Slot(function, signature, name, max_plugins, type_check))  # type: ignore[arg-type, return-value, unused-ignore]
+        return wraps(function)(Slot(function, signature, name, max_plugins, type_check, entrypoint_group))  # type: ignore[arg-type, return-value, unused-ignore]
 
-    return partial(slot, signature=signature, name=name, max_plugins=max_plugins, type_check=type_check)  # type: ignore[arg-type, unused-ignore]
+    return partial(slot, signature=signature, name=name, max_plugins=max_plugins, type_check=type_check, entrypoint_group=entrypoint_group)  # type: ignore[arg-type, unused-ignore]

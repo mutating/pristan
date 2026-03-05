@@ -1,10 +1,11 @@
-from threading import Lock
+from threading import RLock
 from typing import (
     Callable,
     Generator,
     Generic,
     Optional,
 )
+from importlib.metadata import entry_points
 
 from printo import descript_data_object
 from sigmatch import PossibleCallMatcher
@@ -30,7 +31,7 @@ from pristan.errors import (
 
 
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool) -> None:  # type: ignore[type-arg, unused-ignore]
+    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore]
         if max_plugins is not None and max_plugins < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
@@ -45,8 +46,9 @@ class Slot(Generic[PluginResult]):
         self.slot_function = slot_function
         self.max_number_of_plugins = max_plugins
         self.type_check = type_check
+        self.entrypoint_group = entrypoint_group
 
-        self.lock = Lock()
+        self.lock = RLock()
 
         self.caller = SlotCaller(self.code_representation, self.slot_name, self.slot_function, self.type_check)
         self.plugins = PluginsGroup(self.caller)
@@ -55,8 +57,19 @@ class Slot(Generic[PluginResult]):
         # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
         self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type, unused-ignore]
 
+        self.loaded = False
+
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
+        with self.lock:
+            if not self.loaded:
+                self._load_entrypoints()
+                self.loaded = True
+
         return self.backed_caller(*args, **kwargs)
+
+    def _load_entrypoints(self) -> None:
+        for point in entry_points(group=self.entrypoint_group):
+            point.load()
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
