@@ -77,7 +77,7 @@ class PluginsGroup:
 
     @staticmethod
     def _is_identifier_with_number(name: str) -> bool:
-        return '-' in name and (lambda parts: len(parts) == 2 and parts[0].isidentifier() and parts[1].isdigit())(name.split('-'))
+        return '-' in name and (lambda parts: len(parts) == 2 and parts[0].isidentifier() and parts[1].isdigit() and parts[1] != '0')(name.split('-'))
 
     def add(self, *plugins: 'Plugin[PluginResult]') -> None:
         for plugin in plugins:
