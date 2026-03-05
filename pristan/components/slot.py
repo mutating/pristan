@@ -51,7 +51,7 @@ class Slot(Generic[PluginResult]):
         self.lock = RLock()
 
         self.caller = SlotCaller(self.code_representation, self.slot_name, self.slot_function, self.type_check)
-        self.plugins = PluginsGroup(self.caller)
+        self.plugins: PluginsGroup[PluginResult] = PluginsGroup(self.caller)
         self.backed_caller = CallerWithPlugins(self.caller, self.plugins.plugins)
 
         # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
@@ -59,7 +59,7 @@ class Slot(Generic[PluginResult]):
 
         self.loaded = False
 
-    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
+    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:
         with self.lock:
             if not self.loaded:
                 self._load_entrypoints()
@@ -74,8 +74,8 @@ class Slot(Generic[PluginResult]):
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
 
-    def __getitem__(self, key: str) -> CallerWithPlugins:
-        return self.plugins[key]
+    def __getitem__(self, key: str) -> CallerWithPlugins[PluginResult]:
+        return self.plugins[key]  # type: ignore[no-any-return]
 
     def __repr__(self) -> str:
         return descript_data_object(

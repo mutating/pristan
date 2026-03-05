@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, DefaultDict, Generator, List, Optional
+from typing import Any, DefaultDict, Generator, Generic, List, Optional
 
 from printo import descript_data_object
 
@@ -7,7 +7,7 @@ from pristan.common_types import PluginResult
 from pristan.components.plugin import Plugin
 
 
-class PluginsGroup:
+class PluginsGroup(Generic[PluginResult]):
     """
     The class is a collection of plugins.
 
@@ -31,7 +31,7 @@ class PluginsGroup:
     def __len__(self) -> int:
         return len(self.plugins)
 
-    def __iter__(self) -> Generator['Plugin[PluginResult]', None, None]:
+    def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
 
     def __contains__(self, item: Any) -> bool:
