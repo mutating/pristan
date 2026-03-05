@@ -214,6 +214,10 @@ def test_getitem_good_key():
     assert len(group['name']) == 2
     assert [x.name for x in group['name']] == ['name', 'name']
 
+    assert not group['name-2']
+    assert len(group['name-2']) == 0
+    assert [x.name for x in group['name-2']] == []
+
     assert group['name2']
     assert len(group['name2']) == 1
     assert [x.name for x in group['name2']] == ['name2']
