@@ -50,7 +50,7 @@ class Slot(Generic[PluginResult]):
 
         self.lock = RLock()
 
-        self.caller = SlotCaller(self.code_representation, self.slot_name, self.slot_function, self.type_check)
+        self.caller: SlotCaller[PluginResult] = SlotCaller(self.code_representation, self.slot_name, self.slot_function, self.type_check)
         self.plugins: PluginsGroup[PluginResult] = PluginsGroup(self.caller)
         self.backed_caller = CallerWithPlugins(self.caller, self.plugins.plugins)
 

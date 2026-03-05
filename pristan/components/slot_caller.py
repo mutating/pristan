@@ -16,7 +16,8 @@ from pristan.components.slot_code_representer import sentinel as return_type_sen
 
 
 class SlotCaller(Generic[PluginResult]):
-    def __init__(self, code_representation: SlotCodeRepresenter, slot_name: Optional[str], slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], type_check: bool) -> None:
+    # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
+    def __init__(self, code_representation: SlotCodeRepresenter, slot_name: Optional[str], slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], type_check: bool) -> None:  # type: ignore[type-arg, unused-ignore]
         self.code_representation = code_representation
         self.slot_name = slot_name
         self.slot_function = slot_function
