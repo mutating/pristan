@@ -780,3 +780,63 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
     assert some_slot(1, 2) == ['run_plugin_3']
     assert bread_crumbs == ['run_plugin_3']
+
+
+def test_getitem_bad_key(folder):
+    @folder(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin_1():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin_2():
+        ...
+
+    @some_slot.plugin('name2')
+    def plugin_3():
+        ...
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        some_slot['kek-kek']
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        some_slot['kek--']
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        some_slot[123]
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        some_slot[True]
+
+
+def test_getitem_good_key(folder):
+    @folder(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin_1():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin_2():
+        ...
+
+    @some_slot.plugin('name2')
+    def plugin_3():
+        ...
+
+    assert some_slot['name']
+    assert len(some_slot['name']) == 2
+    assert [x.name for x in some_slot['name']] == ['name', 'name-2']
+
+    assert some_slot['name2']
+    assert len(some_slot['name2']) == 1
+    assert [x.name for x in some_slot['name2']] == ['name2']
+
+    assert not some_slot['kek']
+    assert len(some_slot['kek']) == 0
+    assert [x.name for x in some_slot['kek']] == []

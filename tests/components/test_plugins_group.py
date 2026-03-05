@@ -199,3 +199,30 @@ def test_getitem_bad_key():
 
     with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
         group[True]
+
+
+def test_getitem_good_key():
+    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    plugins = [
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name2', lambda x: x, int, False, False),
+    ]
+    group = PluginsGroup(caller, plugins=plugins)
+
+
+    assert len(group['name']) == 2
+    assert [x.name for x in group['name']] == ['name', 'name']
+
+
+    assert group['name']
+    assert len(group['name']) == 2
+    assert [x.name for x in group['name']] == ['name', 'name']
+
+    assert group['name2']
+    assert len(group['name2']) == 1
+    assert [x.name for x in group['name2']] == ['name2']
+
+    assert not group['kek']
+    assert len(group['kek']) == 0
+    assert [x.name for x in group['kek']] == []
