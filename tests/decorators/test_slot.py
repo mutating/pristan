@@ -845,6 +845,10 @@ def test_getitem_good_key(folder):
     assert len(some_slot['kek']) == 0
     assert [x.name for x in some_slot['kek']] == []
 
+    assert not some_slot['kek-2']
+    assert len(some_slot['kek-2']) == 0
+    assert [x.name for x in some_slot['kek-2']] == []
+
 
 def test_getitem_call(folder):
     bread_crumbs = []
