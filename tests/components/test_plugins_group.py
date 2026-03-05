@@ -210,10 +210,6 @@ def test_getitem_good_key():
     ]
     group = PluginsGroup(caller, plugins=plugins)
 
-    assert len(group['name']) == 2
-    assert [x.name for x in group['name']] == ['name', 'name']
-
-
     assert group['name']
     assert len(group['name']) == 2
     assert [x.name for x in group['name']] == ['name', 'name']
