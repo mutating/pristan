@@ -146,6 +146,29 @@ Type annotations are also used to validate return values, which will be detailed
 
 ## Plugins and finding them
 
+In terms of this library, a plugin is a function with the `@<slot name>.plugin` decorator hanging on it.
+
+When hanging the decorator, it is important to additionally specify the name of the plugin:
+
+```python
+@slot_name.plugin('plugin_name')  # <- Here, the name of the plugin is "plugin_name".
+def plugin():
+    ...
+```
+
+If the code defining this function has been executed, it means that the plugin has already attached itself to its slot and will be called along with it. But what if the module defining our plugin is never imported or used in the rest of the program? In this case, the plugin will still connect, but to do this, you need to add an entry point pointing to its location to the `pyproject.toml` file (or its equivalent, which also manages entry points, such as `setup.py`). Here is an example of a section in `pyproject.toml` describing the path to the plugin for its automatic installation:
+
+```toml
+[project.entry-points.pristan]
+name = "path.to.plugin.module"
+```
+
+Please note that `path.to.plugin.module` is the path to the module where your plugin is located (in this case, it means that the plugin should be found in the file `path/to/plugin/module.py`), `pristan` is the plugin namespace, and `name` is the name of a specific plugin in this namespace. This plugin name has nothing to do with what you specify in the decorator.
+
+
+
+
+
 
 ## Type safety
 
