@@ -103,7 +103,7 @@ When called, the slot returns a value, and the type of this value depends on the
 
 - Missing annotation. In this case, even if the slot calls a certain number of plugins, it will not return anything.
 - Annotation of the list, i.e., `list` or [`typing.List`](https://docs.python.org/3/library/typing.html#typing.List). In this case, the return values of each plugin will be aggregated and returned as a `list`.
-- Dictionary annotation, i.e. `dict` or `typing.Dict`. In this case, the return values of each plugin will be aggregated and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
+- Dictionary annotation, i.e. `dict` or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). In this case, the return values of each plugin will be aggregated and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
 
 Example:
 
