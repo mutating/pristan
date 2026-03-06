@@ -75,7 +75,9 @@ That's really all you need to know to create your own libraries and the entire p
 
 
 
-
+Что осталось сделать? 
+- .keys() у слота
+- проверка версий базовой либы
 
 
 
