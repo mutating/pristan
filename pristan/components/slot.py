@@ -73,6 +73,7 @@ class Slot(Generic[PluginResult]):
         return self.backed_caller(*args, **kwargs)
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
+        self._load_entrypoints()
         yield from self.plugins
 
     def __getitem__(self, key: str) -> CallerWithPlugins[PluginResult]:
