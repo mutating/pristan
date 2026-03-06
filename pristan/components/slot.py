@@ -69,16 +69,8 @@ class Slot(Generic[PluginResult]):
         self.loaded = False
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:
-        with self.lock:
-            if not self.loaded:
-                self._load_entrypoints()
-                self.loaded = True
-
+        self._load_entrypoints()
         return self.backed_caller(*args, **kwargs)
-
-    def _load_entrypoints(self) -> None:
-        for point in entry_points(group=self.entrypoint_group):
-            point.load()
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
@@ -118,6 +110,13 @@ class Slot(Generic[PluginResult]):
 
     def keys(self) -> Tuple[str, ...]:
         return tuple(self.plugins.plugins_by_requested_names.keys())
+
+    def _load_entrypoints(self) -> None:
+        with self.lock:
+            if not self.loaded:
+                for point in entry_points(group=self.entrypoint_group):
+                    point.load()
+                self.loaded = True
 
     def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool) -> None:  # type: ignore[type-arg, unused-ignore]
         plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)  # type: ignore[type-arg]
