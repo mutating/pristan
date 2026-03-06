@@ -234,7 +234,7 @@ slot_2()
 #> TypeError: The type str of the plugin's "plugin_name" return value 'some string' does not match the expected type int.
 ```
 
-I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from typing. Your annotations should be as "literal" as possible, i.e., directly describing the types of values you expect.
+I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as "literal" as possible, i.e., directly describing the types of values you expect.
 
 
 
