@@ -9,9 +9,69 @@ But there are already other plugin libraries! How is this one different? Here ar
 - Type safety, thread safety, safety of your soul.
 
 
+## Table of contents
+
+- [**Installation**](#installation)
+- [**Quick start**](#quick-start)
 
 
+## Installation
 
+Install it:
+
+```bash
+pip install pristan
+```
+
+You can also quickly try out this and other packages without having to install using [instld](https://github.com/pomponchik/instld).
+
+
+## Quick start
+
+This library is built on the idea that each plugin automatically finds its slot. What is the slot? It's simple: it's a function with the `@slot` decorator:
+
+```python
+from pristan import slot
+
+@slot
+def some_slot(a, b) -> dict[str, int]:
+    ...
+```
+
+How can we add a plugin to this function? We need to use it as a decorator for other functions, like this:
+
+
+```python
+@some_slot.plugin('plugin_name')
+def plugin_1(a, b) -> int:
+    return a + b
+
+@some_slot.plugin('plugin_name_2')
+def plugin_2(a, b) -> int:
+    return a + b + 1
+```
+
+Let's try to start it up?
+
+```python
+print(some_slot(1, 2))
+#> {'plugin_name': 3, 'plugin_name_2': 4}
+```
+
+Let's pause for a second and reflect on what we've seen. We called a function that we marked as a slot. But in reality, plugins were called, and the result of their call was aggregated into a dictionary. How did the system understand that it needed to combine the result into a dictionary? It did so based on the type annotation.
+
+We noted that the slot returns `dict[str, int]`. `dict` here denotes the type of the result container, `str` is the only type of keys denoting plugin names, and the returned values must be of type `int`.
+
+Well, that seems pretty clear, right? But for our functions to become true plugins, they lack one more property: **auto-detection**.
+
+Plugins are automatically detected through the entry points mechanism. This is where the magic happens: you can place your plugin functions in a third-party library, add a special mark to `pyproject.toml`, and they will be automatically detected. Here is what such a mark looks like:
+
+```toml
+[project.entry-points.pristan]
+name = "path.to.plugin.module"
+```
+
+That's really all you need to know to create your own libraries and the entire plugin infrastructure around them. But if you're interested in the details, read on.
 
 
 
