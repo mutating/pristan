@@ -148,7 +148,7 @@ def plugin(a, *, b):  # The asterisk indicates that argument b can only be passe
 #> sigmatch.errors.SignatureMismatchError: The signature of the callable object does not match the expected one.
 ```
 
-**Second, checking the return values**.
+**Second, checking the return values**. It seems like everything should be simpler here, right?
 
 
 Что осталось сделать?
