@@ -21,7 +21,6 @@ Slot as a collection
 Additional restrictions (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
 
 
-
 ## Installation
 
 Install it:
@@ -100,7 +99,50 @@ Yes, we can call it just as we would call the original function, but in fact it 
 - If plugins are found: sequentially calls them all, packs the results, and returns it according to the expected type.
 - If no plugins are found, it calls the body of the wrapped function, if it is not empty. If it is empty, it does nothing. The body of a wrapped function is like a "default plugin" that is called ONLY if there are no real plugins.
 
-The body of a slot is considered empty if it contains only `...`, `pass`, or `return []` if the type annotation expects a `list`, or `return {}` if it expects a `dict`.
+The body of a slot is considered empty if it contains only `...` or `pass`.
+
+When called, the slot returns a value, and the type of this value depends on the annotation. There are three valid ways to annotate types for slots:
+
+- Missing annotation. In this case, even if the slot calls a certain number of plugins, it will not return anything.
+- Annotation of the list, i.e., `list` or [`typing.List`](https://docs.python.org/3/library/typing.html#typing.List). In this case, the return values of each plugin will be aggregated and returned as a `list`.
+- Dictionary annotation, i.e. `dict` or `typing.Dict`. In this case, the return values of each plugin will be aggregated and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
+
+Example:
+
+```python3
+@slot
+def slot_1(a, b) -> dict[str, int]:
+    ...
+
+@slot
+def slot_2(a, b) -> list[int]:
+    ...
+
+@slot
+def slot_3(a, b):
+    ...
+
+@slot_1.plugin('plugin_name_1')
+@slot_2.plugin('plugin_name_1')
+@slot_3.plugin('plugin_name_1')
+def plugin_1(a, b) -> int:
+    return a + b
+
+@slot_1.plugin('plugin_name_2')
+@slot_2.plugin('plugin_name_2')
+@slot_3.plugin('plugin_name_2')
+def plugin_2(a, b) -> int:
+    return a + b + 1
+
+print(slot_1(1, 2))
+#> {'plugin_name_1': 3, 'plugin_name_2': 4}
+print(slot_2(1, 2))
+#> [3, 4]
+print(slot_3(1, 2))
+#> None
+```
+
+Type annotations are also used to validate return values, which will be detailed [below](#typ-safety).
 
 
 ## Type safety
@@ -148,7 +190,9 @@ def plugin(a, *, b):  # The asterisk indicates that argument b can only be passe
 #> sigmatch.errors.SignatureMismatchError: The signature of the callable object does not match the expected one.
 ```
 
-**Second, checking the return values**. It seems like everything should be simpler here, right?
+**Second, checking the return values**. It seems like everything should be simpler here, right? Well, let's see.
+
+
 
 
 Что осталось сделать?
