@@ -97,9 +97,7 @@ Yes, we can call it just as we would call the original function, but in fact it 
 
 - First of all (on the first call), it will search for plugins.
 - If plugins are found: sequentially calls them all, packs the results, and returns it according to the expected type.
-- If no plugins are found, it calls the body of the wrapped function, if it is not empty. If it is empty, it does nothing. The body of a wrapped function is like a "default plugin" that is called ONLY if there are no real plugins.
-
-The body of a slot is considered empty if it contains only `...` or `pass`.
+- If no plugins are found, it calls the body of the wrapped function, if it is not empty (the body is considered empty if it contains only `...` or `pass`). If it is empty, it does nothing. The body of a wrapped function is like a "default plugin" that is called ONLY if there are no real plugins.
 
 When called, the slot returns a value, and the type of this value depends on the annotation. There are three valid ways to annotate types for slots:
 
