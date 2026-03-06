@@ -13,6 +13,7 @@ from typing import (
     Generator,
     Generic,
     Optional,
+    Tuple,
 )
 
 from printo import descript_data_object
@@ -108,6 +109,9 @@ class Slot(Generic[PluginResult]):
             return plugin_function
 
         return decorator
+
+    def keys(self) -> Tuple[str, ...]:
+        return tuple(self.plugins.plugins_by_requested_names.keys())
 
     def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool) -> None:  # type: ignore[type-arg, unused-ignore]
         plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)  # type: ignore[type-arg]

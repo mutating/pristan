@@ -990,3 +990,28 @@ def test_getitem_repr(folder):
         ...
 
     assert repr(some_slot['name']) == 'CallerWithPlugins(caller=SlotCaller(code_representation=SlotCodeRepresenter(some_slot), slot_name=None, slot_function=some_slot, type_check=True), plugins=[Plugin(\'name\', plugin_function=some_plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'name-2\', plugin_function=some_plugin_2, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
+
+
+def test_keys(folder):
+    @folder(slot)
+    def slot_1():
+        ...
+
+    @slot_1.plugin('name')
+    def plugin_1():
+        ...
+
+    @slot_1.plugin('name')
+    def plugin_2():
+        ...
+
+    @slot_1.plugin('name2')
+    def plugin_3():
+        ...
+
+    @folder(slot)
+    def slot_2():
+        ...
+
+    assert slot_1.keys() == ('name', 'name2')
+    assert slot_2.keys() == ()
