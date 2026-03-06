@@ -156,6 +156,8 @@ def plugin():
     ...
 ```
 
+The plugin name must be a valid Python identifier. However, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by adding a number to the end of the name, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
+
 If the code defining this function has been executed, it means that the plugin has already attached itself to its slot and will be called along with it. But what if the module defining our plugin is never imported or used in the rest of the program? In this case, the plugin will still connect, but to do this, you need to add an entry point pointing to its location to the `pyproject.toml` file (or its equivalent, which also manages entry points, such as `setup.py`). Here is an example of a section in `pyproject.toml` describing the path to the plugin for its automatic installation:
 
 ```toml
@@ -165,9 +167,22 @@ name = "path.to.plugin.module"
 
 Please note that `path.to.plugin.module` is the path to the module where your plugin is located (in this case, it means that the plugin should be found in the file `path/to/plugin/module.py`), `pristan` is the plugin namespace, and `name` is the name of a specific plugin in this namespace. This plugin name has nothing to do with what you specify in the decorator.
 
+`pristan` is the default plugin namespace, but you can specify a different option for a specific slot, like this:
 
+```python3
+@slot(entrypoint_group='new_namespace')
+def some_slot(a, b):
+    ...
+```
 
+In this case, the entry in `pyproject.toml` should look like this:
 
+```toml
+[project.entry-points.new_namespace]
+name = "path.to.plugin.module"
+```
+
+I recommend that large libraries use namespaces that correspond to their names.
 
 
 ## Type safety
