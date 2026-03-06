@@ -112,9 +112,43 @@ This library provides type safety in two aspects:
 
 This ensures that slots and plugins can be easily integrated into the surrounding code: plugins can be called in the expected manner and return values of the required types. Let's take a closer look at these checks?
 
+**First, check the signatures**. How does it work? Before anything else, you should know that Python syntax is super flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but how they're called.
 
+By default, the `pristan` library expects that there is at least one common valid calling convention between the slot and each of its plugins. If this does not exist, you will immediately get an exception when trying to connect such a plugin:
 
- (про проверку сигнатур тут тоже написать)
+```python
+@slot
+def some_slot():
+    ...
+
+@some_slot.plugin('plugin_name')
+def plugin(a, b) -> int:
+    return a + b + 1
+
+#> ...
+#> sigmatch.errors.SignatureMismatchError: No common calling method has been found between the slot and the plugin.
+```
+
+This approach allows you to eliminate the most serious possible signature errors, but it does not take into account *how the slot will actually be called*, which means that incompatibility errors between the slot and the plugin can still occur at the call stage. If you want to completely protect yourself from such errors, you need to pass a description of the expected call method when creating a slot, using the special syntax of the [`sigmatch`](https://github.com/mutating/sigmatch) library:
+
+```python
+@slot(signature="..")
+def some_slot(a, b):
+    ...
+```
+
+In this case, even functions that in principle had common calling conventions with the slot, but whose conventions do not match expectations, will be filtered out:
+
+```python
+@some_slot.plugin('plugin_name')
+def plugin(a, *, b) -> int:  # The asterisk indicates that argument b can only be passed by name, whereas the expected signature explicitly prohibits this.
+    return a + b + 1
+
+#> ...
+#> sigmatch.errors.SignatureMismatchError: The signature of the callable object does not match the expected one.
+```
+
+**Second, checking the return values**.
 
 
 Что осталось сделать?
