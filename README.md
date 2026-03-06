@@ -16,9 +16,8 @@ But there are already other plugin libraries! How is this one different? Here ar
 - [**Slots and their defaults**](#slots-and-their-defaults)
 - [**Plugins and finding them**](#plugins-and-finding-them)
 - [**Type safety**](#type-safety)
+- [**Slot as a collection**](#slot-as-a-collection)
 
-
-Slot as a collection
 Additional restrictions (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
 
 
@@ -273,6 +272,10 @@ slot_2()
 ```
 
 I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as "literal" as possible, i.e., directly describing the types of values you expect.
+
+
+## Slot as a collection
+
 
 
 
