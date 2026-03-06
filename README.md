@@ -14,8 +14,8 @@ But there are already other plugin libraries! How is this one different? Here ar
 - [**Installation**](#installation)
 - [**Quick start**](#quick-start)
 - [**Slots and their defaults**](#slots-and-their-defaults)
+- [**Type safety**](#typ-safety)
 
-Type safety (про проверку сигнатур тут тоже написать)
 Plugin search
 Slot as a collection
 Additional restrictions (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
@@ -105,9 +105,18 @@ Yes, we can call it just as we would call the original function, but in fact it 
 The body of a slot is considered empty if it contains only `...`, `pass`, or `return []` if the type annotation expects a `list`, or `return {}` if it expects a `dict`.
 
 
+## Type safety
+
+This library provides type safety in two aspects:
+
+- All plugins are checked for compatibility between their signatures and the slot signature.
+- If the slot has a type annotation, the return type of each plugin is automatically checked.
+
+This ensures that slots and plugins can be easily integrated into the surrounding code: plugins can be called in the expected manner and return values of the required types. Let's take a closer look at these checks?
 
 
 
+ (про проверку сигнатур тут тоже написать)
 
 
 Что осталось сделать?
