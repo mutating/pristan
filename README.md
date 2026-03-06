@@ -122,7 +122,7 @@ def some_slot():
     ...
 
 @some_slot.plugin('plugin_name')
-def plugin(a, b) -> int:
+def plugin(a, b):
     return a + b + 1
 
 #> ...
@@ -132,7 +132,7 @@ def plugin(a, b) -> int:
 This approach allows you to eliminate the most serious possible signature errors, but it does not take into account *how the slot will actually be called*, which means that incompatibility errors between the slot and the plugin can still occur at the call stage. If you want to completely protect yourself from such errors, you need to pass a description of the expected call method when creating a slot, using the special syntax of the [`sigmatch`](https://github.com/mutating/sigmatch) library:
 
 ```python
-@slot(signature="..")
+@slot(signature="..")  # This description means that parameters will be passed to the function only by position and in no other way.
 def some_slot(a, b):
     ...
 ```
@@ -141,7 +141,7 @@ In this case, even functions that in principle had common calling conventions wi
 
 ```python
 @some_slot.plugin('plugin_name')
-def plugin(a, *, b) -> int:  # The asterisk indicates that argument b can only be passed by name, whereas the expected signature explicitly prohibits this.
+def plugin(a, *, b):  # The asterisk indicates that argument b can only be passed by name, whereas the expected signature explicitly prohibits this.
     return a + b + 1
 
 #> ...
