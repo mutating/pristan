@@ -13,6 +13,13 @@ But there are already other plugin libraries! How is this one different? Here ar
 
 - [**Installation**](#installation)
 - [**Quick start**](#quick-start)
+- [**Slots and their defaults**](#slots-and-their-defaults)
+
+Type safety (про проверку сигнатур тут тоже написать)
+Plugin search
+Slot as a collection
+Additional restrictions (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
+
 
 
 ## Installation
@@ -74,11 +81,39 @@ name = "path.to.plugin.module"
 That's really all you need to know to create your own libraries and the entire plugin infrastructure around them. But if you're interested in the details, read on.
 
 
+## Slots and their defaults
 
-Что осталось сделать? 
-- .keys() у слота
+At `pristan`, everything revolves around the concept of slots, so let's take a closer look at what they are.
+
+As already mentioned, a slot is a function to which the @slot decorator is applied. However, upon closer inspection, we see that if such a decorator is applied to a function, it ceases to be a function:
+
+```python
+@slot
+def some_slot():
+    ...
+
+print(some_slot)
+#> Slot(some_slot)
+```
+
+Yes, we can call it just as we would call the original function, but in fact it is a different object, a wrapper. If this wrapper is called, it will operate according to the following algorithm:
+
+- First of all (on the first call), it will search for plugins.
+- If plugins are found: sequentially calls them all, packs the results, and returns it according to the expected type.
+- If no plugins are found, it calls the body of the wrapped function, if it is not empty. If it is empty, it does nothing. The body of a wrapped function is like a "default plugin" that is called ONLY if there are no real plugins.
+
+The body of a slot is considered empty if it contains only `...`, `pass`, or `return []` if the type annotation expects a `list`, or `return {}` if it expects a `dict`.
+
+
+
+
+
+
+
+Что осталось сделать?
 - проверка версий базовой либы
-
+- экранирование исключений
+- тестирование потокобезопасности
 
 
 ## Требования
@@ -167,7 +202,6 @@ def some_slot_3(a: int, b: str):
 
 
 # Невозможно зарегистрировать плагин без ключа
-# 
 @slot(keys_required=True, key='some_key')
 def some_slot_4(a: int, b: str) -> list[str]:
     return [f'{a}: {b}']
