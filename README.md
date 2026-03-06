@@ -14,9 +14,10 @@ But there are already other plugin libraries! How is this one different? Here ar
 - [**Installation**](#installation)
 - [**Quick start**](#quick-start)
 - [**Slots and their defaults**](#slots-and-their-defaults)
-- [**Type safety**](#typ-safety)
+- [**Plugins and finding them**](#plugins-and-finding-them)
+- [**Type safety**](#type-safety)
 
-Plugin search
+
 Slot as a collection
 Additional restrictions (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
 
@@ -140,7 +141,10 @@ print(slot_3(1, 2))
 #> None
 ```
 
-Type annotations are also used to validate return values, which will be detailed [below](#typ-safety).
+Type annotations are also used to validate return values, which will be detailed [below](#type-safety).
+
+
+## Plugins and finding them
 
 
 ## Type safety
@@ -189,6 +193,48 @@ def plugin(a, *, b):  # The asterisk indicates that argument b can only be passe
 ```
 
 **Second, checking the return values**. It seems like everything should be simpler here, right? Well, let's see.
+
+The type of expected plugin value is determined by the slot annotation. The following annotations imply no type checks for plugins at all:
+
+```python
+@slot
+def slot_1():
+    ...
+
+@slot
+def slot_2() -> list:
+    ...
+
+@slot
+def slot_3() -> dict:
+    ...
+```
+
+With an empty annotation, everything is obvious, and the annotations of the `list` and `dict` describe only the method of aggregating values by slot, but not the types of the values themselves. However, a more precise annotation of the slot will be automatically used to verify the values returned by plugins:
+
+```python
+@slot
+def slot_1() -> list[int]:
+    ...
+
+@slot
+def slot_2() -> dict[str, int]:
+    ...
+
+@slot_1.plugin('plugin_name')
+@slot_2.plugin('plugin_name')
+def plugin():
+    return 'some string'
+
+slot_1()
+#> ...
+#> TypeError: The type str of the plugin's "plugin_name" return value 'some string' does not match the expected type int.
+slot_2()
+#> ...
+#> TypeError: The type str of the plugin's "plugin_name" return value 'some string' does not match the expected type int.
+```
+
+I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from typing. Your annotations should be as "literal" as possible, i.e., directly describing the types of values you expect.
 
 
 
