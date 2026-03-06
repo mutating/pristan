@@ -1,4 +1,6 @@
-from ast import Constant, Expr, Pass, parse
+from ast import Constant, Expr, Pass, Return, parse
+from ast import Dict as ASTDict
+from ast import List as ASTList
 from functools import cached_property
 from importlib.metadata import PackageNotFoundError, version
 from inspect import getmodule
@@ -96,8 +98,15 @@ class SlotCodeRepresenter:
         tree = parse(converted_source_code)
         body = tree.body[0].body  # type: ignore[attr-defined]
 
-        for body_statement in body:
-            if not (isinstance(body_statement, Pass) or (isinstance(body_statement, Expr) and isinstance(body_statement.value, Constant) and (body_statement.value.value is Ellipsis or isinstance(body_statement.value.value, str)))):
-                return False
-
-        return True
+        return all(
+            (
+                isinstance(body_statement, Pass) or (isinstance(body_statement, Expr) and isinstance(body_statement.value, Constant) and (body_statement.value.value is Ellipsis or isinstance(body_statement.value.value, str)))
+                for body_statement in body
+            ),
+        ) or (
+            len(body) == 1 and isinstance(body[0], Return)
+            and (
+                (self.returns_list and isinstance(body[0].value, ASTList) and not body[0].value.elts)
+                or ((self.returns_dict and isinstance(body[0].value, ASTDict) and not body[0].value.keys and not body[0].value.values))
+            )
+        )

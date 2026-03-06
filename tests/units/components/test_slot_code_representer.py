@@ -657,3 +657,97 @@ def test_wrong_dict_type_annotation(subscribable_dict_type):
             def function() -> subscribable_dict_type[str]: ...
 
             SlotCodeRepresenter(function).returning_type  # noqa: B018
+
+
+def test_empty_list_is_nothing(dict_type, subscribable_dict_type, list_type, subscribable_list_type):
+    def function_1(): return []
+    def function_2() -> dict_type: return []
+    def function_3() -> subscribable_dict_type[str, int]: return []
+
+    def function_4() -> list_type: return []
+    def function_4_1() -> list_type: return [1, 2, 3]
+    def function_4_2() -> list_type: return [None]
+    def function_4_3() -> list_type:
+        variable = 1 + 2
+        return [variable]
+    def function_4_4() -> list_type:
+        variable = []  # type: ignore[var-annotated]
+        return variable  # noqa: RET504
+    def function_4_5(y) -> list_type: return [x for x in y]
+
+    def function_5() -> subscribable_list_type[int]: return []
+    def function_5_1() -> subscribable_list_type[int]: return [1, 2, 3]
+    def function_5_2() -> subscribable_list_type[None]: return [None]
+    def function_5_3() -> subscribable_list_type[int]:
+        variable = 1 + 2
+        return [variable]
+    def function_5_4() -> subscribable_list_type[int]:
+        variable = []  # type: ignore[var-annotated]
+        return variable  # noqa: RET504
+    def function_5_5(y) -> subscribable_list_type[int]: return [x for x in y]
+
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+
+    assert not SlotCodeRepresenter(function_1).is_empty
+    assert not SlotCodeRepresenter(function_2).is_empty
+    assert not SlotCodeRepresenter(function_3).is_empty
+
+    assert not SlotCodeRepresenter(function_4_1).is_empty
+    assert not SlotCodeRepresenter(function_4_2).is_empty
+    assert not SlotCodeRepresenter(function_4_3).is_empty
+    assert not SlotCodeRepresenter(function_4_4).is_empty
+    assert not SlotCodeRepresenter(function_4_5).is_empty
+
+    assert not SlotCodeRepresenter(function_5_1).is_empty
+    assert not SlotCodeRepresenter(function_5_2).is_empty
+    assert not SlotCodeRepresenter(function_5_3).is_empty
+    assert not SlotCodeRepresenter(function_5_4).is_empty
+    assert not SlotCodeRepresenter(function_5_5).is_empty
+
+
+def test_empty_dict_is_nothing(dict_type, subscribable_dict_type, list_type, subscribable_list_type):
+    def function_1(): return {}
+    def function_2() -> list_type: return {}
+    def function_3() -> subscribable_list_type[int]: return {}
+
+    def function_4() -> dict_type: return {}
+    def function_4_1() -> dict_type: return {'a': 1}
+    def function_4_2() -> dict_type: return {'a': None}
+    def function_4_3() -> dict_type:
+        variable = 1 + 2
+        return {'key': variable}
+    def function_4_4() -> dict_type:
+        variable = {}  # type: ignore[var-annotated]
+        return variable  # noqa: RET504
+    def function_4_5(y) -> dict_type: return {key: value for key, value in y.items()}
+
+    def function_5() -> subscribable_dict_type[str, int]: return {}
+    def function_5_1() -> subscribable_dict_type[str, int]: return {'a': 1}
+    def function_5_2() -> subscribable_dict_type[str, None]: return {'a': None}
+    def function_5_3() -> subscribable_dict_type[str, int]:
+        variable = 1 + 2
+        return {'key': variable}
+    def function_5_4() -> subscribable_dict_type[str, int]:
+        variable = {}  # type: ignore[var-annotated]
+        return variable  # noqa: RET504
+    def function_5_5(y) -> subscribable_dict_type[str, int]: return {key: value for key, value in y.items()}
+
+    assert SlotCodeRepresenter(function_4).is_empty
+    assert SlotCodeRepresenter(function_5).is_empty
+
+    assert not SlotCodeRepresenter(function_1).is_empty
+    assert not SlotCodeRepresenter(function_2).is_empty
+    assert not SlotCodeRepresenter(function_3).is_empty
+
+    assert not SlotCodeRepresenter(function_4_1).is_empty
+    assert not SlotCodeRepresenter(function_4_2).is_empty
+    assert not SlotCodeRepresenter(function_4_3).is_empty
+    assert not SlotCodeRepresenter(function_4_4).is_empty
+    assert not SlotCodeRepresenter(function_4_5).is_empty
+
+    assert not SlotCodeRepresenter(function_5_1).is_empty
+    assert not SlotCodeRepresenter(function_5_2).is_empty
+    assert not SlotCodeRepresenter(function_5_3).is_empty
+    assert not SlotCodeRepresenter(function_5_4).is_empty
+    assert not SlotCodeRepresenter(function_5_5).is_empty
