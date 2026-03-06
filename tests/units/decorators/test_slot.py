@@ -1015,3 +1015,56 @@ def test_keys(folder):
 
     assert slot_1.keys() == ('name', 'name2')
     assert slot_2.keys() == ()
+
+
+def test_getitem_is_loading_entry_points(folder):
+    @folder(slot)
+    def some_slot():
+        ...
+
+    assert not some_slot.loaded
+
+    some_slot['kek']
+
+    assert some_slot.loaded
+
+
+def test_iter_is_loading_entry_points(folder):
+    @folder(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin_2():
+        ...
+
+    assert not some_slot.loaded
+
+    for _ in some_slot:
+        assert some_slot.loaded
+
+    assert some_slot.loaded
+
+
+def test_getting_keys_is_loading_entry_points(folder):
+    @folder(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin():
+        ...
+
+    @some_slot.plugin('name')
+    def plugin_2():
+        ...
+
+    assert not some_slot.loaded
+
+    assert some_slot.keys() == ('name',)
+
+    assert some_slot.loaded
