@@ -111,6 +111,7 @@ class Slot(Generic[PluginResult]):
         return decorator
 
     def keys(self) -> Tuple[str, ...]:
+        self._load_entrypoints()
         return tuple(self.plugins.plugins_by_requested_names.keys())
 
     def _load_entrypoints(self) -> None:
