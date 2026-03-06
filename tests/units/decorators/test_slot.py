@@ -969,10 +969,10 @@ def test_repr(folder):
     def some_slot_5(a, b=3):
         ...
 
-    assert repr(some_slot) == 'Slot(some_slot, signature=None, slot_name=None, max_plugins=None, type_check=True)'
-    assert repr(some_slot_2) == 'Slot(some_slot_2, signature=None, slot_name=\'name\', max_plugins=None, type_check=True)'
-    assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\', max_plugins=None, type_check=True)'
-    assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max_plugins=3, type_check=True)'
+    assert repr(some_slot) == 'Slot(some_slot)'
+    assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
+    assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
+    assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max_plugins=3)'
     assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max_plugins=3, type_check=False)'
 
 

@@ -16,7 +16,7 @@ from typing import (
     Tuple,
 )
 
-from printo import descript_data_object
+from printo import descript_data_object, not_none
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
 
@@ -95,6 +95,12 @@ class Slot(Generic[PluginResult]):
                 'slot_name': self.slot_name,
                 'max_plugins': self.max_number_of_plugins,
                 'type_check': self.type_check,
+            },
+            filters={
+                'signature': not_none,
+                'slot_name': not_none,
+                'max_plugins': not_none,
+                'type_check': lambda x: x != True,
             },
         )
 
