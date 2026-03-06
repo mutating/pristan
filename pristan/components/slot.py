@@ -76,6 +76,7 @@ class Slot(Generic[PluginResult]):
         yield from self.plugins
 
     def __getitem__(self, key: str) -> CallerWithPlugins[PluginResult]:
+        self._load_entrypoints()
         return self.plugins[key]  # type: ignore[no-any-return]
 
     def __repr__(self) -> str:
