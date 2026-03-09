@@ -38,5 +38,5 @@ def subscribable_dict_type(request):
 
 
 @pytest.fixture(params=(lambda x: x, lambda x: x()))
-def folder(request):
+def folder_slot(request):
     return request.param
