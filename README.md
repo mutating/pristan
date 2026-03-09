@@ -366,7 +366,7 @@ some_slot['non_existent_key']()
 #> run the slot default function
 ```
 
-You can use the `len()` function to find out how many plugins you have:
+You can use the [`len()`](https://docs.python.org/3/library/functions.html#len) function to find out how many plugins you have:
 
 ```python
 print(len(some_slot))
