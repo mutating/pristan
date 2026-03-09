@@ -164,16 +164,6 @@ Type annotations are also used to validate return values, which will be detailed
 
 In terms of this library, a plugin is a function with the `@<slot name>.plugin` decorator hanging on it.
 
-When hanging the decorator, it is important to additionally specify the name of the plugin:
-
-```python
-@slot_name.plugin('plugin_name')  # <- Here, the name of the plugin is "plugin_name".
-def plugin():
-    ...
-```
-
-The plugin name must be a valid Python identifier. However, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by adding a number to the end of the name, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
-
 If the code defining this function has been executed, it means that the plugin has already attached itself to its slot and will be called along with it. But what if the module defining our plugin is never imported or used in the rest of the program? In this case, the plugin will still connect, but to do this, you need to add an entry point pointing to its location to the `pyproject.toml` file (or its equivalent, which also manages entry points, such as `setup.py`). Here is an example of a section in `pyproject.toml` describing the path to the plugin for its automatic installation:
 
 ```toml
@@ -293,31 +283,88 @@ I recommend specifying annotations for slots that are as strict as possible. How
 
 ## Slot as a collection
 
-You can treat the slot as a collection of plugins.
+You can treat a slot as a collection of plugins.
+
+Each slot and each plugin in it has a name. By default, the name of the slot or plugin is the name of the function on which the corresponding decorator hangs:
+
+```python
+@slot
+def some_slot():  # <- Here, the name of the slot is just "some_slot".
+    ...
+
+@slot_name.plugin
+def plugin_name():  # <- And here, the name of the plugin is just "plugin_name".
+    ...
+```
+
+You can change these names by passing the desired values as positional arguments:
+
+```python
+@slot('some_another_slot_name')  # <- Look! Here, the name of the slot is "some_another_slot_name".
+def some_slot():
+    ...
+
+@slot_name.plugin('another_plugin_name')  # <- The plugin name is "another_plugin_name".
+def plugin_name():
+    ...
+```
+
+The plugin name must be a valid Python identifier. However, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by adding a number to the end of the name, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
+
+Now that we know what plugin names are, let's look at basic operations with the slot as a collection.
 
 Get a list of names of connected plugins:
 
 ```python
 @slot
 def some_slot():
-    ...
+    print('run the slot default function')
 
 @some_slot.plugin('name')
 def plugin_1() -> list:
-    ...
+    print('run the "plugin_1" function')
 
 @some_slot.plugin('name')
 def plugin_2() -> list:
-    ...
+    print('run the "plugin_2" function')
 
 @some_slot.plugin('name2')
 def plugin_3() -> list:
-    ...
+    print('run the "plugin_3" function')
 
 print(some_slot.keys())
 #> ('name', 'name2')
 ```
 
+Please note that here you only get the basic (requested) names, without suffixes with serial numbers, which are assigned automatically when names are duplicated! This minimizes the necessary "knowledge" of your other code about the set of connected plugins. 
+
+You can also use names to check for the presence of certain plugins:
+
+```python
+print('name' in some_slot)
+#> True
+print('name-2' in some_slot)
+#> True
+print('name-3' in some_slot)
+#> False
+```
+
+Plugins can be requested using their names as keys:
+
+```python
+some_slot['name']
+```
+
+You can use either the base (requested) plugin name or the name with the ordinal number as the key. In the first case, you can potentially get a collection of several plugins, in the second case, obviously, no more than one plugin. The return value is the called object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called (if it is not empty). In short, you can treat the returned object as a slot from which unnecessary plugins that do not match the search criteria have been removed:
+
+```python
+some_slot['name']()
+#> run the "plugin_1" function
+#> run the "plugin_2" function
+
+some_slot['non_existent_key']()
+#> run the slot default function
+```
 
 
 
