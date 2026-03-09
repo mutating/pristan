@@ -99,7 +99,7 @@ That's really all you need to know to create your own libraries and the entire p
 
 At `pristan`, everything revolves around the concept of slots, so let's take a closer look at what they are.
 
-As already mentioned, a slot is a function to which the @slot decorator is applied. However, upon closer inspection, we see that if such a decorator is applied to a function, it ceases to be a function:
+As already mentioned, a slot is a function to which the `@slot` decorator is applied. However, upon closer inspection, we see that if such a decorator is applied to a function, it ceases to be a function:
 
 ```python
 @slot
