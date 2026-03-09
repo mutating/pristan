@@ -1,4 +1,9 @@
-from tests.smokes.demo.simple_slots import simple_slot_1, simple_slot_3, simple_slot_4, simple_slot_5
+from tests.smokes.demo.simple_slots import (
+    simple_slot_1,
+    simple_slot_3,
+    simple_slot_4,
+    simple_slot_5,
+)
 
 
 @simple_slot_1.plugin('name')  # type: ignore[attr-defined]
