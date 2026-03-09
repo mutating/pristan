@@ -2,8 +2,8 @@ from sys import version_info
 
 import pytest
 from full_match import match
-from sigmatch.errors import SignatureMismatchError
 from packaging.version import Version
+from sigmatch.errors import SignatureMismatchError
 
 from pristan import slot
 from pristan.decorators.slot import Slot
@@ -1110,7 +1110,7 @@ def test_contains_plugins(folder_slot, folder_plugin):
         ...
 
     @folder_plugin(some_slot)
-    def plugin():
+    def plugin():  # noqa: F811
         ...
 
     @folder_plugin(some_slot)
@@ -1144,7 +1144,7 @@ def test_len(folder_slot, folder_plugin):
         ...
 
     @folder_plugin(some_slot)
-    def plugin():
+    def plugin():  # noqa: F811
         ...
 
     @folder_plugin(some_slot)
