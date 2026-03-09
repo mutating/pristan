@@ -320,15 +320,15 @@ def some_slot():
     print('run the slot default function')
 
 @some_slot.plugin('name')
-def plugin_1() -> list:
+def plugin_1():
     print('run the "plugin_1" function')
 
 @some_slot.plugin('name')
-def plugin_2() -> list:
+def plugin_2():
     print('run the "plugin_2" function')
 
 @some_slot.plugin('name2')
-def plugin_3() -> list:
+def plugin_3():
     print('run the "plugin_3" function')
 
 print(some_slot.keys())
