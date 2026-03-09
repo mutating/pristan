@@ -969,11 +969,16 @@ def test_repr(folder_slot):
     def some_slot_5(a, b=3):
         ...
 
+    @slot('name5', signature='..', max_plugins=3, type_check=False)
+    def some_slot_6(a, b=3):
+        ...
+
     assert repr(some_slot) == 'Slot(some_slot)'
     assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
     assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
     assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max_plugins=3)'
     assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max_plugins=3, type_check=False)'
+    assert repr(some_slot_6) == 'Slot(some_slot_6, signature=\'..\', slot_name=\'name5\', max_plugins=3, type_check=False)'
 
 
 def test_getitem_repr(folder_slot, folder_plugin):
@@ -1080,3 +1085,18 @@ def test_pass_to_plugin_decorator_something_wrong(folder_slot):
 
     with pytest.raises(TypeError, match=match('Only a function or plugin name followed by a function can be passed to the decorator.')):
         some_slot.plugin(None)
+
+
+def test_pass_two_slot_names_different_ways():
+    with pytest.raises(ValueError, match=match('You have specified two different names for the slot.')):
+        @slot('lol', name='kek')
+        def some_slot():
+            ...
+
+
+def test_positional_name_is_same_as_keyword():
+    @slot('lol')
+    def some_slot():
+        ...
+
+    assert some_slot.slot_name == 'lol'
