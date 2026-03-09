@@ -100,7 +100,6 @@ class Slot(Generic[PluginResult]):
             },
         )
 
-
     @overload
     def plugin(self, plugin_function_or_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
