@@ -354,7 +354,7 @@ Plugins can be requested using their names as keys:
 some_slot['name']
 ```
 
-You can use either the base (requested) plugin name or the name with the ordinal number as the key. In the first case, you can potentially get a collection of several plugins, in the second case, obviously, no more than one plugin. The return value is the called object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called (if it is not empty). In short, you can treat the returned object as a slot from which unnecessary plugins that do not match the search criteria have been removed:
+You can use either the base (requested) plugin name or the name with the ordinal number as the key. In the first case, you can potentially get a collection of several plugins, in the second case, obviously, no more than one plugin. The return value is the called object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot from which unnecessary plugins that do not match the search criteria have been removed:
 
 ```python
 some_slot['name']()
