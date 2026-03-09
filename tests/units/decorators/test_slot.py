@@ -11,6 +11,7 @@ from pristan.errors import (
     PrimadonnaPluginError,
     StrangeTypeAnnotationError,
     TooManyPluginsError,
+    CannotGetVersionsError,
 )
 
 
@@ -1201,3 +1202,14 @@ def test_check_engine_is_older_than_1000(folder_slot):
         ...
 
     assert 'plugin' not in some_slot
+
+
+def test_by_default_get_version_of_tests_package_is_impossible(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    with pytest.raises(CannotGetVersionsError, match=match('It is not possible to obtain the name of the package in which the slot is declared.')):
+        @some_slot.plugin(engine='>1000.0.0')
+        def plugin():
+            ...
