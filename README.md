@@ -17,7 +17,7 @@
 
 ![logo](https://raw.githubusercontent.com/pomponchik/pristan/develop/docs/assets/logo_1.svg)
 
-This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically “pulls itself” into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
+This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically "pulls itself" into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
 
 But there are already other plugin libraries! How is this one different? Here are a few things:
 
