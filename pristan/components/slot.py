@@ -15,6 +15,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    overload,
 )
 
 from printo import descript_data_object, not_none
@@ -99,7 +100,16 @@ class Slot(Generic[PluginResult]):
             },
         )
 
-    def plugin(self, plugin_function_or_name: Union[PluginFunction[SlotPapameters, PluginResult], str], unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+
+    @overload
+    def plugin(self, plugin_function_or_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+        ...
+
+    @overload
+    def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
+        ...
+
+    def plugin(self, plugin_function_or_name: Union[PluginFunction[SlotPapameters, PluginResult], str], unique: bool = False) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
