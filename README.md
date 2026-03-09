@@ -398,7 +398,25 @@ def plugin_2():
 #> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
 ```
 
-(тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
+You can also specify a restriction for the plugin on the version of the library in which the slot is declared. To do this, pass a version expression as an argument to engine:
+
+```python
+@slot
+def some_slot():
+    ...
+
+@some_slot.plugin(engine='>1.0.0')
+def plugin():
+    ...
+```
+
+> ⓘ A version expression is one of five comparison symbols (`>`, `<`, `==`, `>=`, `<=`) + the library version we are comparing the current version with.
+
+If the library version check fails, the plugin will not be installed in the slot.
+
+
+
+(тут написать про: уникальные плагины,)
 
 
 Что осталось сделать?
