@@ -8,10 +8,10 @@ from sigmatch.errors import SignatureMismatchError
 from pristan import slot
 from pristan.decorators.slot import Slot
 from pristan.errors import (
+    CannotGetVersionsError,
     PrimadonnaPluginError,
     StrangeTypeAnnotationError,
     TooManyPluginsError,
-    CannotGetVersionsError,
 )
 
 

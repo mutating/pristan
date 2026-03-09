@@ -42,6 +42,7 @@ from pristan.errors import (
 )
 
 
+# TODO: consider to delete all the "type: ignore"d comments if python 3.9 deleted from the matrix
 class Slot(Generic[PluginResult]):
     def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913
         if max_plugins is not None and max_plugins < 0:
@@ -66,7 +67,6 @@ class Slot(Generic[PluginResult]):
         self.plugins: PluginsGroup[PluginResult] = PluginsGroup(self.caller)
         self.backed_caller = CallerWithPlugins(self.caller, self.plugins.plugins)
 
-        # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
         self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type, unused-ignore]
 
         self.loaded = False
@@ -119,7 +119,7 @@ class Slot(Generic[PluginResult]):
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
-            get_plugin_name: Callable[[PluginFunction[SlotPapameters, PluginResult]], str] = lambda function: plugin_function_or_name  # noqa: E731, ARG005
+            get_plugin_name: Callable[[PluginFunction[SlotPapameters, PluginResult]], str] = lambda function: plugin_function_or_name  # type: ignore[type-arg, unused-ignore] # noqa: E731, ARG005
 
         elif callable(plugin_function_or_name):
             get_plugin_name = lambda function: plugin_function_or_name.__name__  # noqa: E731, ARG005
