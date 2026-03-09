@@ -1130,3 +1130,41 @@ def test_contains_plugins(folder_slot, folder_plugin):
     assert 'plugin3-1' not in some_slot
     assert 'plugin3-2' not in some_slot
     assert 'kek' not in some_slot
+
+
+def test_len(folder_slot, folder_plugin):
+    @folder_slot(slot)
+    def empty_slot():
+        ...
+
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin2():
+        ...
+
+    assert len(empty_slot) == 0
+    assert len(empty_slot['kek']) == 0
+
+    assert len(some_slot) == 3
+    assert len(some_slot['plugin']) == 2
+    assert len(some_slot['plugin2']) == 1
+
+    assert len(some_slot['plugin-1']) == 1
+    assert len(some_slot['plugin-2']) == 1
+
+    assert len(some_slot['plugin2-1']) == 1
+
+    assert len(some_slot['plugin-3']) == 0
+    assert len(some_slot['plugin2-2']) == 0
+    assert len(some_slot['kek']) == 0
