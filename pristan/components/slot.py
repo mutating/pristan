@@ -98,9 +98,17 @@ class Slot(Generic[PluginResult]):
             },
         )
 
-    def plugin(self, plugin_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
-        if callable(plugin_name) or not plugin_name.isidentifier():
-            raise ValueError('The plugin name must be a valid Python identifier.')
+    def plugin(self, plugin_function_or_name: Union[PluginFunction[SlotPapameters, PluginResult], str], unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+        if isinstance(plugin_function_or_name, str):
+            if not plugin_function_or_name.isidentifier():
+                raise ValueError('The plugin name must be a valid Python identifier.')
+            plugin_name: str = plugin_function_or_name
+
+        elif callable(plugin_function_or_name):
+            plugin_name = plugin_function_or_name.__name__
+
+        else:
+            raise TypeError('Only a function or plugin name followed by a function can be passed to the decorator.')
 
         def decorator(plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
             # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
@@ -108,7 +116,10 @@ class Slot(Generic[PluginResult]):
             self._add_plugin(plugin_name, plugin_function, unique)
             return plugin_function
 
-        return decorator
+        if isinstance(plugin_function_or_name, str):
+            return decorator
+
+        return decorator(plugin_function_or_name)
 
     def keys(self) -> Tuple[str, ...]:
         self._load_entrypoints()
