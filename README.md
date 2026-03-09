@@ -34,8 +34,7 @@ But there are already other plugin libraries! How is this one different? Here ar
 - [**Plugins and finding them**](#plugins-and-finding-them)
 - [**Type safety**](#type-safety)
 - [**Slot as a collection**](#slot-as-a-collection)
-
-Additional restrictions (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
+- [**Additional restrictions**](#additional-restrictions)
 
 
 ## Installation
@@ -374,6 +373,11 @@ print(len(some_slot))
 print(len(some_slot['name']))
 #> 2
 ```
+
+
+## Additional restrictions
+
+(тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
 
 
 Что осталось сделать?
