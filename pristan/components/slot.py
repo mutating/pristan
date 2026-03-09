@@ -103,11 +103,11 @@ class Slot(Generic[PluginResult]):
 
     @overload
     def plugin(self, plugin_function_or_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
-        ...
+        ...  # pragma: no cover
 
     @overload
     def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
-        ...
+        ...  # pragma: no cover
 
     def plugin(self, plugin_function_or_name: Union[PluginFunction[SlotPapameters, PluginResult], str], unique: bool = False) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if isinstance(plugin_function_or_name, str):
