@@ -7,6 +7,7 @@ from inspect import getmodule
 from typing import (
     Any,
     Callable,
+    Dict,
     Optional,
     Type,
     Union,
@@ -21,7 +22,6 @@ from packaging.version import Version
 from printo import descript_data_object
 
 from pristan.errors import CannotGetVersionsError
-
 
 sentinel = InnerNoneType()
 
@@ -123,17 +123,17 @@ class SlotCodeRepresenter:
 
         expression = expression.strip()
 
-        start_signs = {
+        start_signs: Dict[str, Callable[[str], bool]] = {
             '==': lambda x: self.package_version == Version(x),
-            '>=': lambda x: self.package_version >= Version(x),
-            '<=': lambda x: self.package_version <= Version(x),
-            '>': lambda x: self.package_version > Version(x),
-            '<': lambda x: self.package_version < Version(x),
+            '>=': lambda x: self.package_version >= Version(x),  # type: ignore[operator]
+            '<=': lambda x: self.package_version <= Version(x),  # type: ignore[operator]
+            '>': lambda x: self.package_version > Version(x),  # type: ignore[operator]
+            '<': lambda x: self.package_version < Version(x),  # type: ignore[operator]
         }
 
-        for start in start_signs:
+        for start, checker in start_signs.items():
             if expression.startswith(start):
-                if start_signs[start](expression[len(start):]):
+                if checker(expression[len(start):]):
                     return True
 
         return False

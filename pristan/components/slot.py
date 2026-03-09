@@ -9,6 +9,7 @@ except ImportError:  # type: ignore[assignment, unused-ignore] # pragma: no cove
 
 from threading import RLock
 from typing import (
+    Any,
     Callable,
     Generator,
     Generic,
@@ -118,13 +119,13 @@ class Slot(Generic[PluginResult]):
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
-            get_plugin_name = lambda function: plugin_function_or_name
+            get_plugin_name: Callable[[PluginFunction[SlotPapameters, PluginResult]], str] = lambda function: plugin_function_or_name  # noqa: E731, ARG005
 
         elif callable(plugin_function_or_name):
-            get_plugin_name = lambda function: plugin_function_or_name.__name__
+            get_plugin_name = lambda function: plugin_function_or_name.__name__  # noqa: E731, ARG005
 
         elif plugin_function_or_name is None:
-            get_plugin_name = lambda function: function.__name__
+            get_plugin_name = lambda function: function.__name__  # noqa: E731
 
         else:
             raise TypeError('Only a function or plugin name followed by a function can be passed to the decorator.')
