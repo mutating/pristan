@@ -20,6 +20,9 @@ from getsources import getclearsource
 from packaging.version import Version
 from printo import descript_data_object
 
+from pristan.errors import CannotGetVersionsError
+
+
 sentinel = InnerNoneType()
 
 class SlotCodeRepresenter:
@@ -110,3 +113,27 @@ class SlotCodeRepresenter:
                 or ((self.returns_dict and isinstance(body[0].value, ASTDict) and not body[0].value.keys and not body[0].value.values))
             )
         )
+
+    def check_package_version(self, expression: Optional[str]) -> bool:
+        if expression is None:
+            return True
+
+        if self.package_version is None:
+            raise CannotGetVersionsError('It is not possible to obtain the name of the package in which the slot is declared.')
+
+        expression = expression.strip()
+
+        start_signs = {
+            '==': lambda x: self.package_version == Version(x),
+            '>=': lambda x: self.package_version >= Version(x),
+            '<=': lambda x: self.package_version <= Version(x),
+            '>': lambda x: self.package_version > Version(x),
+            '<': lambda x: self.package_version < Version(x),
+        }
+
+        for start in start_signs:
+            if expression.startswith(start):
+                if start_signs[start](expression[len(start):]):
+                    return True
+
+        return False

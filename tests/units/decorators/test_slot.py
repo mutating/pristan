@@ -3,6 +3,7 @@ from sys import version_info
 import pytest
 from full_match import match
 from sigmatch.errors import SignatureMismatchError
+from packaging.version import Version
 
 from pristan import slot
 from pristan.decorators.slot import Slot
@@ -1083,9 +1084,6 @@ def test_pass_to_plugin_decorator_something_wrong(folder_slot):
     with pytest.raises(TypeError, match=match('Only a function or plugin name followed by a function can be passed to the decorator.')):
         some_slot.plugin(123)
 
-    with pytest.raises(TypeError, match=match('Only a function or plugin name followed by a function can be passed to the decorator.')):
-        some_slot.plugin(None)
-
 
 def test_pass_two_slot_names_different_ways():
     with pytest.raises(ValueError, match=match('You have specified two different names for the slot.')):
@@ -1168,3 +1166,38 @@ def test_len(folder_slot, folder_plugin):
     assert len(some_slot['plugin-3']) == 0
     assert len(some_slot['plugin2-2']) == 0
     assert len(some_slot['kek']) == 0
+
+
+@pytest.mark.parametrize(
+    'tag',
+    [
+        '>0.0.0',
+        '<1000.0.0',
+    ],
+)
+def test_check_engine_is_newer_than_zero(tag, folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    some_slot.code_representation.package_version = Version('0.0.1')
+
+    @some_slot.plugin(engine=tag)
+    def plugin():
+        ...
+
+    assert 'plugin' in some_slot
+
+
+def test_check_engine_is_older_than_1000(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    some_slot.code_representation.package_version = Version('0.0.1')
+
+    @some_slot.plugin(engine='>1000.0.0')
+    def plugin():
+        ...
+
+    assert 'plugin' not in some_slot

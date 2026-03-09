@@ -6,3 +6,6 @@ class PrimadonnaPluginError(Exception):
 
 class StrangeTypeAnnotationError(Exception):
     ...
+
+class CannotGetVersionsError(Exception):
+    ...

@@ -107,21 +107,24 @@ class Slot(Generic[PluginResult]):
         return len(self.plugins)
 
     @overload
-    def plugin(self, plugin_function_or_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[str], unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
 
     @overload
     def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
 
-    def plugin(self, plugin_function_or_name: Union[PluginFunction[SlotPapameters, PluginResult], str], unique: bool = False) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[str] = None) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
-            plugin_name: str = plugin_function_or_name
+            get_plugin_name = lambda function: plugin_function_or_name
 
         elif callable(plugin_function_or_name):
-            plugin_name = plugin_function_or_name.__name__
+            get_plugin_name = lambda function: plugin_function_or_name.__name__
+
+        elif plugin_function_or_name is None:
+            get_plugin_name = lambda function: function.__name__
 
         else:
             raise TypeError('Only a function or plugin name followed by a function can be passed to the decorator.')
@@ -129,10 +132,10 @@ class Slot(Generic[PluginResult]):
         def decorator(plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
             # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
             self._compare_signatures(self.slot_function, plugin_function)  # type: ignore[arg-type, unused-ignore]
-            self._add_plugin(plugin_name, plugin_function, unique)
+            self._add_plugin(get_plugin_name(plugin_function), plugin_function, unique, engine)
             return plugin_function
 
-        if isinstance(plugin_function_or_name, str):
+        if plugin_function_or_name is None or isinstance(plugin_function_or_name, str):
             return decorator
 
         return decorator(plugin_function_or_name)
@@ -148,19 +151,21 @@ class Slot(Generic[PluginResult]):
                     point.load()
                 self.loaded = True
 
-    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool) -> None:  # type: ignore[type-arg, unused-ignore]
+    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool, engine: Optional[str]) -> None:  # type: ignore[type-arg, unused-ignore]
         plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)  # type: ignore[type-arg]
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:
                 raise TooManyPluginsError(f'The maximum number of plugins for this slot is {self.max_number_of_plugins}.')
-            self.plugins.add(plugin)
-            if len(self.plugins.plugins_by_requested_names[name]) > 1:
-                plugin.set_name(f'{name}-{len(self.plugins.plugins_by_requested_names[name])}')
-                for other_plugin in self.plugins.plugins_by_requested_names[name]:
-                    if other_plugin.unique:
-                        self.plugins.delete_last_by_name(name)
-                        raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
+
+            if self.code_representation.check_package_version(engine):
+                self.plugins.add(plugin)
+                if len(self.plugins.plugins_by_requested_names[name]) > 1:
+                    plugin.set_name(f'{name}-{len(self.plugins.plugins_by_requested_names[name])}')
+                    for other_plugin in self.plugins.plugins_by_requested_names[name]:
+                        if other_plugin.unique:
+                            self.plugins.delete_last_by_name(name)
+                            raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
 
     def _compare_signatures(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> None:  # type: ignore[type-arg, unused-ignore]
         if self.signature is not None:
