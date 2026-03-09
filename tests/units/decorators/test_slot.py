@@ -1100,3 +1100,33 @@ def test_positional_name_is_same_as_keyword():
         ...
 
     assert some_slot.slot_name == 'lol'
+
+
+def test_contains_plugins(folder_slot, folder_plugin):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin2():
+        ...
+
+    assert 'plugin' in some_slot
+    assert 'plugin-1' in some_slot
+    assert 'plugin-2' in some_slot
+    assert 'plugin2' in some_slot
+    assert 'plugin2-1' in some_slot
+
+    assert 'plugin-3' not in some_slot
+    assert 'plugin3' not in some_slot
+    assert 'plugin3-1' not in some_slot
+    assert 'plugin3-2' not in some_slot
+    assert 'kek' not in some_slot

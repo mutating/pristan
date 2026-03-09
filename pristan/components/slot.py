@@ -100,6 +100,9 @@ class Slot(Generic[PluginResult]):
             },
         )
 
+    def __contains__(self, item: Any) -> bool:
+        return item in self.plugins
+
     @overload
     def plugin(self, plugin_function_or_name: str, unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
