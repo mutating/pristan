@@ -65,11 +65,11 @@ How can we add a plugin to this function? We need to use it as a decorator for o
 
 
 ```python
-@some_slot.plugin('plugin_name')
+@some_slot.plugin
 def plugin_1(a, b) -> int:
     return a + b
 
-@some_slot.plugin('plugin_name_2')
+@some_slot.plugin
 def plugin_2(a, b) -> int:
     return a + b + 1
 ```
@@ -78,7 +78,7 @@ Let's try to start it up?
 
 ```python
 print(some_slot(1, 2))
-#> {'plugin_name': 3, 'plugin_name_2': 4}
+#> {'plugin_1': 3, 'plugin_2': 4}
 ```
 
 Let's pause for a second and reflect on what we've seen. We called a function that we marked as a slot. But in reality, plugins were called, and the result of their call was aggregated into a dictionary. How did the system understand that it needed to combine the result into a dictionary? It did so based on the type annotation. We noted that the slot returns `dict[str, int]`. `dict` here denotes the type of the result container, `str` is the only type of keys denoting plugin names, and the returned values must be of type `int`.
@@ -137,20 +137,20 @@ def slot_2(a, b) -> list[int]:
 def slot_3(a, b):
     ...
 
-@slot_1.plugin('plugin_name_1')
-@slot_2.plugin('plugin_name_1')
-@slot_3.plugin('plugin_name_1')
+@slot_1.plugin
+@slot_2.plugin
+@slot_3.plugin
 def plugin_1(a, b) -> int:
     return a + b
 
-@slot_1.plugin('plugin_name_2')
-@slot_2.plugin('plugin_name_2')
-@slot_3.plugin('plugin_name_2')
+@slot_1.plugin
+@slot_2.plugin
+@slot_3.plugin
 def plugin_2(a, b) -> int:
     return a + b + 1
 
 print(slot_1(1, 2))
-#> {'plugin_name_1': 3, 'plugin_name_2': 4}
+#> {'plugin_1': 3, 'plugin_2': 4}
 print(slot_2(1, 2))
 #> [3, 4]
 print(slot_3(1, 2))
@@ -219,7 +219,7 @@ By default, the `pristan` library expects that there is at least one common vali
 def some_slot():
     ...
 
-@some_slot.plugin('plugin_name')
+@some_slot.plugin
 def plugin(a, b):
     return a + b + 1
 
@@ -238,7 +238,7 @@ def some_slot(a, b):
 In this case, even functions that in principle had common calling conventions with the slot, but whose conventions do not match expectations, will be filtered out:
 
 ```python
-@some_slot.plugin('plugin_name')
+@some_slot.plugin
 def plugin(a, *, b):  # The asterisk indicates that argument b can only be passed by name, whereas the expected signature explicitly prohibits this.
     return a + b + 1
 
@@ -275,23 +275,48 @@ def slot_1() -> list[int]:
 def slot_2() -> dict[str, int]:
     ...
 
-@slot_1.plugin('plugin_name')
-@slot_2.plugin('plugin_name')
+@slot_1.plugin
+@slot_2.plugin
 def plugin():
     return 'some string'
 
 slot_1()
 #> ...
-#> TypeError: The type str of the plugin's "plugin_name" return value 'some string' does not match the expected type int.
+#> TypeError: The type str of the plugin's "plugin" return value 'some string' does not match the expected type int.
 slot_2()
 #> ...
-#> TypeError: The type str of the plugin's "plugin_name" return value 'some string' does not match the expected type int.
+#> TypeError: The type str of the plugin's "plugin" return value 'some string' does not match the expected type int.
 ```
 
 I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as "literal" as possible, i.e., directly describing the types of values you expect.
 
 
 ## Slot as a collection
+
+You can treat the slot as a collection of plugins.
+
+Get a list of names of connected plugins:
+
+```python
+@slot
+def some_slot():
+    ...
+
+@some_slot.plugin('name')
+def plugin_1() -> list:
+    ...
+
+@some_slot.plugin('name')
+def plugin_2() -> list:
+    ...
+
+@some_slot.plugin('name2')
+def plugin_3() -> list:
+    ...
+
+print(some_slot.keys())
+#> ('name', 'name2')
+```
 
 
 
@@ -301,6 +326,7 @@ I recommend specifying annotations for slots that are as strict as possible. How
 - проверка версий базовой либы
 - экранирование исключений
 - тестирование потокобезопасности
+- тестирование использования декораторов slot и plugin к методам классов
 
 
 ## Требования
