@@ -14,6 +14,7 @@ from typing import (
     Generic,
     Optional,
     Tuple,
+    Union,
 )
 
 from printo import descript_data_object, not_none
