@@ -1068,3 +1068,15 @@ def test_getting_keys_is_loading_entry_points(folder_slot, folder_plugin):
     assert some_slot.keys() == ('plugin',)
 
     assert some_slot.loaded
+
+
+def test_pass_to_plugin_decorator_something_wrong(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    with pytest.raises(TypeError, match=match('Only a function or plugin name followed by a function can be passed to the decorator.')):
+        some_slot.plugin(123)
+
+    with pytest.raises(TypeError, match=match('Only a function or plugin name followed by a function can be passed to the decorator.')):
+        some_slot.plugin(None)
