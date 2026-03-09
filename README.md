@@ -377,6 +377,27 @@ print(len(some_slot['name']))
 
 ## Additional restrictions
 
+You can impose some additional restrictions on slots or individual plugins.
+
+The simplest restriction at the slot level is the number of plugins that can be connected to it. To set it, pass the `max_plugins` argument to the decorator:
+
+```python
+@slot(max_plugins=1)
+def some_slot():
+    ...
+
+@some_slot.plugin
+def plugin_1():
+    ...
+
+@some_slot.plugin
+def plugin_2():
+    ...
+
+#> ...
+#> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
+```
+
 (тут написать про: уникальные плагины, ограничения числа плагинов, ограничения версий базовой либы)
 
 
