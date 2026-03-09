@@ -33,36 +33,36 @@ def test_slot_have_not_comparing_signature_with_itself():
             ...
 
 
-def test_plugin_have_not_comparing_signature_to_passed_one_to_slot():
+def test_plugin_have_not_comparing_signature_to_passed_one_to_slot(folder_plugin):
     @slot(signature='..')
     def some_slot(a, b):
         ...
 
     with pytest.raises(SignatureMismatchError, match=match('The signature of the callable object does not match the expected one.')):
-        @some_slot.plugin('plugin')
+        @folder_plugin(some_slot)
         def plugin():
             ...
 
 
-def test_plugin_have_not_comparing_signature_to_slot(folder_slot):
+def test_plugin_have_not_comparing_signature_to_slot(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot(a, b):
         ...
 
     with pytest.raises(SignatureMismatchError, match=match('No common calling method has been found between the slot and the plugin.')):
-        @some_slot.plugin('name')
+        @folder_plugin(some_slot)
         def plugin():
             ...
 
 
-def test_run_1_plugin_without_hints(folder_slot):
+def test_run_1_plugin_without_hints(folder_slot, folder_plugin):
     bread_crumbs = []
 
     @folder_slot(slot)
     def some_slot(a, b):
         bread_crumbs.append(a + b)
 
-    @some_slot.plugin('some_plugin')
+    @folder_plugin(some_slot)
     def some_plugin(a, b):
         bread_crumbs.append(a + b + 1)
 
@@ -71,14 +71,14 @@ def test_run_1_plugin_without_hints(folder_slot):
     assert bread_crumbs == [4]
 
 
-def test_run_1_plugin_with_emplty_list_hint(folder_slot, list_type):
+def test_run_1_plugin_with_emplty_list_hint(folder_slot, folder_plugin, list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
     def some_slot(a, b) -> list_type:  # type: ignore[return]
         bread_crumbs.append(a + b)
 
-    @some_slot.plugin('some_plugin')
+    @folder_plugin(some_slot)
     def some_plugin(a, b):
         bread_crumbs.append(a + b + 1)
         return a + b + 2
@@ -88,52 +88,52 @@ def test_run_1_plugin_with_emplty_list_hint(folder_slot, list_type):
     assert bread_crumbs == [4]
 
 
-def test_2_not_unique_plugins_with_same_names(folder_slot):
+def test_2_not_unique_plugins_with_same_names(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot(a, b):
         ...
 
-    @some_slot.plugin('kek')
-    def plugin_1(a, b):
+    @folder_plugin(some_slot)
+    def kek(a, b):
         ...
 
-    @some_slot.plugin('kek')
-    def plugin_2(a, b):
+    @folder_plugin(some_slot)
+    def kek(a, b):  # noqa: F811
         ...
 
-    @some_slot.plugin('kek')
-    def plugin_3(a, b):
+    @folder_plugin(some_slot)
+    def kek(a, b):  # noqa: F811
         ...
 
     assert [x.name for x in some_slot] == ['kek', 'kek-2', 'kek-3']
     assert [x.name for x in some_slot['kek']] == ['kek', 'kek-2', 'kek-3']
 
 
-def test_2_plugins_with_same_names_and_first_one_is_unique(folder_slot):
+def test_2_plugins_with_same_names_and_first_one_is_unique(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot(a, b):
         ...
 
     @some_slot.plugin('kek', unique=True)
-    def plugin_1(a, b):
+    def kek(a, b):
         ...
 
     with pytest.raises(PrimadonnaPluginError, match=match('Plugin "kek" claims to be unique, but there are other plugins with the same name.')):
-        @some_slot.plugin('kek')
-        def plugin_2(a, b):
+        @folder_plugin(some_slot)
+        def kek(a, b):
             ...
 
     assert [x.name for x in some_slot] == ['kek']
     assert [x.name for x in some_slot['kek'].plugins] == ['kek']
 
 
-def test_2_plugins_with_same_names_and_second_one_is_unique(folder_slot):
+def test_2_plugins_with_same_names_and_second_one_is_unique(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot(a, b):
         ...
 
-    @some_slot.plugin('kek')
-    def plugin_1(a, b):
+    @folder_plugin(some_slot)
+    def kek(a, b):
         ...
 
     with pytest.raises(PrimadonnaPluginError, match=match('Plugin "kek-2" claims to be unique, but there are other plugins with the same name.')):
@@ -145,33 +145,33 @@ def test_2_plugins_with_same_names_and_second_one_is_unique(folder_slot):
     assert [x.name for x in some_slot['kek']] == ['kek']
 
 
-def test_exceeding_the_limit_0_of_plugins():
+def test_exceeding_the_limit_0_of_plugins(folder_plugin):
     @slot(max_plugins=0)
     def some_slot(a, b):
         ...
 
     with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 0.')):
-        @some_slot.plugin('kek')
+        @folder_plugin(some_slot)
         def kek(a, b):
             ...
 
 
-def test_exceeding_the_limit_1_of_plugins():
+def test_exceeding_the_limit_1_of_plugins(folder_plugin):
     @slot(max_plugins=1)
     def some_slot(a, b):
         ...
 
-    @some_slot.plugin('kek')
+    @folder_plugin(some_slot)
     def kek(a, b):
         ...
 
     with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 1.')):
-        @some_slot.plugin('kek2')
-        def kek(a, b):
+        @folder_plugin(some_slot)
+        def kek2(a, b):
             ...
 
 
-def test_exceeding_the_limit_1000_of_plugins():
+def test_exceeding_the_limit_1000_of_plugins(folder_plugin):
     allowed_number_of_plugins = 1000
 
     @slot(max_plugins=allowed_number_of_plugins)
@@ -184,7 +184,7 @@ def test_exceeding_the_limit_1000_of_plugins():
             ...
 
     with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 1000.')):
-        @some_slot.plugin('kek')
+        @folder_plugin(some_slot)
         def kek(a, b):
             ...
 
@@ -214,56 +214,56 @@ def test_slot_return_type_is_dict_but_keys_are_not_str(folder_slot, subscribable
             ...
 
 
-def test_run_slot_with_empty_dict_annotation(folder_slot, dict_type):
+def test_run_slot_with_empty_dict_annotation(folder_slot, folder_plugin, dict_type):
     @folder_slot(slot)
     def some_slot(a, b) -> dict_type:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         return a + b + 3
 
     assert some_slot(1, 2) == {'function_1': 4, 'function_2': 5, 'function_2-2': 6}
 
 
-def test_run_slot_with_not_empty_dict_annotation(folder_slot, subscribable_dict_type):
+def test_run_slot_with_not_empty_dict_annotation(folder_slot, folder_plugin, subscribable_dict_type):
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_dict_type[str, int]:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         return a + b + 3
 
     assert some_slot(1, 2) == {'function_1': 4, 'function_2': 5, 'function_2-2': 6}
 
 
-def test_run_slot_with_not_empty_wrong_dict_annotation(folder_slot, subscribable_dict_type):
+def test_run_slot_with_not_empty_wrong_dict_annotation(folder_slot, folder_plugin, subscribable_dict_type):
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_dict_type[str, str]:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
@@ -271,76 +271,76 @@ def test_run_slot_with_not_empty_wrong_dict_annotation(folder_slot, subscribable
         some_slot(1, 2)
 
 
-def test_run_slot_with_not_empty_wrong_dict_annotation_but_type_check_is_off(subscribable_dict_type):
+def test_run_slot_with_not_empty_wrong_dict_annotation_but_type_check_is_off(subscribable_dict_type, folder_plugin):
     @slot(type_check=False)
     def some_slot(a, b) -> subscribable_dict_type[str, str]:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         return a + b + 3
 
     assert some_slot(1, 2) == {'function_1': 4, 'function_2': 5, 'function_2-2': 6}
 
 
-def test_run_slot_with_empty_list_annotation(folder_slot, list_type):
+def test_run_slot_with_empty_list_annotation(folder_slot, folder_plugin, list_type):
     @folder_slot(slot)
     def some_slot(a, b) -> list_type:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         return a + b + 3
 
     assert some_slot(1, 2) == [4, 5, 6]
 
 
-def test_run_slot_with_not_empty_list_annotation(folder_slot, subscribable_list_type):
+def test_run_slot_with_not_empty_list_annotation(folder_slot, folder_plugin, subscribable_list_type):
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_list_type[int]:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         return a + b + 3
 
     assert some_slot(1, 2) == [4, 5, 6]
 
 
-def test_run_slot_with_not_empty_wrong_list_annotation(folder_slot, subscribable_list_type):
+def test_run_slot_with_not_empty_wrong_list_annotation(folder_slot, folder_plugin, subscribable_list_type):
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_list_type[str]:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
@@ -348,44 +348,44 @@ def test_run_slot_with_not_empty_wrong_list_annotation(folder_slot, subscribable
         some_slot(1, 2)
 
 
-def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(subscribable_list_type):
+def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(subscribable_list_type, folder_plugin):
     @slot(type_check=False)
     def some_slot(a, b) -> subscribable_list_type[str]:
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         return a + b + 1
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         return a + b + 2
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         return a + b + 3
 
     assert some_slot(1, 2) == [4, 5, 6]
 
 
-def test_run_slot_without_type_annotation(folder_slot):
+def test_run_slot_without_type_annotation(folder_slot, folder_plugin):
     bread_crumbs = []
 
     @folder_slot(slot)
     def some_slot(a, b):
         ...
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(a + b + 1)
         return bread_crumbs[-1]
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):
         bread_crumbs.append(a + b + 2)
         return bread_crumbs[-1]
 
-    @some_slot.plugin('function_2')
+    @folder_plugin(some_slot)
     def function_2(a, b):  # noqa: F811
         bread_crumbs.append(a + b + 3)
         return bread_crumbs[-1]
@@ -394,7 +394,7 @@ def test_run_slot_without_type_annotation(folder_slot):
     assert bread_crumbs == [4, 5, 6]
 
 
-def test_run_not_empty_default_function_without_plugins_without_annotations(folder_slot):
+def test_run_not_empty_default_function_without_plugins_without_annotations(folder_slot, folder_plugin):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -407,7 +407,7 @@ def test_run_not_empty_default_function_without_plugins_without_annotations(fold
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -416,7 +416,7 @@ def test_run_not_empty_default_function_without_plugins_without_annotations(fold
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation(folder_slot, dict_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation(folder_slot, folder_plugin, dict_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -429,7 +429,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -438,7 +438,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation(folder_slot, subscribable_dict_type):
+def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation(folder_slot, folder_plugin, subscribable_dict_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -451,7 +451,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -460,7 +460,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation(folder_slot, list_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation(folder_slot, folder_plugin, list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -473,7 +473,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -482,7 +482,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation(folder_slot, subscribable_list_type):
+def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation(folder_slot, folder_plugin, subscribable_list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -495,7 +495,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -505,7 +505,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type_new_pythons(folder_slot, dict_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, dict_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -520,7 +520,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -530,7 +530,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
 
 @pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type(folder_slot, dict_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type(folder_slot, folder_plugin, dict_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -545,7 +545,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -555,7 +555,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type_new_pythons(folder_slot, subscribable_dict_type):
+def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, subscribable_dict_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -591,7 +591,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -601,7 +601,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
 
 @pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type(folder_slot, subscribable_dict_type):
+def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type(folder_slot, folder_plugin, subscribable_dict_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -637,7 +637,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -647,7 +647,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type_new_pythons(folder_slot, list_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -668,7 +668,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -678,7 +678,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
 
 @pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type(folder_slot, list_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type(folder_slot, folder_plugin, list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -699,7 +699,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -709,7 +709,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
 
 @pytest.mark.skipif(version_info >= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type(folder_slot, subscribable_list_type):
+def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type(folder_slot, folder_plugin, subscribable_list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -736,7 +736,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -746,7 +746,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
-def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type_new_pythons(folder_slot, subscribable_list_type):
+def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, subscribable_list_type):
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -773,7 +773,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
     bread_crumbs.pop()
 
-    @some_slot.plugin('function_1')
+    @folder_plugin(some_slot)
     def function_1(a, b):
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
@@ -782,20 +782,20 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_getitem_bad_key(folder_slot):
+def test_getitem_bad_key(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():  # noqa: F811
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():  # noqa: F811
         ...
 
@@ -812,20 +812,20 @@ def test_getitem_bad_key(folder_slot):
         some_slot[True]
 
 
-def test_getitem_good_key(folder_slot):
+def test_getitem_good_key(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():  # noqa: F811
         ...
 
-    @some_slot.plugin('plugin2')
+    @folder_plugin(some_slot)
     def plugin2():
         ...
 
@@ -854,22 +854,22 @@ def test_getitem_good_key(folder_slot):
     assert [x.name for x in some_slot['kek-2']] == []
 
 
-def test_getitem_call(folder_slot):
+def test_getitem_call(folder_slot, folder_plugin):
     bread_crumbs = []
 
     @folder_slot(slot)
     def some_slot():
         bread_crumbs.append('some_slot')
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():
         bread_crumbs.append('plugin_1')
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():  # noqa: F811
         bread_crumbs.append('plugin_2')
 
-    @some_slot.plugin('plugin2')
+    @folder_plugin(some_slot)
     def plugin2():
         bread_crumbs.append('plugin_3')
 
@@ -892,22 +892,22 @@ def test_getitem_call(folder_slot):
     bread_crumbs.clear()
 
 
-def test_getitem_call_with_parameters(folder_slot):
+def test_getitem_call_with_parameters(folder_slot, folder_plugin):
     bread_crumbs = []
 
     @folder_slot(slot)
     def some_slot(a, b=3):
         bread_crumbs.append(f'some_slot_{a}_{b}')
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin(a, b=4):
         bread_crumbs.append(f'plugin_1_{a}_{b}')
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin(a, b=5):  # noqa: F811
         bread_crumbs.append(f'plugin_2_{a}_{b}')
 
-    @some_slot.plugin('plugin2')
+    @folder_plugin(some_slot)
     def plugin2(a, b=6):
         bread_crumbs.append(f'plugin_3_{a}_{b}')
 
@@ -976,36 +976,36 @@ def test_repr(folder_slot):
     assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max_plugins=3, type_check=False)'
 
 
-def test_getitem_repr(folder_slot):
+def test_getitem_repr(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot(a, b=3):
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin(a, b=3):
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin(a, b=3):  # noqa: F811
         ...
 
     assert repr(some_slot['plugin']) == 'CallerWithPlugins(caller=SlotCaller(code_representation=SlotCodeRepresenter(some_slot), slot_name=None, slot_function=some_slot, type_check=True), plugins=[Plugin(\'plugin\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'plugin-2\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
 
 
-def test_keys(folder_slot):
+def test_keys(folder_slot, folder_plugin):
     @folder_slot(slot)
     def slot_1():
         ...
 
-    @slot_1.plugin('plugin')
+    @folder_plugin(slot_1)
     def plugin():
         ...
 
-    @slot_1.plugin('plugin')
+    @folder_plugin(slot_1)
     def plugin():  # noqa: F811
         ...
 
-    @slot_1.plugin('plugin2')
+    @folder_plugin(slot_1)
     def plugin2():
         ...
 
@@ -1029,16 +1029,16 @@ def test_getitem_is_loading_entry_points(folder_slot):
     assert some_slot.loaded
 
 
-def test_iter_is_loading_entry_points(folder_slot):
+def test_iter_is_loading_entry_points(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():  # noqa: F811
         ...
 
@@ -1050,16 +1050,16 @@ def test_iter_is_loading_entry_points(folder_slot):
     assert some_slot.loaded
 
 
-def test_getting_keys_is_loading_entry_points(folder_slot):
+def test_getting_keys_is_loading_entry_points(folder_slot, folder_plugin):
     @folder_slot(slot)
     def some_slot():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():
         ...
 
-    @some_slot.plugin('plugin')
+    @folder_plugin(some_slot)
     def plugin():  # noqa: F811
         ...
 
