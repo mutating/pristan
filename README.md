@@ -3,19 +3,19 @@
 
 [![Downloads](https://static.pepy.tech/badge/pristan/month)](https://pepy.tech/project/pristan)
 [![Downloads](https://static.pepy.tech/badge/pristan)](https://pepy.tech/project/pristan)
-[![Coverage Status](https://coveralls.io/repos/github/pomponchik/transfunctions/badge.svg?branch=main)](https://coveralls.io/github/pomponchik/pristan?branch=main)
-[![Lines of code](https://sloc.xyz/github/pomponchik/pristan/?category=code)](https://github.com/boyter/scc/)
-[![Hits-of-Code](https://hitsofcode.com/github/pomponchik/pristan?branch=main)](https://hitsofcode.com/github/pomponchik/pristan/view?branch=main)
-[![Test-Package](https://github.com/pomponchik/pristan/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/pomponchik/pristan/actions/workflows/tests_and_coverage.yml)
+[![Coverage Status](https://coveralls.io/repos/github/mutating/transfunctions/badge.svg?branch=main)](https://coveralls.io/github/mutating/pristan?branch=main)
+[![Lines of code](https://sloc.xyz/github/mutating/pristan/?category=code)](https://github.com/boyter/scc/)
+[![Hits-of-Code](https://hitsofcode.com/github/mutating/pristan?branch=main)](https://hitsofcode.com/github/mutating/pristan/view?branch=main)
+[![Test-Package](https://github.com/mutating/pristan/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/mutating/pristan/actions/workflows/tests_and_coverage.yml)
 [![Python versions](https://img.shields.io/pypi/pyversions/pristan.svg)](https://pypi.python.org/pypi/pristan)
 [![PyPI version](https://badge.fury.io/py/pristan.svg)](https://badge.fury.io/py/pristan)
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pomponchik/pristan)
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mutating/pristan)
 
 </details>
 
-![logo](https://raw.githubusercontent.com/pomponchik/pristan/develop/docs/assets/logo_1.svg)
+![logo](https://raw.githubusercontent.com/mutating/pristan/develop/docs/assets/logo_1.svg)
 
 This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically hooks itself into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
 
