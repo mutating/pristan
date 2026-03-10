@@ -3,27 +3,27 @@
 
 [![Downloads](https://static.pepy.tech/badge/pristan/month)](https://pepy.tech/project/pristan)
 [![Downloads](https://static.pepy.tech/badge/pristan)](https://pepy.tech/project/pristan)
-[![Coverage Status](https://coveralls.io/repos/github/pomponchik/transfunctions/badge.svg?branch=main)](https://coveralls.io/github/pomponchik/pristan?branch=main)
-[![Lines of code](https://sloc.xyz/github/pomponchik/pristan/?category=code)](https://github.com/boyter/scc/)
-[![Hits-of-Code](https://hitsofcode.com/github/pomponchik/pristan?branch=main)](https://hitsofcode.com/github/pomponchik/pristan/view?branch=main)
-[![Test-Package](https://github.com/pomponchik/pristan/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/pomponchik/pristan/actions/workflows/tests_and_coverage.yml)
+[![Coverage Status](https://coveralls.io/repos/github/mutating/transfunctions/badge.svg?branch=main)](https://coveralls.io/github/mutating/pristan?branch=main)
+[![Lines of code](https://sloc.xyz/github/mutating/pristan/?category=code)](https://github.com/boyter/scc/)
+[![Hits-of-Code](https://hitsofcode.com/github/mutating/pristan?branch=main)](https://hitsofcode.com/github/mutating/pristan/view?branch=main)
+[![Test-Package](https://github.com/mutating/pristan/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/mutating/pristan/actions/workflows/tests_and_coverage.yml)
 [![Python versions](https://img.shields.io/pypi/pyversions/pristan.svg)](https://pypi.python.org/pypi/pristan)
 [![PyPI version](https://badge.fury.io/py/pristan.svg)](https://badge.fury.io/py/pristan)
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pomponchik/pristan)
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mutating/pristan)
 
 </details>
 
-![logo](https://raw.githubusercontent.com/pomponchik/pristan/develop/docs/assets/logo_1.svg)
+![logo](https://raw.githubusercontent.com/mutating/pristan/develop/docs/assets/logo_1.svg)
 
-This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically hooks itself into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
+This library is designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically hooks itself into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
 
 But there are already other plugin libraries! How is this one different? Here are a few key features:
 
-- Maximum simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they simply replace or supplement this function.
+- Maximum simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they replace or supplement this function.
 - Modern "pythonic" design based on decorators and type annotations.
-- Type safety, thread safety, safety of your soul.
+- Type safety, thread safety, soul safety.
 
 
 ## Table of contents
@@ -60,7 +60,7 @@ def some_slot(a, b) -> dict[str, int]:
     ...
 ```
 
-How can we add a plugin to this function? We use it as a decorator for other functions, like this:
+How can we add plugins to this function? We use it as a decorator for other functions, like this:
 
 ```python
 @some_slot.plugin
@@ -108,7 +108,7 @@ print(some_slot)
 #> Slot(some_slot)
 ```
 
-Yes, we can call it just as we would call the original function, but in fact it is a different object, a wrapper. If this wrapper is called, it will operate according to the following algorithm:
+Yes, we can call it just as we would call the original function, but in fact this is a different object, a wrapper. If this wrapper is called, it will operate according to the following algorithm:
 
 - First of all (on the first call), it will search for plugins.
 - If plugins are found: sequentially calls them all, packs the results, and returns it according to the expected type.
@@ -118,11 +118,11 @@ When called, the slot returns a value, and the type of this value depends on its
 
 - Missing annotation. In this case, even if the slot calls a certain number of plugins, it will not return anything.
 - A list annotation, i.e. `list` or [`typing.List`](https://docs.python.org/3/library/typing.html#typing.List). In this case, the results of each plugin will be collected and returned as a `list`.
-- A dictionary annotation, i.e. dict or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). The results of each plugin will be collected and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
+- A dictionary annotation, i.e. `dict` or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). The results of each plugin will be collected and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
 
 Example:
 
-```python3
+```python
 @slot
 def slot_1(a, b) -> dict[str, int]:
     ...
@@ -155,12 +155,11 @@ print(slot_3(1, 2))
 #> None
 ```
 
-Type annotations are also used to validate return values, which will be detailed [below](#type-safety).
-
+Type annotations are also used to validate return values, as detailed [below](#type-safety).
 
 ## Plugins and finding them
 
-In terms of this library, a plugin is a function with the `@<slot name>.plugin` decorator applied on it.
+In terms of this library, a plugin is a function with the `@<slot_name>.plugin` decorator applied to it.
 
 If the module defining this function has been imported, the plugin has already attached itself to its slot and will be called along with it. But what if the module defining our plugin is never imported or used in the rest of the program? In this case, the plugin will still connect, but to do this, you need to add an entry point pointing to its location to the `pyproject.toml` file (or its equivalent, which also manages entry points, such as `setup.py`). Here is an example of a section in `pyproject.toml` describing the path to the plugin for its automatic installation:
 
@@ -173,7 +172,7 @@ Please note that `path.to.plugin.module` is the path to the module where your pl
 
 `pristan` is the default plugin namespace, but you can specify a different option for a specific slot, like this:
 
-```python3
+```python
 @slot(entrypoint_group='new_namespace')
 def some_slot(a, b):
     ...
@@ -198,7 +197,7 @@ This library provides type safety in two aspects:
 
 This ensures that slots and plugins can be easily integrated into the surrounding code: plugins can be called in the expected manner and return values of the required types. Let's take a closer look at these checks.
 
-**First, we check the signatures**. How does it work? Before anything else, you should know that Python syntax is very flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves but rather how the functions are actually called.
+**First, we check the signatures**. How does it work? Before anything else, you should know that Python syntax is very flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but rather *how the functions are actually called*.
 
 By default, the `pristan` library expects that there is at least one common valid calling convention between the slot and each of its plugins. If this does not exist, you will immediately get an exception when trying to connect such a plugin:
 
@@ -215,7 +214,7 @@ def plugin(a, b):
 #> sigmatch.errors.SignatureMismatchError: No common calling method has been found between the slot and the plugin.
 ```
 
-This approach allows you to eliminate the most serious possible signature errors. However, it does not take into account *how the slot will actually be called*, which means that incompatibility errors between the slot and the plugin can still occur at the call stage. If you want to completely protect yourself from such errors, you need to pass a description of the expected call method when creating a slot, using the special syntax of the [`sigmatch`](https://github.com/mutating/sigmatch) library:
+This approach allows you to eliminate the most serious signature errors. However, it does not take into account *how the slot will actually be called*, which means that incompatibility errors between the slot and the plugin can still occur at the call stage. If you want to completely protect yourself from such errors, you need to pass a description of the expected call pattern when creating a slot, using the special syntax of the [`sigmatch`](https://github.com/mutating/sigmatch) library:
 
 ```python
 @slot(signature="..")  # This description means that parameters will be passed to the function only by position and in no other way.
@@ -252,7 +251,8 @@ def slot_3() -> dict:
     ...
 ```
 
-With an empty annotation, everything is obvious, and the annotations of the `list` and `dict` describe only the method of aggregating values by slot, but not the types of the values themselves. However, a more precise slot annotation will be used to verify the values returned by plugins:
+
+With an empty annotation, everything is clear. `list` and `dict` annotations describe only how values are aggregated, not their types. However, a more precise slot annotation will be used to verify the values returned by plugins:
 
 ```python
 @slot
@@ -276,7 +276,7 @@ slot_2()
 #> TypeError: The type str of the plugin's "plugin" return value 'some string' does not match the expected type int.
 ```
 
-I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as literal as possible, i.e. directly describing the types of values you expect (although some additional typing features are also supported, such as `Union` or `Any`).
+I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker under the hood. It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as literal as possible, i.e., directly describing the types of values you expect (although some additional typing features are also supported, such as `Union` or `Any`).
 
 
 ## Slot as a collection
@@ -311,7 +311,7 @@ The plugin name must be a valid Python identifier. However, if more than one plu
 
 Now that we know what plugin names are, let's look at basic operations with the slot as a collection.
 
-Get a list of names of connected plugins:
+Get a list of names of installed plugins:
 
 ```python
 @slot
@@ -334,7 +334,7 @@ print(some_slot.keys())
 #> ('name', 'name2')
 ```
 
-Note that you only get the base (declared) names, without the numeric suffixes that are added when names are duplicated! This minimizes how much your other code needs to know about the set of connected plugins.
+Note that you only get the base (declared) names, without the numeric suffixes that are added when names are duplicated! This minimizes how much your other code needs to know about the set of installed plugins.
 
 You can also use names to check for the presence of certain plugins:
 
@@ -353,7 +353,7 @@ Plugins can be requested using their names as keys:
 some_slot['name']
 ```
 
-You can use either the base plugin name or the name with the numeric suffix. In the first case you may get multiple plugins, in the second case at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot with all plugins that do not match the search criteria removed:
+You can use either the base plugin name or the name with the numeric suffix. In the first case, you may get multiple plugins; in the second case, at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot with all plugins that do not match the search criteria removed:
 
 ```python
 some_slot['name']()
@@ -378,7 +378,7 @@ print(len(some_slot['name']))
 
 You can impose some additional restrictions on slots or individual plugins.
 
-The simplest restriction at the slot level is the number of plugins that can be connected to it. To set it, pass the `max_plugins` argument to the decorator:
+The simplest restriction at the slot level is the number of plugins that can be installed to it. To set it, pass the `max_plugins` argument to the decorator:
 
 ```python
 @slot(max_plugins=1)
@@ -397,7 +397,7 @@ def plugin_2():
 #> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
 ```
 
-You can also specify a restriction for a plugin on the version of the library in which the slot is declared. To do this, pass a version expression as the `engine` argument:
+You can also restrict a plugin to a specific version of the library that declares the slot. To do this, pass a version expression as the `engine` argument:
 
 ```python
 @slot
@@ -409,7 +409,7 @@ def plugin():
     ...
 ```
 
-> ⓘ A version expression is one of five comparison symbols (`>`, `<`, `==`, `>=`, `<=`) + plus the library version to compare against.
+> ⓘ A version expression is one of five comparison operators (`>`, `<`, `==`, `>=`, `<=`) + the library version to compare against.
 
 If the library version check fails, the plugin will not be installed in the slot.
 
