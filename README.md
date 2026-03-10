@@ -17,7 +17,7 @@
 
 ![logo](https://raw.githubusercontent.com/pomponchik/pristan/develop/docs/assets/logo_1.svg)
 
-This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically "pulls itself" into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
+This is a library designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically hooks itself into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
 
 But there are already other plugin libraries! How is this one different? Here are a few things:
 
@@ -84,21 +84,21 @@ Let's pause for a second and reflect on what we've seen. We called a function th
 
 Well, that seems pretty clear, right? But for our functions to become true plugins, they lack one more property: **auto-detection**.
 
-Plugins are automatically detected through the entry points mechanism. This is where the magic happens: you can place your plugin functions in a third-party library, add a special mark to `pyproject.toml`, and they will be automatically detected. Here is what such a mark looks like:
+Plugins are automatically detected through the entry points mechanism. This is where the magic happens: you can place your plugin functions in a third-party library, add a special entry to `pyproject.toml`, and they will be automatically detected. Here is what such a mark looks like:
 
 ```toml
 [project.entry-points.pristan]
 name = "path.to.plugin.module"
 ```
 
-That's really all you need to know to create your own libraries and the entire plugin infrastructure around them. But if you're interested in the details, read on.
+That’s basically all you need to create your own libraries and build a plugin infrastructure around them.
 
 
 ## Slots and their defaults
 
-At `pristan`, everything revolves around the concept of slots, so let's take a closer look at what they are.
+In `pristan`, everything revolves around the concept of slots, so let's take a closer look at what they are.
 
-As already mentioned, a slot is a function to which the `@slot` decorator is applied. However, upon closer inspection, we see that if such a decorator is applied to a function, it ceases to be a function:
+As already mentioned, a slot is a function to which the `@slot` decorator is applied. However, upon closer inspection, we see that if such a decorator is applied to a function, it is no longer a plain function:
 
 ```python
 @slot
@@ -115,11 +115,11 @@ Yes, we can call it just as we would call the original function, but in fact it 
 - If plugins are found: sequentially calls them all, packs the results, and returns it according to the expected type.
 - If no plugins are found, it calls the body of the wrapped function, if it is not empty (the body is considered empty if it contains only `...` or `pass`). If it is empty, it does nothing. The body of a wrapped function is like a "default plugin" that is called ONLY if there are no real plugins.
 
-When called, the slot returns a value, and the type of this value depends on the annotation. There are three valid ways to annotate types for slots:
+When called, the slot returns a value, and the type of this value depends on its return annotation. There are three valid ways to annotate types for slots:
 
 - Missing annotation. In this case, even if the slot calls a certain number of plugins, it will not return anything.
-- Annotation of the list, i.e., `list` or [`typing.List`](https://docs.python.org/3/library/typing.html#typing.List). In this case, the return values of each plugin will be aggregated and returned as a `list`.
-- Dictionary annotation, i.e. `dict` or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). In this case, the return values of each plugin will be aggregated and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
+- A list annotation, i.e. `list` or [`typing.List`](https://docs.python.org/3/library/typing.html#typing.List). In this case, the results of each plugin will be collected and returned as a `list`.
+- A dictionary annotation, i.e. dict or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). The results of each plugin will be collected and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
 
 Example:
 
@@ -197,9 +197,9 @@ This library provides type safety in two aspects:
 - All plugins are checked for compatibility between their signatures and the slot signature.
 - If the slot has a type annotation, the return type of each plugin is automatically checked.
 
-This ensures that slots and plugins can be easily integrated into the surrounding code: plugins can be called in the expected manner and return values of the required types. Let's take a closer look at these checks?
+This ensures that slots and plugins can be easily integrated into the surrounding code: plugins can be called in the expected manner and return values of the required types. Let's take a closer look at these checks.
 
-**First, check the signatures**. How does it work? Before anything else, you should know that Python syntax is super flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but how they're called.
+**First, check the signatures**. How does it work? Before anything else, you should know that Python syntax is very flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but rather how the functions are actually called.
 
 By default, the `pristan` library expects that there is at least one common valid calling convention between the slot and each of its plugins. If this does not exist, you will immediately get an exception when trying to connect such a plugin:
 
@@ -237,7 +237,7 @@ def plugin(a, *, b):  # The asterisk indicates that argument b can only be passe
 
 **Second, checking the return values**. It seems like everything should be simpler here, right? Well, let's see.
 
-The type of expected plugin value is determined by the slot annotation. The following annotations imply no type checks for plugins at all:
+The type of the expected plugin value is determined by the slot’s return annotation. The following annotations imply no type checks for plugins at all:
 
 ```python
 @slot
@@ -253,7 +253,7 @@ def slot_3() -> dict:
     ...
 ```
 
-With an empty annotation, everything is obvious, and the annotations of the `list` and `dict` describe only the method of aggregating values by slot, but not the types of the values themselves. However, a more precise annotation of the slot will be automatically used to verify the values returned by plugins:
+With an empty annotation, everything is obvious, and the annotations of the `list` and `dict` describe only the method of aggregating values by slot, but not the types of the values themselves. However, a more precise slot annotation will be used to verify the values returned by plugins:
 
 ```python
 @slot
@@ -277,7 +277,7 @@ slot_2()
 #> TypeError: The type str of the plugin's "plugin" return value 'some string' does not match the expected type int.
 ```
 
-I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as "literal" as possible, i.e., directly describing the types of values you expect.
+I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker "under the hood". It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as literal as possible, i.e., directly describing the types of values you expect (although some additional typing features are also supported, such as `Union` or `Any`).
 
 
 ## Slot as a collection
@@ -291,19 +291,19 @@ Each slot and each plugin in it has a name. By default, the name of the slot or 
 def some_slot():  # <- Here, the name of the slot is just "some_slot".
     ...
 
-@slot_name.plugin
+@some_slot.plugin
 def plugin_name():  # <- And here, the name of the plugin is just "plugin_name".
     ...
 ```
 
-You can change these names by passing the desired values as positional arguments:
+You can change these names by passing the desired values as the first positional argument:
 
 ```python
 @slot('some_another_slot_name')  # <- Look! Here, the name of the slot is "some_another_slot_name".
 def some_slot():
     ...
 
-@slot_name.plugin('another_plugin_name')  # <- The plugin name is "another_plugin_name".
+@some_slot.plugin('another_plugin_name')  # <- The plugin name is "another_plugin_name".
 def plugin_name():
     ...
 ```
@@ -335,7 +335,7 @@ print(some_slot.keys())
 #> ('name', 'name2')
 ```
 
-Please note that here you only get the basic (requested) names, without suffixes with serial numbers, which are assigned automatically when names are duplicated! This minimizes the necessary "knowledge" of your other code about the set of connected plugins. 
+Please note that here you only get the basic (declared) names, without suffixes with serial numbers, which are assigned automatically when names are duplicated! This minimizes how much your other code needs to know about the set of connected plugins.
 
 You can also use names to check for the presence of certain plugins:
 
@@ -354,7 +354,7 @@ Plugins can be requested using their names as keys:
 some_slot['name']
 ```
 
-You can use either the base (requested) plugin name or the name with the ordinal number as the key. In the first case, you can potentially get a collection of several plugins, in the second case, obviously, no more than one plugin. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot from which unnecessary plugins that do not match the search criteria have been removed:
+You can use either the base plugin name or the name with the numeric suffix. In the first case you may get multiple plugins, in the second case at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot with all plugins that do not match the search criteria removed:
 
 ```python
 some_slot['name']()
@@ -398,7 +398,7 @@ def plugin_2():
 #> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
 ```
 
-You can also specify a restriction for a plugin on the version of the library in which the slot is declared. To do this, pass a version expression as an argument to engine:
+You can also specify a restriction for a plugin on the version of the library in which the slot is declared. To do this, pass a version expression as the `engine` argument:
 
 ```python
 @slot
@@ -414,7 +414,7 @@ def plugin():
 
 If the library version check fails, the plugin will not be installed in the slot.
 
-A particular plugin may also require that its name be unique for the slot. To achieve this, pass `unique=True` to the decorator:
+A plugin may also require its name to be unique within the slot. To do this, pass `unique=True` to the plugin decorator:
 
 ```python
 @some_slot.plugin(unique=True)
@@ -429,4 +429,4 @@ def plugin():
 #> pristan.errors.PrimadonnaPluginError: Plugin "plugin" claims to be unique, but there are other plugins with the same name.
 ```
 
-These are all the restrictions available for configuration at this time.
+These are all the restrictions that can be configured for now.
