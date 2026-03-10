@@ -414,7 +414,22 @@ def plugin():
 
 If the library version check fails, the plugin will not be installed in the slot.
 
+A particular plugin may also require that its name be unique for the slot. To achieve this, pass `unique=True` to the decorator:
 
+```python
+@some_slot.plugin(unique=True)
+def plugin():
+    ...
+
+@some_slot.plugin
+def plugin():
+    ...
+
+#> ...
+#> pristan.errors.PrimadonnaPluginError: Plugin "plugin" claims to be unique, but there are other plugins with the same name.
+```
+
+These are all the restrictions available for configuration at this time.
 
 (тут написать про: уникальные плагины,)
 
