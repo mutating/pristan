@@ -21,7 +21,6 @@ This library is designed for creating plugins. What is a plugin? In terms of thi
 
 But there are already other plugin libraries! How is this one different? Here are a few key features:
 
-they can replace or supplement this function.
 - Maximum simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they replace or supplement this function.
 - Modern "pythonic" design based on decorators and type annotations.
 - Type safety, thread safety, soul safety.
@@ -123,7 +122,7 @@ When called, the slot returns a value, and the type of this value depends on its
 
 Example:
 
-```python3
+```python
 @slot
 def slot_1(a, b) -> dict[str, int]:
     ...
@@ -173,7 +172,7 @@ Please note that `path.to.plugin.module` is the path to the module where your pl
 
 `pristan` is the default plugin namespace, but you can specify a different option for a specific slot, like this:
 
-```python3
+```python
 @slot(entrypoint_group='new_namespace')
 def some_slot(a, b):
     ...
@@ -312,7 +311,7 @@ The plugin name must be a valid Python identifier. However, if more than one plu
 
 Now that we know what plugin names are, let's look at basic operations with the slot as a collection.
 
-Get a list of names of connected plugins:
+Get a list of names of installed plugins:
 
 ```python
 @slot
@@ -335,7 +334,7 @@ print(some_slot.keys())
 #> ('name', 'name2')
 ```
 
-Note that you only get the base (declared) names, without the numeric suffixes that are added when names are duplicated! This minimizes how much your other code needs to know about the set of connected plugins.
+Note that you only get the base (declared) names, without the numeric suffixes that are added when names are duplicated! This minimizes how much your other code needs to know about the set of installed plugins.
 
 You can also use names to check for the presence of certain plugins:
 
@@ -354,7 +353,7 @@ Plugins can be requested using their names as keys:
 some_slot['name']
 ```
 
-You can use either the base plugin name or the name with the numeric suffix. In the first case you may get multiple plugins, in the second case at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot with all plugins that do not match the search criteria removed:
+You can use either the base plugin name or the name with the numeric suffix. In the first case, you may get multiple plugins; in the second case, at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot with all plugins that do not match the search criteria removed:
 
 ```python
 some_slot['name']()
@@ -379,7 +378,7 @@ print(len(some_slot['name']))
 
 You can impose some additional restrictions on slots or individual plugins.
 
-The simplest restriction at the slot level is the number of plugins that can be connected to it. To set it, pass the `max_plugins` argument to the decorator:
+The simplest restriction at the slot level is the number of plugins that can be installed to it. To set it, pass the `max_plugins` argument to the decorator:
 
 ```python
 @slot(max_plugins=1)
@@ -398,7 +397,7 @@ def plugin_2():
 #> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
 ```
 
-You can also specify a restriction for a plugin on the version of the library in which the slot is declared. To do this, pass a version expression as the `engine` argument:
+You can also restrict a plugin to a specific version of the library that declares the slot. To do this, pass a version expression as the `engine` argument:
 
 ```python
 @slot
