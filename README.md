@@ -118,7 +118,7 @@ When called, the slot returns a value, and the type of this value depends on its
 
 - Missing annotation. In this case, even if the slot calls a certain number of plugins, it will not return anything.
 - A list annotation, i.e. `list` or [`typing.List`](https://docs.python.org/3/library/typing.html#typing.List). In this case, the results of each plugin will be collected and returned as a `list`.
-- A dictionary annotation, i.e. dict or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). The results of each plugin will be collected and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
+- A dictionary annotation, i.e. `dict` or [`typing.Dict`](https://docs.python.org/3/library/typing.html#typing.Dict). The results of each plugin will be collected and returned as a `dict`, where the keys are the names of the plugins and the values are what they returned.
 
 Example:
 
@@ -409,7 +409,7 @@ def plugin():
     ...
 ```
 
-> ⓘ A version expression is one of five comparison symbols (`>`, `<`, `==`, `>=`, `<=`) + the library version to compare against.
+> ⓘ A version expression is one of five comparison operators (`>`, `<`, `==`, `>=`, `<=`) + the library version to compare against.
 
 If the library version check fails, the plugin will not be installed in the slot.
 
