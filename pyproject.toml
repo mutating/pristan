@@ -38,7 +38,10 @@ classifiers = [
     'Intended Audience :: Developers',
     'Topic :: Software Development :: Libraries',
 ]
-keywords = []
+keywords = [
+    'slots',
+    'plugins',
+]
 
 [project.entry-points.pristan]
 name = "tests.smokes.demo.simple_plugins"
