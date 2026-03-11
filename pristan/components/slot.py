@@ -109,11 +109,11 @@ class Slot(Generic[PluginResult]):
         return len(self.plugins)
 
     @overload
-    def plugin(self, plugin_function_or_name: Optional[str], unique: bool = False) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[str], unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
 
     @overload
-    def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
 
     def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
@@ -153,7 +153,7 @@ class Slot(Generic[PluginResult]):
                     point.load()
                 self.loaded = True
 
-    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool, engine: Optional[str]) -> None:  # type: ignore[type-arg, unused-ignore]
+    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool, engine: Optional[Union[str, List[str]]]) -> None:  # type: ignore[type-arg, unused-ignore]
         plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)  # type: ignore[type-arg]
 
         with self.lock:

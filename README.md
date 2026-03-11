@@ -397,7 +397,7 @@ def plugin_2():
 #> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
 ```
 
-You can also restrict a plugin to a specific version of the library that declares the slot. To do this, pass a version expression as the `engine` argument:
+You can also restrict a plugin to a specific version of the library that declares the slot. To do this, pass a version expression (or a `list` of them) as the `engine` argument:
 
 ```python
 @slot

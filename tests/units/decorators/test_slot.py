@@ -1213,3 +1213,31 @@ def test_by_default_get_version_of_tests_package_is_impossible(folder_slot):
         @some_slot.plugin(engine='>1000.0.0')
         def plugin():
             ...
+
+
+def test_check_engine_is_in_some_range(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    some_slot.code_representation.package_version = Version('0.0.2')
+
+    @some_slot.plugin(engine=['>0.0.1', '<0.0.3'])
+    def plugin():
+        ...
+
+    assert 'plugin' in some_slot
+
+
+def test_check_engine_is_not_in_some_range(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    some_slot.code_representation.package_version = Version('0.0.4')
+
+    @some_slot.plugin(engine=['>0.0.1', '<0.0.3'])
+    def plugin():
+        ...
+
+    assert 'plugin' not in some_slot
