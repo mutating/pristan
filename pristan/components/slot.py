@@ -13,6 +13,7 @@ from typing import (
     Callable,
     Generator,
     Generic,
+    List,
     Optional,
     Tuple,
     Union,
@@ -115,7 +116,7 @@ class Slot(Generic[PluginResult]):
     def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
 
-    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[str] = None) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
