@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    List,
     Optional,
     Type,
     Union,
@@ -114,26 +115,37 @@ class SlotCodeRepresenter:
             )
         )
 
-    def check_package_version(self, expression: Optional[str]) -> bool:
-        if expression is None:
+    def check_package_version(self, expressions: Optional[Union[str, List[str]]]) -> bool:
+        if expressions is None:
             return True
 
         if self.package_version is None:
             raise CannotGetVersionsError('It is not possible to obtain the name of the package in which the slot is declared.')
 
-        expression = expression.strip()
+        if isinstance(expressions, str):
+            expressions = [expressions]
 
-        start_signs: Dict[str, Callable[[str], bool]] = {
-            '==': lambda x: self.package_version == Version(x),
-            '>=': lambda x: self.package_version >= Version(x),  # type: ignore[operator]
-            '<=': lambda x: self.package_version <= Version(x),  # type: ignore[operator]
-            '>': lambda x: self.package_version > Version(x),  # type: ignore[operator]
-            '<': lambda x: self.package_version < Version(x),  # type: ignore[operator]
-        }
+        results = []
 
-        for start, checker in start_signs.items():
-            if expression.startswith(start):
-                if checker(expression[len(start):]):
-                    return True
+        for expression in expressions:
+            expression = expression.strip()  # noqa: PLW2901
 
-        return False
+            start_signs: Dict[str, Callable[[str], bool]] = {
+                '==': lambda x: self.package_version == Version(x),
+                '>=': lambda x: self.package_version >= Version(x),  # type: ignore[operator]
+                '<=': lambda x: self.package_version <= Version(x),  # type: ignore[operator]
+                '>': lambda x: self.package_version > Version(x),  # type: ignore[operator]
+                '<': lambda x: self.package_version < Version(x),  # type: ignore[operator]
+            }
+
+            flag = False
+
+            for start, checker in start_signs.items():
+                if expression.startswith(start):
+                    if checker(expression[len(start):]):
+                        flag = True
+                        break
+
+            results.append(flag)
+
+        return all(results)
