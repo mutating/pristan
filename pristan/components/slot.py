@@ -91,13 +91,13 @@ class Slot(Generic[PluginResult]):
             {
                 'signature': self.signature,
                 'slot_name': self.slot_name,
-                'max_plugins': self.max_number_of_plugins,
+                'max': self.max_number_of_plugins,
                 'type_check': self.type_check,
             },
             filters={
                 'signature': not_none,
                 'slot_name': not_none,
-                'max_plugins': not_none,
+                'max': not_none,
                 'type_check': lambda x: x != True,
             },
         )

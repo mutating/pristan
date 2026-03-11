@@ -378,10 +378,10 @@ print(len(some_slot['name']))
 
 You can impose some additional restrictions on slots or individual plugins.
 
-The simplest restriction at the slot level is the number of plugins that can be installed to it. To set it, pass the `max_plugins` argument to the decorator:
+The simplest restriction at the slot level is the number of plugins that can be installed to it. To set it, pass the `max` argument to the decorator:
 
 ```python
-@slot(max_plugins=1)
+@slot(max=1)
 def some_slot():
     ...
 

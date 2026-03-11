@@ -148,7 +148,7 @@ def test_2_plugins_with_same_names_and_second_one_is_unique(folder_slot, folder_
 
 
 def test_exceeding_the_limit_0_of_plugins(folder_plugin):
-    @slot(max_plugins=0)
+    @slot(max=0)
     def some_slot(a, b):
         ...
 
@@ -159,7 +159,7 @@ def test_exceeding_the_limit_0_of_plugins(folder_plugin):
 
 
 def test_exceeding_the_limit_1_of_plugins(folder_plugin):
-    @slot(max_plugins=1)
+    @slot(max=1)
     def some_slot(a, b):
         ...
 
@@ -176,7 +176,7 @@ def test_exceeding_the_limit_1_of_plugins(folder_plugin):
 def test_exceeding_the_limit_1000_of_plugins(folder_plugin):
     allowed_number_of_plugins = 1000
 
-    @slot(max_plugins=allowed_number_of_plugins)
+    @slot(max=allowed_number_of_plugins)
     def some_slot(a, b):
         ...
 
@@ -963,24 +963,24 @@ def test_repr(folder_slot):
     def some_slot_3(a, b=3):
         ...
 
-    @slot(name='name3', signature='..', max_plugins=3)
+    @slot(name='name3', signature='..', max=3)
     def some_slot_4(a, b=3):
         ...
 
-    @slot(name='name4', signature='..', max_plugins=3, type_check=False)
+    @slot(name='name4', signature='..', max=3, type_check=False)
     def some_slot_5(a, b=3):
         ...
 
-    @slot('name5', signature='..', max_plugins=3, type_check=False)
+    @slot('name5', signature='..', max=3, type_check=False)
     def some_slot_6(a, b=3):
         ...
 
     assert repr(some_slot) == 'Slot(some_slot)'
     assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
     assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
-    assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max_plugins=3)'
-    assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max_plugins=3, type_check=False)'
-    assert repr(some_slot_6) == 'Slot(some_slot_6, signature=\'..\', slot_name=\'name5\', max_plugins=3, type_check=False)'
+    assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max=3)'
+    assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max=3, type_check=False)'
+    assert repr(some_slot_6) == 'Slot(some_slot_6, signature=\'..\', slot_name=\'name5\', max=3, type_check=False)'
 
 
 def test_getitem_repr(folder_slot, folder_plugin):
