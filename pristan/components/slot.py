@@ -55,7 +55,7 @@ from pristan.errors import (
     },
 )
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913
+    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 

@@ -20,7 +20,7 @@ from typing import (
 from denial import InnerNoneType
 from getsources import getclearsource
 from packaging.version import Version
-from printo import descript_data_object, repred
+from printo import repred
 
 from pristan.errors import CannotGetVersionsError
 
