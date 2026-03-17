@@ -1,13 +1,14 @@
 from typing import Any, Generic, Type, Union
 
 from denial import InnerNoneType
-from printo import descript_data_object
+from printo import repred
 from simtypes import check
 
 from pristan.common_types import PluginFunction, PluginResult, SlotPapameters
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 
 
+@repred(positionals=['name'])  # type: ignore[arg-type]
 class Plugin(Generic[PluginResult]):
     # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
     def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:  # type: ignore[type-arg, unused-ignore]
@@ -17,18 +18,6 @@ class Plugin(Generic[PluginResult]):
         self.expected_result_type = expected_result_type
         self.type_check = type_check
         self.unique = unique
-
-    def __repr__(self) -> str:
-        return descript_data_object(
-            type(self).__name__,
-            (self.name,),
-            {
-                'plugin_function': self.plugin_function,
-                'expected_result_type': self.expected_result_type,
-                'type_check': self.type_check,
-                'unique': self.unique,
-            },
-        )
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> PluginResult:
         # TODO: try to delete this "type: ignore" comments if python 3.8 deleted from CI

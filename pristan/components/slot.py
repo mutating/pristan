@@ -20,7 +20,7 @@ from typing import (
     overload,
 )
 
-from printo import descript_data_object, not_none
+from printo import not_none, repred
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
 
@@ -44,9 +44,19 @@ from pristan.errors import (
 
 
 # TODO: consider to delete all the "type: ignore"d comments if python 3.9 deleted from the matrix
+@repred(  # type: ignore[arg-type]
+    positionals=['slot_function'],
+    filters={
+        'signature': not_none,
+        'slot_name': not_none,
+        'max': not_none,
+        'type_check': lambda x: x != True,
+        'entrypoint_group': lambda x: x != 'pristan',
+    },
+)
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913
-        if max_plugins is not None and max_plugins < 0:
+    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913, A002
+        if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
         self.slot_function = slot_function
@@ -58,7 +68,7 @@ class Slot(Generic[PluginResult]):
         self.signature = signature
         self.slot_name = slot_name
         self.slot_function = slot_function
-        self.max_number_of_plugins = max_plugins
+        self.max_number_of_plugins = max
         self.type_check = type_check
         self.entrypoint_group = entrypoint_group
 
@@ -83,24 +93,6 @@ class Slot(Generic[PluginResult]):
     def __getitem__(self, key: str) -> CallerWithPlugins[PluginResult]:
         self._load_entrypoints()
         return self.plugins[key]  # type: ignore[no-any-return]
-
-    def __repr__(self) -> str:
-        return descript_data_object(
-            type(self).__name__,
-            [self.slot_function],
-            {
-                'signature': self.signature,
-                'slot_name': self.slot_name,
-                'max': self.max_number_of_plugins,
-                'type_check': self.type_check,
-            },
-            filters={
-                'signature': not_none,
-                'slot_name': not_none,
-                'max': not_none,
-                'type_check': lambda x: x != True,
-            },
-        )
 
     def __contains__(self, item: Any) -> bool:
         return item in self.plugins
