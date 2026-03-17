@@ -8,7 +8,7 @@ from pristan.common_types import PluginFunction, PluginResult, SlotPapameters
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 
 
-@repred(positionals=['name'])
+@repred(positionals=['name'])  # type: ignore[arg-type]
 class Plugin(Generic[PluginResult]):
     # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
     def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool) -> None:  # type: ignore[type-arg, unused-ignore]
