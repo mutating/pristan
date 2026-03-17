@@ -1,7 +1,7 @@
 from typing import Any, Dict, Generator, Generic, List, Optional, Type, Union
 
 from denial import InnerNoneType
-from printo import descript_data_object
+from printo import repred
 
 from pristan.common_types import (
     PluginResult,
@@ -15,6 +15,7 @@ from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 
 
+@repred
 class SlotCaller(Generic[PluginResult]):
     # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
     def __init__(self, code_representation: SlotCodeRepresenter, slot_name: Optional[str], slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], type_check: bool) -> None:  # type: ignore[type-arg, unused-ignore]
@@ -22,18 +23,6 @@ class SlotCaller(Generic[PluginResult]):
         self.slot_name = slot_name
         self.slot_function = slot_function
         self.type_check = type_check
-
-    def __repr__(self) -> str:
-        return descript_data_object(
-            type(self).__name__,
-            [],
-            {
-                'code_representation': self.code_representation,
-                'slot_name': self.slot_name,
-                'slot_function': self.slot_function,
-                'type_check': self.type_check,
-            },
-        )
 
     def __call__(self, plugins: Union[PluginsGroup[PluginResult], List[Plugin[PluginResult]]], *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
         if not self.code_representation.is_empty and not plugins:
@@ -68,6 +57,7 @@ class SlotCaller(Generic[PluginResult]):
             plugin(*args, **kwargs)
 
 
+@repred
 class CallerWithPlugins(Generic[PluginResult]):
     def __init__(self, caller: SlotCaller[PluginResult], plugins: List[Plugin[PluginResult]]) -> None:
         self.caller = caller
@@ -75,16 +65,6 @@ class CallerWithPlugins(Generic[PluginResult]):
 
     def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:
         return self.caller(self.plugins, *args, **kwargs)
-
-    def __repr__(self) -> str:
-        return descript_data_object(
-            type(self).__name__,
-            [],
-            {
-                'caller': self.caller,
-                'plugins': self.plugins,
-            },
-        )
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
         yield from self.plugins
