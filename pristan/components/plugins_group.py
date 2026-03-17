@@ -1,12 +1,13 @@
 from collections import defaultdict
 from typing import Any, DefaultDict, Generator, Generic, List, Optional
 
-from printo import descript_data_object
+from printo import repred
 
 from pristan.common_types import PluginResult
 from pristan.components.plugin import Plugin
 
 
+@repred(positionals=['caller'], getters={'plugins': lambda x: x.plugins}, filters={'plugins': lambda x: x})
 class PluginsGroup(Generic[PluginResult]):
     """
     The class is a collection of plugins.
@@ -21,9 +22,6 @@ class PluginsGroup(Generic[PluginResult]):
 
         if plugins:
             self.add(*plugins)
-
-    def __repr__(self) -> str:
-        return descript_data_object(type(self).__name__, [self.caller], {'plugins': self.plugins}, filters={'plugins': lambda x: bool(self.plugins)})  # noqa: ARG005
 
     def __bool__(self) -> bool:
         return bool(self.plugins)
