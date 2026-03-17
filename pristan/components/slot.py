@@ -45,8 +45,8 @@ from pristan.errors import (
 
 # TODO: consider to delete all the "type: ignore"d comments if python 3.9 deleted from the matrix
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max_plugins: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913
-        if max_plugins is not None and max_plugins < 0:
+    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913
+        if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
         self.slot_function = slot_function
@@ -58,7 +58,7 @@ class Slot(Generic[PluginResult]):
         self.signature = signature
         self.slot_name = slot_name
         self.slot_function = slot_function
-        self.max_number_of_plugins = max_plugins
+        self.max_number_of_plugins = max
         self.type_check = type_check
         self.entrypoint_group = entrypoint_group
 
