@@ -108,7 +108,7 @@ class Slot(Generic[PluginResult]):
     def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
         ...  # pragma: no cover
 
-    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
@@ -126,7 +126,7 @@ class Slot(Generic[PluginResult]):
         def decorator(plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
             # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
             self._compare_signatures(self.slot_function, plugin_function)  # type: ignore[arg-type, unused-ignore]
-            self._add_plugin(get_plugin_name(plugin_function), plugin_function, unique, engine)
+            self._add_plugin(get_plugin_name(plugin_function), plugin_function, unique, engine, run_once)
             return plugin_function
 
         if plugin_function_or_name is None or isinstance(plugin_function_or_name, str):
@@ -145,8 +145,8 @@ class Slot(Generic[PluginResult]):
                     point.load()
                 self.loaded = True
 
-    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool, engine: Optional[Union[str, List[str]]]) -> None:  # type: ignore[type-arg, unused-ignore]
-        plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique)  # type: ignore[type-arg]
+    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool, engine: Optional[Union[str, List[str]]], run_once: bool) -> None:  # type: ignore[type-arg, unused-ignore]
+        plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique, run_once)  # type: ignore[type-arg]
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:

@@ -5,6 +5,7 @@ import pytest
 from full_match import match
 
 from pristan.components.plugin import Plugin
+from pristan.errors import NumberOfCallsError
 
 
 def test_i_can_run_plugin():
@@ -75,3 +76,20 @@ def test_repr():
 
     assert repr(Plugin('some_name', lambda x, y: x + y, int, True, True)) == "Plugin('some_name', plugin_function=lambda x, y: x + y, expected_result_type=int, type_check=True, unique=True)"
     assert repr(Plugin('some_name', some_function, int, True, True)) == "Plugin('some_name', plugin_function=some_function, expected_result_type=int, type_check=True, unique=True)"
+    assert repr(Plugin('some_name', some_function, int, True, True, run_once=True)) == "Plugin('some_name', plugin_function=some_function, expected_result_type=int, type_check=True, unique=True, run_once=True)"
+
+
+def test_run_once_off():
+    plugin = Plugin('some_name', lambda x, y: x + y, int, True, True, run_once=False)
+
+    assert plugin(1, 2) == 3
+    assert plugin(1, 3) == 4
+
+
+def test_run_once_on():
+    plugin = Plugin('some_name', lambda x, y: x + y, int, True, True, run_once=True)
+
+    assert plugin(1, 2) == 3
+
+    with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "some_name". And this plugin has already been called previously.')):
+        plugin(1, 3)
