@@ -431,8 +431,6 @@ def plugin():
 Sometimes you want to ensure that your plugin is called exactly once. In that case, set `run_once=True`:
 
 ```python
-from pristan import slot
-
 @slot
 def some_slot():
     ...
