@@ -1244,9 +1244,9 @@ def test_check_engine_is_not_in_some_range(folder_slot):
     assert 'plugin' not in some_slot
 
 
-def test_run_once_off(folder_slot, folder_plugin):
+def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type):
     @folder_slot(slot)
-    def some_slot(x, y) -> list[int]:  # noqa: ARG001
+    def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
 
     @folder_plugin(some_slot)
@@ -1257,9 +1257,9 @@ def test_run_once_off(folder_slot, folder_plugin):
     assert some_slot(1, 3) == [4]
 
 
-def test_run_once_on(folder_slot):
+def test_run_once_on(folder_slot, subscribable_list_type):
     @folder_slot(slot)
-    def some_slot(x, y) -> list[int]:  # noqa: ARG001
+    def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
 
     @some_slot.plugin(run_once=True)
