@@ -17,12 +17,12 @@
 
 ![logo](https://raw.githubusercontent.com/mutating/pristan/develop/docs/assets/logo_1.svg)
 
-This library is designed for creating plugins. What is a plugin? In terms of this library, a plugin is a piece of code that automatically hooks itself into a certain context, into the surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for creating easily extensible libraries.
+This library is designed for building plugin systems. What is a plugin? In terms of this library, a plugin is a piece of code that automatically integrates itself into surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for building easily extensible libraries.
 
 But there are already other plugin libraries! How is this one different? Here are a few key features:
 
-- Maximum simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they replace or supplement this function.
-- Modern "pythonic" design based on decorators and type annotations.
+- Simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they replace or supplement this function.
+- Modern "Pythonic" design based on decorators and type annotations.
 - Type safety, thread safety, soul safety.
 
 
@@ -81,7 +81,7 @@ print(some_slot(1, 2))
 
 Let's pause for a second and reflect on what we've seen. We called a function that we marked as a slot, but in reality the plugins were called, and the result of their call was aggregated into a dictionary. How did the system understand that it needed to combine the result into a dictionary? It did so based on the type annotation. We noted that the slot returns `dict[str, int]`. `dict` here denotes the type of the result container, `str` is the only type of keys denoting plugin names, and the returned values must be of type `int`.
 
-Well, that seems pretty clear, right? But for our functions to become true plugins, they need one more property: **auto-detection**.
+Well, that seems pretty clear, right? But for our functions to become true plugins, they need one more property: **automatic discovery**.
 
 Plugins are automatically detected through the entry points mechanism. This is where the magic happens: you can place your plugin functions in a third-party library, add a special entry to `pyproject.toml`, and they will be automatically detected. Here is what such an entry looks like:
 
