@@ -10,7 +10,7 @@ description = "Function-based plugin system with respect to typing"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    'sigmatch>=0.0.8',
+    'sigmatch>=0.0.9',
     'simtypes>=0.0.13',
     'denial>=0.0.13',
     'printo>=0.0.22',
