@@ -199,7 +199,7 @@ This ensures that slots and plugins can be easily integrated into the surroundin
 
 **First, we check the signatures**. How does it work? Before anything else, you should know that Python syntax is very flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but rather *how the functions are actually called*.
 
-By default, the `pristan` library expects that there is at least one common valid calling convention between the slot and each of its plugins. If this does not exist, you will immediately get an exception when trying to connect such a plugin:
+By default, the `pristan` library expects that there is at least one common valid calling convention between the slot and each of its plugins. If none exists, you will immediately get an exception when trying to connect such a plugin:
 
 ```python
 @slot
@@ -235,7 +235,7 @@ def plugin(a, *, b):  # The asterisk indicates that argument b can only be passe
 
 **Second, we check the return values**. It seems like everything should be simpler here, right? Well, let's see.
 
-The type of the expected plugin value is determined by the slot’s return annotation. The following annotations imply no type checks for plugins at all:
+The expected type of a plugin's return value is determined by the slot’s return annotation. The following annotations imply no type checks for plugins at all:
 
 ```python
 @slot
@@ -307,7 +307,7 @@ def plugin_name():
     ...
 ```
 
-The plugin name must be a valid Python identifier. However, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by appending a number to the end, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
+The plugin name must be a valid Python identifier. However, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by appending a numeric suffix, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
 
 Now that we know what plugin names are, let's look at basic operations with the slot as a collection.
 
