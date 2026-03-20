@@ -26,7 +26,7 @@ But there are already other plugin libraries! How is this one different? Here ar
 - Type safety, thread safety, soul safety.
 
 
-## Table of contents
+## Table of Contents
 
 - [**Installation**](#installation)
 - [**Quick start**](#quick-start)
@@ -39,13 +39,13 @@ But there are already other plugin libraries! How is this one different? Here ar
 
 ## Installation
 
-Install it:
+You can install [`pristan`](https://pypi.org/project/pristan) with `pip`:
 
 ```bash
 pip install pristan
 ```
 
-You can also quickly try out this and other packages without having to install using [instld](https://github.com/pomponchik/instld).
+You can also use [`instld`](https://github.com/pomponchik/instld) to quickly try this package and others without installing them.
 
 
 ## Quick start
