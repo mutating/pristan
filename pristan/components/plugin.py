@@ -1,5 +1,5 @@
-from typing import Any, Generic, Type, Union
 from threading import Lock
+from typing import Any, Generic, Type, Union
 
 from denial import InnerNoneType
 from printo import repred
@@ -13,7 +13,7 @@ from pristan.errors import NumberOfCallsError
 @repred(positionals=['name'])  # type: ignore[arg-type]
 class Plugin(Generic[PluginResult]):
     # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
-    def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool, run_once: bool = False) -> None:  # type: ignore[type-arg, unused-ignore]
+    def __init__(self, name: str, plugin_function: PluginFunction[SlotPapameters, PluginResult], expected_result_type: Union[InnerNoneType, Type[Any]], type_check: bool, unique: bool, run_once: bool = False) -> None:  # type: ignore[type-arg, unused-ignore]  # noqa: PLR0913
         self.plugin_function = plugin_function
         self.requested_name = name
         self.name = name
