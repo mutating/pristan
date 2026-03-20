@@ -428,4 +428,23 @@ def plugin():
 #> pristan.errors.PrimadonnaPluginError: Plugin "plugin" claims to be unique, but there are other plugins with the same name.
 ```
 
+Sometimes you want to ensure that your plugin is called exactly once. In that case, set `run_once=True`:
+
+```python
+from pristan import slot
+
+@slot
+def some_slot():
+    ...
+
+@some_slot.plugin(run_once=True)
+def plugin():
+    ...
+
+some_slot()
+some_slot()
+#> ...
+#> pristan.errors.NumberOfCallsError: A limit of 1 has been set on the number of calls for plugin "plugin". And this plugin has already been called previously.
+```
+
 These are all the restrictions that can be configured for now.
