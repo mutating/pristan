@@ -9,6 +9,7 @@ from pristan import slot
 from pristan.decorators.slot import Slot
 from pristan.errors import (
     CannotGetVersionsError,
+    NumberOfCallsError,
     PrimadonnaPluginError,
     StrangeTypeAnnotationError,
     TooManyPluginsError,
@@ -1241,3 +1242,31 @@ def test_check_engine_is_not_in_some_range(folder_slot):
         ...
 
     assert 'plugin' not in some_slot
+
+
+def test_run_once_off(folder_slot, folder_plugin):
+    @folder_slot(slot)
+    def some_slot(x, y) -> list[int]:
+        return []
+
+    @folder_plugin(some_slot)
+    def plugin(x, y):
+        return x + y
+
+    assert some_slot(1, 2) == [3]
+    assert some_slot(1, 3) == [4]
+
+
+def test_run_once_on(folder_slot):
+    @folder_slot(slot)
+    def some_slot(x, y) -> list[int]:
+        return []
+
+    @some_slot.plugin(run_once=True)
+    def plugin(x, y):
+        return x + y
+
+    assert some_slot(1, 2) == [3]
+
+    with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "plugin". And this plugin has already been called previously.')):
+        some_slot(3, 4)
