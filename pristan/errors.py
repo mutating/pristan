@@ -9,3 +9,6 @@ class StrangeTypeAnnotationError(Exception):
 
 class CannotGetVersionsError(Exception):
     ...
+
+class NumberOfCallsError(Exception):
+    ...
