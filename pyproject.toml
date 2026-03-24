@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pristan"
-version = "0.0.7"
+version = "0.0.8"
 authors = [{ name = "Evgeniy Blinov", email = "zheni-b@yandex.ru" }]
 description = "Function-based plugin system with respect to typing"
 readme = "README.md"
@@ -43,12 +43,6 @@ keywords = [
     'slots',
     'plugins',
 ]
-
-[project.entry-points.pristan]
-name = "tests.smokes.demo.simple_plugins"
-
-[project.entry-points.another_name]
-name = "tests.smokes.demo.plugins_another_name"
 
 [tool.setuptools.package-data]
 "pristan" = ["py.typed"]

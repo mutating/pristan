@@ -17,16 +17,16 @@
 
 ![logo](https://raw.githubusercontent.com/mutating/pristan/develop/docs/assets/logo_1.svg)
 
-This library is designed for building plugin systems. What is a plugin? In terms of this library, a plugin is a piece of code that automatically integrates itself into surrounding code, which knows nothing about the specific plugin. Plugins are a powerful tool for building easily extensible libraries.
+This library is designed for building plugin systems. What is a plugin? In terms of this library, a plugin is a piece of code that automatically integrates into host code, which knows nothing about the specific plugin. Plugins are a powerful tool for building easily extensible libraries.
 
 But there are already other plugin libraries! How is this one different? Here are a few key features:
 
-- Simplicity. You simply declare a function and call it in your code. If someone connects their plugin to it, they replace or supplement this function.
-- Modern "Pythonic" design based on decorators and type annotations.
+- Simplicity. You simply declare a function and call it in your code. If someone registers a plugin for it, they replace or extend its behavior.
+- A modern, Pythonic design based on decorators and type annotations.
 - Type safety, thread safety, soul safety.
 
 
-## Table of contents
+## Table of Contents
 
 - [**Installation**](#installation)
 - [**Quick start**](#quick-start)
@@ -39,18 +39,18 @@ But there are already other plugin libraries! How is this one different? Here ar
 
 ## Installation
 
-Install it:
+You can install [`pristan`](https://pypi.org/project/pristan) with `pip`:
 
 ```bash
 pip install pristan
 ```
 
-You can also quickly try out this and other packages without having to install using [instld](https://github.com/pomponchik/instld).
+You can also use [`instld`](https://github.com/pomponchik/instld) to quickly try this package and others without installing them.
 
 
 ## Quick start
 
-This library is built on the idea that each plugin automatically finds its slot. What is the slot? It's simple: it's a function with the `@slot` decorator:
+This library is built on the idea that each plugin automatically finds its slot. What is a slot? It's simple: it's a function with the `@slot` decorator:
 
 ```python
 from pristan import slot
@@ -79,11 +79,11 @@ print(some_slot(1, 2))
 #> {'plugin_1': 3, 'plugin_2': 4}
 ```
 
-Let's pause for a second and reflect on what we've seen. We called a function that we marked as a slot, but in reality the plugins were called, and the result of their call was aggregated into a dictionary. How did the system understand that it needed to combine the result into a dictionary? It did so based on the type annotation. We noted that the slot returns `dict[str, int]`. `dict` here denotes the type of the result container, `str` is the only type of keys denoting plugin names, and the returned values must be of type `int`.
+We called a function that we marked as a slot, but in reality the plugins were called, and the result of their call was aggregated into a dictionary. How did the system understand that it needed to combine the result into a dictionary? It did so based on the type annotation. We declared that the slot returns `dict[str, int]`. `dict` here denotes the type of the result container, `str` is the key type used for plugin names, and the returned values must be of type `int`.
 
 Well, that seems pretty clear, right? But for our functions to become true plugins, they need one more property: **automatic discovery**.
 
-Plugins are automatically detected through the entry points mechanism. This is where the magic happens: you can place your plugin functions in a third-party library, add a special entry to `pyproject.toml`, and they will be automatically detected. Here is what such an entry looks like:
+Plugins are automatically detected through the entry points mechanism. This is where the magic happens: you can place your plugin functions in a third-party library, add a special entry to `pyproject.toml`, and they will be automatically discovered. Here is what such an entry looks like:
 
 ```toml
 [project.entry-points.pristan]
@@ -108,7 +108,7 @@ print(some_slot)
 #> Slot(some_slot)
 ```
 
-Yes, we can call it just as we would call the original function, but in fact this is a different object, a wrapper. If this wrapper is called, it will operate according to the following algorithm:
+You can still call it like the original function, but it is actually a wrapper object. If this wrapper is called, it will operate according to the following algorithm:
 
 - First of all (on the first call), it will search for plugins.
 - If plugins are found: sequentially calls them all, packs the results, and returns it according to the expected type.
@@ -159,9 +159,9 @@ Type annotations are also used to validate return values, as detailed [below](#t
 
 ## Plugins and finding them
 
-In terms of this library, a plugin is a function with the `@<slot_name>.plugin` decorator applied to it.
+In this library, a plugin is a function with the `@<slot_name>.plugin` decorator applied to it.
 
-If the module defining this function has been imported, the plugin has already attached itself to its slot and will be called along with it. But what if the module defining our plugin is never imported or used in the rest of the program? In this case, the plugin will still connect, but to do this, you need to add an entry point pointing to its location to the `pyproject.toml` file (or its equivalent, which also manages entry points, such as `setup.py`). Here is an example of a section in `pyproject.toml` describing the path to the plugin for its automatic installation:
+If the module defining this function has been imported, the plugin has already attached itself to its slot and will be called along with it. But what if the module defining our plugin is never imported or used in the rest of the program? In this case, the plugin will still be discovered, but to do this, you need to add an entry point pointing to its location to the `pyproject.toml` file (or its equivalent, which also manages entry points, such as `setup.py`). Here is an example of a section in `pyproject.toml` describing the path to the plugin for its automatic installation:
 
 ```toml
 [project.entry-points.pristan]
@@ -197,7 +197,7 @@ This library provides type safety in two aspects:
 
 This ensures that slots and plugins can be easily integrated into the surrounding code: plugins can be called in the expected manner and return values of the required types. Let's take a closer look at these checks.
 
-**First, we check the signatures**. How does it work? Before anything else, you should know that Python syntax is very flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but rather *how the functions are actually called*.
+**First, we check the signatures**. How does that work? Before anything else, you should know that Python syntax is very flexible. Often, the same argument can be passed to a function both by position and by name. That's why you can't just compare signatures for equality; you need a smarter approach. You shouldn't compare the signatures themselves, but rather *how the functions are actually called*.
 
 By default, the `pristan` library expects that there is at least one common valid calling convention between the slot and each of its plugins. If none exists, you will immediately get an exception when trying to connect such a plugin:
 
@@ -214,7 +214,7 @@ def plugin(a, b):
 #> sigmatch.errors.SignatureMismatchError: No common calling method has been found between the slot and the plugin.
 ```
 
-This approach allows you to eliminate the most serious signature errors. However, it does not take into account *how the slot will actually be called*, which means that incompatibility errors between the slot and the plugin can still occur at the call stage. If you want to completely protect yourself from such errors, you need to pass a description of the expected call pattern when creating a slot, using the special syntax of the [`sigmatch`](https://github.com/mutating/sigmatch) library:
+This approach allows you to eliminate the most serious signature errors. However, it does not take into account *how the slot will actually be called*, which means that incompatibility errors between the slot and the plugin can still occur at the call stage. If you want to avoid these runtime mismatches entirely, you need to pass a description of the expected call pattern when creating a slot, using the special syntax of the [`sigmatch`](https://github.com/mutating/sigmatch) library:
 
 ```python
 @slot(signature="..")  # This description means that parameters will be passed to the function only by position and in no other way.
@@ -276,7 +276,7 @@ slot_2()
 #> TypeError: The type str of the plugin's "plugin" return value 'some string' does not match the expected type int.
 ```
 
-I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a very simple library, is used as the type checker under the hood. It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as literal as possible, i.e., directly describing the types of values you expect (although some additional typing features are also supported, such as `Union` or `Any`).
+I recommend specifying annotations for slots that are as strict as possible. However, [`simtypes`](https://github.com/mutating/simtypes), a lightweight library, is used as the type checker under the hood. It does not support most of the special annotations from [`typing`](https://docs.python.org/3/library/typing.html). Your annotations should be as literal as possible, i.e., directly describing the types of values you expect (although some additional typing features are also supported, such as `Union` or `Any`).
 
 
 ## Slot as a collection
@@ -347,13 +347,13 @@ print('name-3' in some_slot)
 #> False
 ```
 
-Plugins can be requested using their names as keys:
+Plugins can be retrieved by name:
 
 ```python
 some_slot['name']
 ```
 
-You can use either the base plugin name or the name with the numeric suffix. In the first case, you may get multiple plugins; in the second case, at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot with all plugins that do not match the search criteria removed:
+You can use either the base plugin name or the name with the numeric suffix. In the first case, you may get multiple plugins; in the second case, at most one. The return value is a callable object! If you call it, all plugins in the selection will be called. However, if the selection is empty, the default slot function will be called when the object is called. In short, you can treat the returned object as a slot narrowed to the matching plugins:
 
 ```python
 some_slot['name']()
@@ -378,7 +378,7 @@ print(len(some_slot['name']))
 
 You can impose some additional restrictions on slots or individual plugins.
 
-The simplest restriction at the slot level is the number of plugins that can be installed to it. To set it, pass the `max` argument to the decorator:
+The simplest restriction at the slot level is the number of plugins that can be installed in it. To set it, pass the `max` argument to the decorator:
 
 ```python
 @slot(max=1)
