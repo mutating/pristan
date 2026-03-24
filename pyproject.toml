@@ -44,12 +44,6 @@ keywords = [
     'plugins',
 ]
 
-[project.entry-points.pristan]
-name = "tests.smokes.demo.simple_plugins"
-
-[project.entry-points.another_name]
-name = "tests.smokes.demo.plugins_another_name"
-
 [tool.setuptools.package-data]
 "pristan" = ["py.typed"]
 
