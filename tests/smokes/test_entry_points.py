@@ -1,7 +1,6 @@
 from importlib.metadata import EntryPoint
 
 import pristan.components.slot as slot_module
-
 from tests.smokes.demo.simple_slots import (
     simple_slot_1,
     simple_slot_2,
@@ -12,7 +11,7 @@ from tests.smokes.demo.simple_slots import (
 
 
 def test_run_simple_slot(monkeypatch):
-    def get_entries(group=None):
+    def get_entries(group=None):  # noqa: ARG001
         return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
 
     monkeypatch.setattr(slot_module, "entry_points", get_entries)
@@ -24,7 +23,7 @@ def test_run_simple_slot(monkeypatch):
 
 
 def test_run_simple_slot_with_another_name(monkeypatch):
-    def get_entries(group=None):
+    def get_entries(group=None):  # noqa: ARG001
         return [EntryPoint(name='name2', value='tests.smokes.demo.plugins_another_name', group='another_name')]
 
     monkeypatch.setattr(slot_module, "entry_points", get_entries)
@@ -36,7 +35,7 @@ def test_run_simple_slot_with_another_name(monkeypatch):
 
 
 def test_plugins_are_loaded_when_called(monkeypatch):
-    def get_entries(group=None):
+    def get_entries(group=None):  # noqa: ARG001
         return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
 
     monkeypatch.setattr(slot_module, "entry_points", get_entries)
@@ -49,7 +48,7 @@ def test_plugins_are_loaded_when_called(monkeypatch):
 
 
 def test_plugins_are_loaded_when_keys_readed(monkeypatch):
-    def get_entries(group=None):
+    def get_entries(group=None):  # noqa: ARG001
         return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
 
     monkeypatch.setattr(slot_module, "entry_points", get_entries)
@@ -62,7 +61,7 @@ def test_plugins_are_loaded_when_keys_readed(monkeypatch):
 
 
 def test_plugins_are_loaded_when_getitem(monkeypatch):
-    def get_entries(group=None):
+    def get_entries(group=None):  # noqa: ARG001
         return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
 
     monkeypatch.setattr(slot_module, "entry_points", get_entries)
