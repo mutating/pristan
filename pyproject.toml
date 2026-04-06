@@ -38,6 +38,7 @@ classifiers = [
     'License :: Free for non-commercial use',
     'Intended Audience :: Developers',
     'Topic :: Software Development :: Libraries',
+    'Typing :: Typed',
 ]
 keywords = [
     'slots',
