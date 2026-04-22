@@ -27,7 +27,7 @@ from pristan.errors import CannotGetVersionsError
 sentinel = InnerNoneType()
 
 
-@repred(prefer_positional=True)  # type: ignore[arg-type]
+@repred(prefer_positional=True)
 class SlotCodeRepresenter:
     def __init__(self, function: Callable[..., Any]) -> None:
         self.function = function

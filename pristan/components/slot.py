@@ -44,7 +44,7 @@ from pristan.errors import (
 
 
 # TODO: consider to delete all the "type: ignore"d comments if python 3.9 deleted from the matrix
-@repred(  # type: ignore[arg-type]
+@repred(
     positionals=['slot_function'],
     filters={
         'signature': not_none,
