@@ -629,7 +629,7 @@ def test_base_module():
 def test_package_version():
     def function(): ...
 
-    assert SlotCodeRepresenter(descript_data_object).package_version == Version('0.0.26')
+    assert SlotCodeRepresenter(descript_data_object).package_version == Version('0.0.27')
     assert SlotCodeRepresenter(function).package_version is None
 
 
