@@ -14,7 +14,7 @@ dependencies = [
     'simtypes>=0.0.13',
     'denial>=0.0.13',
     'printo>=0.0.27',
-    'getsources>=0.0.3',
+    'getsources>=0.0.4',
     'packaging>=26.0',
     'importlib-metadata; python_version < "3.10"',
 ]
