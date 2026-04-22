@@ -4,7 +4,7 @@ import pytest
 from denial import InnerNoneType
 from full_match import match
 from packaging.version import Version
-from printo import descript_data_object
+from printo import describe_call
 
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 
@@ -622,14 +622,14 @@ def test_returning_another_objects(transformed):
 def test_base_module():
     def function(): ...
 
-    assert SlotCodeRepresenter(descript_data_object).base_module == 'printo'
+    assert SlotCodeRepresenter(describe_call).base_module == 'printo'
     assert SlotCodeRepresenter(function).base_module == 'tests'
 
 
 def test_package_version():
     def function(): ...
 
-    assert SlotCodeRepresenter(descript_data_object).package_version == Version('0.0.26')
+    assert SlotCodeRepresenter(describe_call).package_version >= Version('0.0.27')
     assert SlotCodeRepresenter(function).package_version is None
 
 

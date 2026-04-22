@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pristan"
-version = "0.0.11"
+version = "0.0.12"
 authors = [{ name = "Evgeniy Blinov", email = "zheni-b@yandex.ru" }]
 description = "Function-based plugin system with respect to typing"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    'sigmatch>=0.0.9',
+    'sigmatch>=0.0.10',
     'simtypes>=0.0.13',
     'denial>=0.0.13',
-    'printo>=0.0.26',
-    'getsources>=0.0.3',
+    'printo>=0.0.27',
+    'getsources>=0.0.4',
     'packaging>=26.0',
     'importlib-metadata; python_version < "3.10"',
 ]
