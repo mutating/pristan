@@ -17,6 +17,7 @@ dependencies = [
     'getsources>=0.0.4',
     'packaging>=26.0',
     'importlib-metadata; python_version < "3.10"',
+    'typing_extensions; python_version < "3.10"',
 ]
 classifiers = [
     "Operating System :: OS Independent",
