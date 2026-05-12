@@ -1,3 +1,4 @@
+import sys
 from typing import (
     Any,
     Callable,
@@ -11,7 +12,6 @@ from typing import (
     Union,
     overload,
 )
-import sys
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec

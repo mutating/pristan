@@ -1,4 +1,4 @@
-# ruff: noqa: ARG001, B015, B018, F821, PLC0415
+# ruff: noqa: ARG001, B015, B018, F821
 # mypy: warn-unused-ignores
 
 __test__ = False
@@ -9,7 +9,11 @@ from typing import Any, Callable, Dict, List
 import pytest
 
 from pristan import slot
-from pristan.common_types import SlotDecoratorProtocol, SlotProtocol, SlotSelectionProtocol
+from pristan.common_types import (
+    SlotDecoratorProtocol,
+    SlotProtocol,
+    SlotSelectionProtocol,
+)
 
 
 @pytest.mark.mypy_testing
@@ -258,7 +262,6 @@ def test_slot_bad_factory_arguments_stay_type_errors():
     if any bad call ever becomes valid, mypy will report unused-ignore and the
     test will fail.
     """
-
     slot(1)  # type: ignore[call-overload]
     slot(name=1)  # type: ignore[call-overload]
     slot(signature=1)  # type: ignore[call-overload]
