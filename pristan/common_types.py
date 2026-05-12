@@ -22,8 +22,8 @@ SlotParameters = ParamSpec('SlotParameters')
 
 PluginResult = TypeVar('PluginResult')
 SlotCallResult = TypeVar('SlotCallResult')
-SlotCallResultCovariant = TypeVar('SlotCallResultCovariant', covariant=True)
-PluginResultCovariant = TypeVar('PluginResultCovariant', covariant=True)
+SlotCallResultCovariant = TypeVar('SlotCallResultCovariant', covariant=True)  # noqa: PLC0105
+PluginResultCovariant = TypeVar('PluginResultCovariant', covariant=True)  # noqa: PLC0105
 
 SlotResult = Optional[Union[List[PluginResult], Dict[str, PluginResult]]]
 SlotFunction = Callable[SlotParameters, SlotCallResult]
