@@ -14,7 +14,7 @@ from typing import (
 )
 
 if sys.version_info >= (3, 10):
-    from typing import ParamSpec
+    from typing import ParamSpec  # pragma: no cover
 else:
     from typing_extensions import ParamSpec  # pragma: no cover
 
