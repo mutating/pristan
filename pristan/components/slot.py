@@ -1,9 +1,9 @@
 try:
-    from importlib_metadata import (  # type: ignore[import-not-found]
+    from importlib_metadata import (  # type: ignore[import-not-found, unused-ignore]
         entry_points,
     )
 except ImportError:  # pragma: no cover
-    from importlib.metadata import (
+    from importlib.metadata import (  # type: ignore[assignment, unused-ignore]
         entry_points,
     )
 
