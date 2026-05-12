@@ -1,10 +1,10 @@
 try:
     from importlib_metadata import (  # type: ignore[import-not-found, unused-ignore]
-        entry_points,  # type: ignore[import-not-found, unused-ignore]
+        entry_points,
     )
-except ImportError:  # type: ignore[assignment, unused-ignore] # pragma: no cover
+except ImportError:  # pragma: no cover
     from importlib.metadata import (  # type: ignore[assignment, unused-ignore]
-        entry_points,  # type: ignore[assignment, unused-ignore]
+        entry_points,
     )
 
 from threading import RLock
@@ -26,9 +26,10 @@ from sigmatch.errors import SignatureMismatchError
 
 from pristan.common_types import (
     PluginFunction,
+    PluginProtocol,
     PluginResult,
     SlotFunction,
-    SlotPapameters,
+    SlotParameters,
     SlotResult,
 )
 from pristan.components.plugin import Plugin
@@ -55,7 +56,7 @@ from pristan.errors import (
     },
 )
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # type: ignore[type-arg, unused-ignore] # noqa: PLR0913, A002
+    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
@@ -78,15 +79,15 @@ class Slot(Generic[PluginResult]):
         self.plugins: PluginsGroup[PluginResult] = PluginsGroup(self.caller)
         self.backed_caller = CallerWithPlugins(self.caller, self.plugins.plugins)
 
-        self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type, unused-ignore]
+        self._compare_signatures(self.slot_function, self.slot_function)  # type: ignore[arg-type]
 
         self.loaded = False
 
-    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:
+    def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:
         self._load_entrypoints()
         return self.backed_caller(*args, **kwargs)
 
-    def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
+    def __iter__(self) -> Generator[PluginProtocol[SlotParameters, PluginResult], None, None]:
         self._load_entrypoints()
         yield from self.plugins
 
@@ -101,18 +102,17 @@ class Slot(Generic[PluginResult]):
         return len(self.plugins)
 
     @overload
-    def plugin(self, plugin_function_or_name: Optional[str], unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]:
         ...  # pragma: no cover
 
     @overload
-    def plugin(self, plugin_function_or_name: PluginFunction[SlotPapameters, PluginResult], unique: bool = False, engine: Optional[Union[List[str], str]] = None) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
-        ...  # pragma: no cover
+    def plugin(self, plugin_function_or_name: Callable[SlotParameters, PluginResult], unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[SlotParameters, PluginResult]: ...  # pragma: no cover
 
-    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotPapameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Union[Callable[[PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]], PluginFunction[SlotPapameters, PluginResult]]:  # type: ignore[type-arg, unused-ignore]
+    def plugin(self, plugin_function_or_name: Optional[Union[PluginFunction[SlotParameters, PluginResult], str]] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Union[Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]:
         if isinstance(plugin_function_or_name, str):
             if not plugin_function_or_name.isidentifier():
                 raise ValueError('The plugin name must be a valid Python identifier.')
-            get_plugin_name: Callable[[PluginFunction[SlotPapameters, PluginResult]], str] = lambda function: plugin_function_or_name  # type: ignore[type-arg, unused-ignore] # noqa: E731, ARG005
+            get_plugin_name: Callable[[PluginFunction[SlotParameters, PluginResult]], str] = lambda function: plugin_function_or_name  # noqa: E731, ARG005
 
         elif callable(plugin_function_or_name):
             get_plugin_name = lambda function: plugin_function_or_name.__name__  # noqa: E731, ARG005
@@ -123,9 +123,9 @@ class Slot(Generic[PluginResult]):
         else:
             raise TypeError('Only a function or plugin name followed by a function can be passed to the decorator.')
 
-        def decorator(plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> PluginFunction[SlotPapameters, PluginResult]:  # type: ignore[type-arg, unused-ignore]
+        def decorator(plugin_function: Callable[SlotParameters, PluginResult]) -> Callable[SlotParameters, PluginResult]:
             # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
-            self._compare_signatures(self.slot_function, plugin_function)  # type: ignore[arg-type, unused-ignore]
+            self._compare_signatures(self.slot_function, plugin_function)  # type: ignore[arg-type]
             self._add_plugin(get_plugin_name(plugin_function), plugin_function, unique, engine, run_once)
             return plugin_function
 
@@ -145,8 +145,8 @@ class Slot(Generic[PluginResult]):
                     point.load()
                 self.loaded = True
 
-    def _add_plugin(self, name: str, function: PluginFunction[SlotPapameters, PluginResult], unique: bool, engine: Optional[Union[str, List[str]]], run_once: bool) -> None:  # type: ignore[type-arg, unused-ignore]
-        plugin: Plugin = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique, run_once)  # type: ignore[type-arg]
+    def _add_plugin(self, name: str, function: PluginFunction[SlotParameters, PluginResult], unique: bool, engine: Optional[Union[str, List[str]]], run_once: bool) -> None:
+        plugin: Plugin[PluginResult] = Plugin(name, function, self.code_representation.returning_type, self.type_check, unique, run_once)
 
         with self.lock:
             if len(self.plugins) == self.max_number_of_plugins:
@@ -161,7 +161,7 @@ class Slot(Generic[PluginResult]):
                             self.plugins.delete_last_by_name(name)
                             raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
 
-    def _compare_signatures(self, slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], plugin_function: PluginFunction[SlotPapameters, PluginResult]) -> None:  # type: ignore[type-arg, unused-ignore]
+    def _compare_signatures(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], plugin_function: PluginFunction[SlotParameters, PluginResult]) -> None:
         if self.signature is not None:
             PossibleCallMatcher(self.signature).match(plugin_function, raise_exception=True)
         elif not PossibleCallMatcher.from_callable(slot_function) & PossibleCallMatcher.from_callable(plugin_function):

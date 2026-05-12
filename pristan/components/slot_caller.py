@@ -6,7 +6,7 @@ from printo import repred
 from pristan.common_types import (
     PluginResult,
     SlotFunction,
-    SlotPapameters,
+    SlotParameters,
     SlotResult,
 )
 from pristan.components.plugin import Plugin
@@ -18,13 +18,13 @@ from pristan.components.slot_code_representer import sentinel as return_type_sen
 @repred
 class SlotCaller(Generic[PluginResult]):
     # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
-    def __init__(self, code_representation: SlotCodeRepresenter, slot_name: Optional[str], slot_function: SlotFunction[SlotPapameters, SlotResult[PluginResult]], type_check: bool) -> None:  # type: ignore[type-arg, unused-ignore]
+    def __init__(self, code_representation: SlotCodeRepresenter, slot_name: Optional[str], slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], type_check: bool) -> None:
         self.code_representation = code_representation
         self.slot_name = slot_name
         self.slot_function = slot_function
         self.type_check = type_check
 
-    def __call__(self, plugins: Union[PluginsGroup[PluginResult], List[Plugin[PluginResult]]], *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
+    def __call__(self, plugins: Union[PluginsGroup[PluginResult], List[Plugin[PluginResult]]], *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
         if not self.code_representation.is_empty and not plugins:
             if self.code_representation.returns_list:
                 if self.code_representation.returning_type is return_type_sentinel:
@@ -40,7 +40,7 @@ class SlotCaller(Generic[PluginResult]):
                 returns_type = self.code_representation.returning_type
 
             # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
-            result: SlotResult[PluginResult] = Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)  # type: ignore[assignment, unused-ignore]
+            result: SlotResult[PluginResult] = Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)
 
             if self.code_representation.returning_type is return_type_sentinel and not self.code_representation.returns_dict and not self.code_representation.returns_list:
                 result = None
@@ -63,7 +63,7 @@ class CallerWithPlugins(Generic[PluginResult]):
         self.caller = caller
         self.plugins = plugins
 
-    def __call__(self, *args: SlotPapameters.args, **kwargs: SlotPapameters.kwargs) -> SlotResult[PluginResult]:
+    def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:
         return self.caller(self.plugins, *args, **kwargs)
 
     def __iter__(self) -> Generator[Plugin[PluginResult], None, None]:
