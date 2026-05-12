@@ -1,4 +1,4 @@
-# ruff: noqa: ARG001, B015, B018, F821
+# ruff: noqa: ARG001, B015, B018, F821, F841
 # mypy: warn-unused-ignores
 
 __test__ = False
