@@ -1,7 +1,9 @@
 from sys import version_info
+from threading import RLock
 
 import pytest
 from full_match import match
+from locklib import LockTraceWrapper
 from packaging.version import Version
 from sigmatch.errors import SignatureMismatchError
 
@@ -1076,6 +1078,240 @@ def test_getting_keys_is_loading_entry_points(folder_slot, folder_plugin):
     assert some_slot.keys() == ('plugin',)
 
     assert some_slot.loaded
+
+
+def test_delitem_removes_plugins_from_slot(folder_slot, folder_plugin):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin():
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin():  # noqa: F811
+        ...
+
+    @folder_plugin(some_slot)
+    def plugin2():
+        ...
+
+    del some_slot['plugin']
+
+    assert [x.name for x in some_slot.plugins.plugins] == ['plugin2']
+    assert some_slot.plugins.plugins_by_requested_names == {
+        'plugin2': [some_slot.plugins.plugins[0]],
+    }
+    assert some_slot.keys() == ('plugin2',)
+    assert len(some_slot) == 1
+    assert 'plugin' not in some_slot
+
+
+def test_pop_removes_plugin_and_returns_detached_selection(folder_slot):
+    bread_crumbs = []
+
+    @folder_slot(slot)
+    def some_slot(a):
+        bread_crumbs.append(f'slot_{a}')
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        bread_crumbs.append(f'plugin_1_{a}')
+
+    @some_slot.plugin('plugin')
+    def plugin_2(a):
+        bread_crumbs.append(f'plugin_2_{a}')
+
+    @some_slot.plugin('plugin')
+    def plugin_3(a):
+        bread_crumbs.append(f'plugin_3_{a}')
+
+    removed_plugins = some_slot.pop('plugin-2')
+
+    assert [x.name for x in removed_plugins] == ['plugin-2']
+    assert [x.name for x in some_slot.plugins.plugins] == ['plugin', 'plugin-2']
+    assert some_slot.keys() == ('plugin',)
+
+    removed_plugins(1)
+
+    assert bread_crumbs == ['plugin_2_1']
+
+
+def test_pop_returns_default_for_missing_key(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    sentinel = object()
+
+    assert some_slot.pop('missing', sentinel) is sentinel
+    assert some_slot.pop('missing', None) is None
+
+
+def test_pop_and_delitem_raise_key_error_for_empty_slot(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    with pytest.raises(KeyError, match=match("'missing'")):
+        some_slot.pop('missing')
+
+    with pytest.raises(KeyError, match=match("'missing'")):
+        del some_slot['missing']
+
+
+def test_pop_and_delitem_raise_key_error_for_non_string_keys(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        some_slot.pop(None)  # type: ignore[arg-type]
+
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        del some_slot[None]  # type: ignore[index]
+
+
+def test_deleting_plugin_prevents_it_from_running(folder_slot):
+    bread_crumbs = []
+
+    @folder_slot(slot)
+    def some_slot(a, b=3):
+        bread_crumbs.append(f'some_slot_{a}_{b}')
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a, b=4):
+        bread_crumbs.append(f'plugin_1_{a}_{b}')
+
+    @some_slot.plugin('plugin')
+    def plugin_2(a, b=5):
+        bread_crumbs.append(f'plugin_2_{a}_{b}')
+
+    @some_slot.plugin('plugin')
+    def plugin_3(a, b=6):
+        bread_crumbs.append(f'plugin_3_{a}_{b}')
+
+    del some_slot['plugin-2']
+    some_slot(1)
+
+    assert bread_crumbs == ['plugin_1_1_4', 'plugin_3_1_6']
+
+
+def test_delitem_and_pop_support_exact_duplicate_keys(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_2():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_3():
+        ...
+
+    del some_slot['plugin-1']
+
+    assert [x.name for x in some_slot.plugins.plugins] == ['plugin', 'plugin-2']
+
+    removed_plugins = some_slot.pop('plugin-2')
+
+    assert [x.name for x in removed_plugins] == ['plugin-2']
+    assert [x.name for x in some_slot.plugins.plugins] == ['plugin']
+
+
+def test_delitem_with_name_1_removes_first_plugin(folder_slot):
+    bread_crumbs = []
+
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        bread_crumbs.append('plugin_1')
+
+    @some_slot.plugin('plugin')
+    def plugin_2():
+        bread_crumbs.append('plugin_2')
+
+    @some_slot.plugin('plugin')
+    def plugin_3():
+        bread_crumbs.append('plugin_3')
+
+    del some_slot['plugin-1']
+    some_slot()
+
+    assert bread_crumbs == ['plugin_2', 'plugin_3']
+
+
+def test_delitem_is_loading_entry_points(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    assert not some_slot.loaded
+
+    with pytest.raises(KeyError, match=match("'kek'")):
+        del some_slot['kek']
+
+    assert some_slot.loaded
+
+
+def test_pop_is_loading_entry_points(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    assert not some_slot.loaded
+
+    with pytest.raises(KeyError, match=match("'kek'")):
+        some_slot.pop('kek')
+
+    assert some_slot.loaded
+
+
+def test_deleting_plugins_is_protected_by_slot_lock(folder_slot):
+    @folder_slot(slot)
+    def some_slot():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_2():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_3():
+        ...
+
+    some_slot.lock = LockTraceWrapper(RLock())
+    original_pop = some_slot.plugins.pop
+    original_rename = some_slot.plugins._rename_duplicates
+
+    def traced_pop(key):
+        some_slot.lock.notify('delete')
+        return original_pop(key)
+
+    def traced_rename(name):
+        some_slot.lock.notify('renumber')
+        return original_rename(name)
+
+    some_slot.plugins.pop = traced_pop
+    some_slot.plugins._rename_duplicates = traced_rename
+
+    del some_slot['plugin-2']
+
+    assert some_slot.lock.was_event_locked('delete')
+    assert some_slot.lock.was_event_locked('renumber')
 
 
 def test_pass_to_plugin_decorator_something_wrong(folder_slot):

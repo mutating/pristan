@@ -7,6 +7,21 @@ from pristan.components.slot_caller import SlotCaller
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 
 
+@pytest.fixture
+def group_with_named_duplicates():
+    """Build a group with duplicate plugin names for deletion and renumbering tests."""
+    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    plugins = [
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name', lambda x: x, int, False, False),
+        Plugin('name2', lambda x: x, int, False, False),
+    ]
+    plugins[1].set_name('name-2')
+    plugins[2].set_name('name-3')
+    return PluginsGroup(caller, plugins=plugins), plugins
+
+
 def test_bool():
     caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
 
@@ -137,19 +152,19 @@ def test_contains_with_not_valid_names():
     ]
     group = PluginsGroup(caller, plugins=plugins)
 
-    with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-kek" is not a valid name for a plugin.')):
+    with pytest.raises(ValueError, match=match("The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. 'kek-kek' is not a valid name for a plugin.")):
         'kek-kek' in group  # noqa: B015
 
-    with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-2-2" is not a valid name for a plugin.')):
+    with pytest.raises(ValueError, match=match("The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. 'kek-2-2' is not a valid name for a plugin.")):
         'kek-2-2' in group  # noqa: B015
 
-    with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek--" is not a valid name for a plugin.')):
+    with pytest.raises(ValueError, match=match("The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. 'kek--' is not a valid name for a plugin.")):
         'kek--' in group  # noqa: B015
 
-    with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "@" is not a valid name for a plugin.')):
+    with pytest.raises(ValueError, match=match("The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. '@' is not a valid name for a plugin.")):
         '@' in group  # noqa: B015
 
-    with pytest.raises(ValueError, match=match('The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "kek-0" is not a valid name for a plugin.')):
+    with pytest.raises(ValueError, match=match("The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. 'kek-0' is not a valid name for a plugin.")):
         'kek-0' in group  # noqa: B015
 
     with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
@@ -229,3 +244,65 @@ def test_getitem_good_key():
     assert not group['kek-2']
     assert len(group['kek-2']) == 0
     assert [x.name for x in group['kek-2']] == []
+
+
+def test_pop_by_base_name(group_with_named_duplicates):
+    group, plugins = group_with_named_duplicates
+    removed_plugins = group.pop('name')
+
+    assert removed_plugins == plugins[:3]
+    assert group.plugins == [plugins[3]]
+    assert group.plugins_by_requested_names == {
+        'name2': [plugins[3]],
+    }
+
+
+def test_pop_first_plugin_by_name_1(group_with_named_duplicates):
+    group, plugins = group_with_named_duplicates
+    removed_plugins = group.pop('name-1')
+
+    assert removed_plugins == [plugins[0]]
+    assert [x.name for x in group.plugins] == ['name', 'name-2', 'name2']
+    assert group.plugins_by_requested_names == {
+        'name': [plugins[1], plugins[2]],
+        'name2': [plugins[3]],
+    }
+
+
+def test_pop_middle_plugin_renumbers_remaining_duplicates(group_with_named_duplicates):
+    group, plugins = group_with_named_duplicates
+    removed_plugins = group.pop('name-2')
+
+    assert removed_plugins == [plugins[1]]
+    assert [x.name for x in group.plugins] == ['name', 'name-2', 'name2']
+    assert group.plugins_by_requested_names == {
+        'name': [plugins[0], plugins[2]],
+        'name2': [plugins[3]],
+    }
+
+
+def test_pop_last_plugin_keeps_compact_numbering(group_with_named_duplicates):
+    group, plugins = group_with_named_duplicates
+    removed_plugins = group.pop('name-3')
+
+    assert removed_plugins == [plugins[2]]
+    assert [x.name for x in group.plugins] == ['name', 'name-2', 'name2']
+    assert group.plugins_by_requested_names == {
+        'name': [plugins[0], plugins[1]],
+        'name2': [plugins[3]],
+    }
+
+
+def test_pop_missing_valid_key(group_with_named_duplicates):
+    group, _ = group_with_named_duplicates
+    with pytest.raises(KeyError, match=match("'name3'")):
+        group.pop('name3')
+
+    with pytest.raises(KeyError, match=match("'name-4'")):
+        group.pop('name-4')
+
+
+def test_pop_invalid_key(group_with_named_duplicates):
+    group, _ = group_with_named_duplicates
+    with pytest.raises(KeyError, match=match('\'You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").\'')):
+        group.pop('name--')
