@@ -293,6 +293,18 @@ def test_pop_last_plugin_keeps_compact_numbering(group_with_named_duplicates):
     }
 
 
+def test_pop_only_plugin_by_name_1_removes_requested_name_bucket(group_with_named_duplicates):
+    group, plugins = group_with_named_duplicates
+
+    removed_plugins = group.pop('name2-1')
+
+    assert removed_plugins == [plugins[3]]
+    assert group.plugins == plugins[:3]
+    assert group.plugins_by_requested_names == {
+        'name': plugins[:3],
+    }
+
+
 def test_pop_missing_valid_key(group_with_named_duplicates):
     group, _ = group_with_named_duplicates
     with pytest.raises(KeyError, match=match("'name3'")):
