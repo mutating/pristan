@@ -16,10 +16,12 @@ from typing import (
     List,
     Optional,
     Tuple,
+    TypeVar,
     Union,
     overload,
 )
 
+from denial import InnerNoneType
 from printo import not_none, repred
 from sigmatch import PossibleCallMatcher
 from sigmatch.errors import SignatureMismatchError
@@ -42,6 +44,9 @@ from pristan.errors import (
     StrangeTypeAnnotationError,
     TooManyPluginsError,
 )
+
+DefaultType = TypeVar('DefaultType')
+pop_default_sentinel = InnerNoneType()
 
 
 # TODO: consider to delete all the "type: ignore"d comments if python 3.9 deleted from the matrix
@@ -95,11 +100,37 @@ class Slot(Generic[PluginResult]):
         self._load_entrypoints()
         return self.plugins[key]  # type: ignore[no-any-return]
 
+    def __delitem__(self, key: str) -> None:
+        self._pop_plugins(key)
+
     def __contains__(self, item: Any) -> bool:
         return item in self.plugins
 
     def __len__(self) -> int:
         return len(self.plugins)
+
+    @overload
+    def pop(self, key: str) -> CallerWithPlugins[PluginResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def pop(self, key: str, default: DefaultType) -> Union[CallerWithPlugins[PluginResult], DefaultType]:
+        ...  # pragma: no cover
+
+    def pop(self, key: str, default: Any = pop_default_sentinel) -> Any:
+        try:
+            removed_plugins = self._pop_plugins(key)
+        except KeyError:
+            if default is pop_default_sentinel:
+                raise
+            return default
+
+        return CallerWithPlugins(self.caller, removed_plugins)
+
+    def _pop_plugins(self, key: str) -> List[Plugin[PluginResult]]:
+        self._load_entrypoints()
+        with self.lock:
+            return self.plugins.pop(key)
 
     @overload
     def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]:
