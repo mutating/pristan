@@ -1081,21 +1081,23 @@ def test_getting_keys_is_loading_entry_points(folder_slot, folder_plugin):
 
 
 def test_delitem_removes_plugins_from_slot(folder_slot, folder_plugin):
+    bread_crumbs = []
+
     @folder_slot(slot)
     def some_slot():
-        ...
+        bread_crumbs.append('slot')
 
     @folder_plugin(some_slot)
     def plugin():
-        ...
+        bread_crumbs.append('plugin_1')
 
     @folder_plugin(some_slot)
     def plugin():  # noqa: F811
-        ...
+        bread_crumbs.append('plugin_2')
 
     @folder_plugin(some_slot)
     def plugin2():
-        ...
+        bread_crumbs.append('plugin2')
 
     del some_slot['plugin']
 
@@ -1106,6 +1108,10 @@ def test_delitem_removes_plugins_from_slot(folder_slot, folder_plugin):
     assert some_slot.keys() == ('plugin2',)
     assert len(some_slot) == 1
     assert 'plugin' not in some_slot
+
+    some_slot()
+
+    assert bread_crumbs == ['plugin2']
 
 
 def test_pop_removes_plugin_and_returns_detached_selection(folder_slot):
@@ -1136,6 +1142,194 @@ def test_pop_removes_plugin_and_returns_detached_selection(folder_slot):
     removed_plugins(1)
 
     assert bread_crumbs == ['plugin_2_1']
+
+    bread_crumbs.clear()
+
+    some_slot(1)
+
+    assert bread_crumbs == ['plugin_1_1', 'plugin_3_1']
+
+
+def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type):
+    body_calls = []
+
+    @folder_slot(slot)
+    def some_slot(a) -> subscribable_list_type[int]:
+        body_calls.append(a)
+        return []
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        return a
+
+    assert some_slot(1) == [1]
+    assert body_calls == []
+
+    del some_slot['plugin']
+
+    assert some_slot.keys() == ()
+    assert len(some_slot) == 0
+    assert 'plugin' not in some_slot
+    assert 'plugin-1' not in some_slot
+    assert [x.name for x in some_slot] == []
+    assert some_slot(1) == []
+    assert body_calls == [1]
+
+
+def test_pop_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type):
+    body_calls = []
+
+    @folder_slot(slot)
+    def some_slot(a) -> subscribable_list_type[int]:
+        body_calls.append(a)
+        return []
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        return a
+
+    assert some_slot(1) == [1]
+    assert body_calls == []
+
+    removed_plugins = some_slot.pop('plugin')
+
+    assert [x.name for x in removed_plugins] == ['plugin']
+    assert removed_plugins(2) == [2]
+    assert some_slot.keys() == ()
+    assert len(some_slot) == 0
+    assert 'plugin' not in some_slot
+    assert 'plugin-1' not in some_slot
+    assert [x.name for x in some_slot] == []
+    assert some_slot(2) == []
+    assert body_calls == [2]
+
+
+def test_delitem_by_base_name_removes_group_from_list_slot_call(folder_slot, subscribable_list_type):
+    @folder_slot(slot)
+    def some_slot(a) -> subscribable_list_type[int]:  # noqa: ARG001
+        return []
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        return a
+
+    @some_slot.plugin('plugin')
+    def plugin_2(a):
+        return a + 1
+
+    @some_slot.plugin('other')
+    def other(a):
+        return a + 2
+
+    assert some_slot(1) == [1, 2, 3]
+
+    del some_slot['plugin']
+
+    assert some_slot.keys() == ('other',)
+    assert len(some_slot) == 1
+    assert 'plugin' not in some_slot
+    assert 'plugin-1' not in some_slot
+    assert 'plugin-2' not in some_slot
+    assert 'other' in some_slot
+    assert [x.name for x in some_slot] == ['other']
+    assert some_slot(1) == [3]
+
+
+def test_pop_by_base_name_returns_detached_group_and_keeps_survivors_in_list_slot_call(folder_slot, subscribable_list_type):
+    @folder_slot(slot)
+    def some_slot(a) -> subscribable_list_type[int]:  # noqa: ARG001
+        return []
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        return a
+
+    @some_slot.plugin('plugin')
+    def plugin_2(a):
+        return a + 1
+
+    @some_slot.plugin('other')
+    def other(a):
+        return a + 2
+
+    assert some_slot(1) == [1, 2, 3]
+
+    removed_plugins = some_slot.pop('plugin')
+
+    assert [x.name for x in removed_plugins] == ['plugin', 'plugin-2']
+    assert removed_plugins(1) == [1, 2]
+    assert some_slot.keys() == ('other',)
+    assert len(some_slot) == 1
+    assert 'plugin' not in some_slot
+    assert 'plugin-1' not in some_slot
+    assert 'plugin-2' not in some_slot
+    assert 'other' in some_slot
+    assert [x.name for x in some_slot] == ['other']
+    assert some_slot(1) == [3]
+
+
+def test_delitem_by_base_name_removes_group_from_dict_slot_call(folder_slot, subscribable_dict_type):
+    @folder_slot(slot)
+    def some_slot(a) -> subscribable_dict_type[str, int]:  # noqa: ARG001
+        return {}
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        return a
+
+    @some_slot.plugin('plugin')
+    def plugin_2(a):
+        return a + 1
+
+    @some_slot.plugin('other')
+    def other(a):
+        return a + 2
+
+    assert some_slot(1) == {'plugin': 1, 'plugin-2': 2, 'other': 3}
+
+    del some_slot['plugin']
+
+    assert some_slot.keys() == ('other',)
+    assert len(some_slot) == 1
+    assert 'plugin' not in some_slot
+    assert 'plugin-1' not in some_slot
+    assert 'plugin-2' not in some_slot
+    assert 'other' in some_slot
+    assert [x.name for x in some_slot] == ['other']
+    assert some_slot(1) == {'other': 3}
+
+
+def test_pop_by_base_name_returns_detached_group_and_keeps_survivors_in_dict_slot_call(folder_slot, subscribable_dict_type):
+    @folder_slot(slot)
+    def some_slot(a) -> subscribable_dict_type[str, int]:  # noqa: ARG001
+        return {}
+
+    @some_slot.plugin('plugin')
+    def plugin_1(a):
+        return a
+
+    @some_slot.plugin('plugin')
+    def plugin_2(a):
+        return a + 1
+
+    @some_slot.plugin('other')
+    def other(a):
+        return a + 2
+
+    assert some_slot(1) == {'plugin': 1, 'plugin-2': 2, 'other': 3}
+
+    removed_plugins = some_slot.pop('plugin')
+
+    assert [x.name for x in removed_plugins] == ['plugin', 'plugin-2']
+    assert removed_plugins(1) == {'plugin': 1, 'plugin-2': 2}
+    assert some_slot.keys() == ('other',)
+    assert len(some_slot) == 1
+    assert 'plugin' not in some_slot
+    assert 'plugin-1' not in some_slot
+    assert 'plugin-2' not in some_slot
+    assert 'other' in some_slot
+    assert [x.name for x in some_slot] == ['other']
+    assert some_slot(1) == {'other': 3}
 
 
 def test_pop_returns_default_for_missing_key(folder_slot):
@@ -1199,30 +1393,48 @@ def test_deleting_plugin_prevents_it_from_running(folder_slot):
 
 
 def test_delitem_and_pop_support_exact_duplicate_keys(folder_slot):
+    bread_crumbs = []
+
     @folder_slot(slot)
     def some_slot():
         ...
 
     @some_slot.plugin('plugin')
     def plugin_1():
-        ...
+        bread_crumbs.append('plugin_1')
 
     @some_slot.plugin('plugin')
     def plugin_2():
-        ...
+        bread_crumbs.append('plugin_2')
 
     @some_slot.plugin('plugin')
     def plugin_3():
-        ...
+        bread_crumbs.append('plugin_3')
 
     del some_slot['plugin-1']
 
     assert [x.name for x in some_slot.plugins.plugins] == ['plugin', 'plugin-2']
 
+    some_slot()
+
+    assert bread_crumbs == ['plugin_2', 'plugin_3']
+
+    bread_crumbs.clear()
+
     removed_plugins = some_slot.pop('plugin-2')
 
     assert [x.name for x in removed_plugins] == ['plugin-2']
     assert [x.name for x in some_slot.plugins.plugins] == ['plugin']
+
+    removed_plugins()
+
+    assert bread_crumbs == ['plugin_3']
+
+    bread_crumbs.clear()
+
+    some_slot()
+
+    assert bread_crumbs == ['plugin_2']
 
 
 def test_delitem_with_name_1_removes_first_plugin(folder_slot):
