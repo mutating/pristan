@@ -373,6 +373,31 @@ print(len(some_slot['name']))
 #> 2
 ```
 
+Plugins can also be removed by key, using the `del` keyword or the `pop` method. The difference is that `pop` returns a collection of removed plugins:
+
+```python
+del some_slot['name']
+
+# or...
+
+some_slot.pop('name')
+```
+
+If there is no such key, a [`KeyError`](https://docs.python.org/3/library/exceptions.html#KeyError) will be raised:
+
+```python
+some_slot.pop('unknown')
+#> KeyError: 'unknown'
+```
+
+Like [`dict.pop()`](https://docs.python.org/3/library/stdtypes.html#dict.pop), `pop` can receive a default value:
+
+```python
+some_slot.pop('unknown', None)
+```
+
+> ⓘ If you use the base plugin name, all plugins with that declared name will be removed. If you use a name with a numeric suffix, only that specific plugin will be removed. The suffix `-1` refers to the first plugin, whose actual name has no suffix.
+
 
 ## Additional restrictions
 
