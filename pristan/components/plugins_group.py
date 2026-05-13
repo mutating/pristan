@@ -50,7 +50,7 @@ class PluginsGroup(Generic[PluginResult]):
                     if plugin.name == item:
                         return True
                 return False
-            raise ValueError(f'The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, “name-22”. "{item}" is not a valid name for a plugin.')
+            raise ValueError(f"The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. {item!r} is not a valid name for a plugin.")
 
         if isinstance(item, Plugin):
             return item.requested_name in self.plugins_by_requested_names and any(x.name == item.name for x in self.plugins_by_requested_names[item.requested_name])  # pragma: no branch
@@ -91,3 +91,51 @@ class PluginsGroup(Generic[PluginResult]):
     def delete_last_by_name(self, name: str) -> None:
         self.plugins_by_requested_names[name].pop()
         self.plugins.pop()
+
+    def pop(self, key: str) -> List[Plugin[PluginResult]]:
+        if not isinstance(key, str):
+            raise KeyError('You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").')
+
+        if key.isidentifier():
+            return self._pop_group(key)
+
+        if not self._is_identifier_with_number(key):
+            raise KeyError('You have used an invalid key. Strings that are suitable as keys are valid Python identifiers, or the same strings with a number separated by a hyphen (e.g., "a", "a-5").')
+
+        return self._pop_exact_plugin(key)
+
+    def _pop_group(self, requested_name: str) -> List[Plugin[PluginResult]]:
+        if requested_name not in self.plugins_by_requested_names:
+            raise KeyError(requested_name)
+
+        removed_plugins = self.plugins_by_requested_names.pop(requested_name)
+        self.plugins = [plugin for plugin in self.plugins if plugin.requested_name != requested_name]
+        return removed_plugins
+
+    def _pop_exact_plugin(self, key: str) -> List[Plugin[PluginResult]]:
+        requested_name, number = key.split('-')
+        plugin = self._get_plugin_by_exact_key(requested_name, number)
+        requested_plugins = self.plugins_by_requested_names[requested_name]
+
+        self.plugins.remove(plugin)
+        requested_plugins.remove(plugin)
+
+        if requested_plugins:
+            self._rename_duplicates(requested_name)
+        else:
+            del self.plugins_by_requested_names[requested_name]
+
+        return [plugin]
+
+    def _get_plugin_by_exact_key(self, requested_name: str, number: str) -> Plugin[PluginResult]:
+        exact_name = requested_name if number == '1' else f'{requested_name}-{number}'
+
+        for plugin in self.plugins_by_requested_names.get(requested_name, ()):
+            if plugin.name == exact_name:
+                return plugin
+
+        raise KeyError(f'{requested_name}-{number}')
+
+    def _rename_duplicates(self, requested_name: str) -> None:
+        for index, plugin in enumerate(self.plugins_by_requested_names[requested_name], start=1):
+            plugin.set_name(requested_name if index == 1 else f'{requested_name}-{index}')

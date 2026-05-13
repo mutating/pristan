@@ -4,7 +4,7 @@
 __test__ = False
 
 import sys
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Union
 
 import pytest
 
@@ -224,6 +224,42 @@ def test_non_existent_slot_selection_keeps_slot_call_contract():
 
 
 @pytest.mark.mypy_testing
+def test_slot_pop_returns_selection_type():
+    @slot
+    def collect_list(value: int) -> List[int]:
+        return []
+
+    @slot
+    def collect_dict(value: int) -> Dict[str, int]:
+        return {}
+
+    popped_list = collect_list.pop('name')
+    popped_dict = collect_dict.pop('name')
+
+    popped_list_view: SlotSelectionProtocol[[int], List[int], int] = popped_list
+    popped_dict_view: SlotSelectionProtocol[[int], Dict[str, int], int] = popped_dict
+
+    reveal_type(popped_list(1))  # R: builtins.list[builtins.int]
+    reveal_type(popped_dict(1))  # R: builtins.dict[builtins.str, builtins.int]
+
+    del collect_list['name']
+    popped_list_view(1)
+    popped_dict_view(1)
+
+
+@pytest.mark.mypy_testing
+def test_slot_pop_with_default_returns_union():
+    @slot
+    def collect(value: int) -> List[int]:
+        return []
+
+    popped_or_text: Union[SlotSelectionProtocol[[int], List[int], int], str] = collect.pop('name', 'fallback')
+    popped_or_number: Union[SlotSelectionProtocol[[int], List[int], int], int] = collect.pop('name', 1)
+
+    reveal_type(collect.pop('name', 'fallback'))  # R: Union[pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int], builtins.str]
+
+
+@pytest.mark.mypy_testing
 def test_iterated_plugins_preserve_slot_parameter_types():
     @slot
     def collect(value: int) -> List[int]:
@@ -377,6 +413,20 @@ def test_selection_does_not_expose_full_slot_api():
 
 
 @pytest.mark.mypy_testing
+def test_popped_selection_does_not_expose_full_slot_api():
+    @slot
+    def collect(value: int) -> List[int]:
+        return []
+
+    popped = collect.pop('name')
+
+    popped.plugin('name')  # E: [attr-defined]
+    popped.keys()  # E: [attr-defined]
+    popped['nested']  # E: [index]
+    'name' in popped  # E: [operator]
+
+
+@pytest.mark.mypy_testing
 def test_collection_api_reports_wrong_argument_types():
     @slot
     def collect(value: int) -> List[int]:
@@ -384,9 +434,14 @@ def test_collection_api_reports_wrong_argument_types():
 
     collect.keys(1)  # E: [call-arg]
     collect[1]  # E: [index]
+    collect.pop(1)  # type: ignore[call-overload]
+    collect.pop()  # type: ignore[call-overload]
+    collect.pop('name', 1, 2)  # type: ignore[call-overload]
+    del collect[1]  # E: [arg-type]
 
     keys_as_list: List[str] = collect.keys()  # E: [assignment]
     wrong_selection: int = collect['name']  # E: [assignment]
+    wrong_popped_selection: int = collect.pop('name')  # E: [assignment]
 
 
 @pytest.mark.mypy_testing
@@ -506,6 +561,21 @@ def test_built_in_generic_results_are_not_widened():
     consume_dict(collect_list(1))  # E: [arg-type]
     consume_list(collect_dict(1))  # E: [arg-type]
     consume_dict(collect_list['name'](1))  # E: [arg-type]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
+@pytest.mark.mypy_testing
+def test_slot_pop_returns_selection_type_for_built_in_generics():
+    @slot
+    def collect(value: int) -> list[int]:
+        return []
+
+    popped = collect.pop('name')
+    popped_or_text: Union[SlotSelectionProtocol[[int], list[int], int], str] = collect.pop('name', 'fallback')
+
+    reveal_type(popped(1))  # R: builtins.list[builtins.int]
+
+    del collect['name']
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
