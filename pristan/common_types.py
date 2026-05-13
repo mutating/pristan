@@ -24,6 +24,7 @@ PluginResult = TypeVar('PluginResult')
 SlotCallResult = TypeVar('SlotCallResult')
 SlotCallResultCovariant = TypeVar('SlotCallResultCovariant', covariant=True)  # noqa: PLC0105
 PluginResultCovariant = TypeVar('PluginResultCovariant', covariant=True)  # noqa: PLC0105
+DefaultType = TypeVar('DefaultType')
 
 SlotResult = Optional[Union[List[PluginResult], Dict[str, PluginResult]]]
 SlotFunction = Callable[SlotParameters, SlotCallResult]
@@ -61,6 +62,14 @@ class SlotProtocol(BaseSlotViewProtocol[SlotParameters, SlotCallResultCovariant,
     def keys(self) -> Tuple[str, ...]: ...
 
     def __getitem__(self, key: str) -> SlotSelectionProtocol[SlotParameters, SlotCallResultCovariant, PluginResult]: ...
+
+    def __delitem__(self, key: str) -> None: ...
+
+    @overload
+    def pop(self, key: str) -> SlotSelectionProtocol[SlotParameters, SlotCallResultCovariant, PluginResult]: ...
+
+    @overload
+    def pop(self, key: str, default: DefaultType) -> Union[SlotSelectionProtocol[SlotParameters, SlotCallResultCovariant, PluginResult], DefaultType]: ...
 
     def __contains__(self, item: object) -> bool: ...
 
