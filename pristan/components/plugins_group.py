@@ -109,7 +109,7 @@ class PluginsGroup(Generic[PluginResult]):
             raise KeyError(requested_name)
 
         removed_plugins = self.plugins_by_requested_names.pop(requested_name)
-        self.plugins = [plugin for plugin in self.plugins if plugin.requested_name != requested_name]
+        self.plugins[:] = [plugin for plugin in self.plugins if plugin.requested_name != requested_name]
         return removed_plugins
 
     def _pop_exact_plugin(self, key: str) -> List[Plugin[PluginResult]]:
