@@ -53,7 +53,6 @@ pop_default_sentinel = InnerNoneType()
 @repred(
     positionals=['slot_function'],
     getters={
-        'slot_function': lambda x: x.slot_function,
         'slot_name': lambda x: x.declared_slot_name,
     },
     filters={
