@@ -307,7 +307,7 @@ def plugin_name():
     ...
 ```
 
-The plugin name must be a valid Python identifier. However, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by appending a numeric suffix, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
+The plugin name must be a valid Python identifier. By default, if more than one plugin with the same name is attached to a single slot, the system will automatically change their names to remain unique by appending a numeric suffix, starting with the second plugin (`plugin_name`, `plugin_name-2`, and so on).
 
 Now that we know what plugin names are, let's look at basic operations with the slot as a collection.
 
@@ -420,6 +420,25 @@ def plugin_2():
 
 #> ...
 #> pristan.errors.TooManyPluginsError: The maximum number of plugins for this slot is 1.
+```
+
+If every plugin in a slot must have a unique declared name, pass `unique=True` to the slot decorator:
+
+```python
+@slot(unique=True)
+def some_slot():
+    ...
+
+@some_slot.plugin('plugin')
+def plugin_1():
+    ...
+
+@some_slot.plugin('plugin')
+def plugin_2():
+    ...
+
+#> ...
+#> pristan.errors.PrimadonnaPluginError: Slot "some_slot" requires unique plugin names, but "plugin" is already registered.
 ```
 
 You can also restrict a plugin to a specific version of the library that declares the slot. To do this, pass a version expression (or a `list` of them) as the `engine` argument:
