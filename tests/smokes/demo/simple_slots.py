@@ -26,3 +26,8 @@ def simple_slot_4() -> Dict[str, int]:
 @slot
 def simple_slot_5() -> Dict[str, int]:
     return {}
+
+
+@slot(unique=True)
+def simple_slot_6() -> Dict[str, int]:
+    return {}
