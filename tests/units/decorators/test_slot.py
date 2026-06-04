@@ -60,10 +60,10 @@ def test_plugin_have_not_comparing_signature_to_slot(folder_slot, folder_plugin)
             ...
 
 
-def test_run_1_plugin_without_hints(folder_slot, folder_plugin):
+def test_run_1_plugin_without_hints(folder_slot, folder_plugin, slot_unique_options):
     bread_crumbs = []
 
-    @folder_slot(slot)
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(a, b):
         bread_crumbs.append(a + b)
 
@@ -71,15 +71,19 @@ def test_run_1_plugin_without_hints(folder_slot, folder_plugin):
     def some_plugin(a, b):
         bread_crumbs.append(a + b + 1)
 
+    assert some_slot.keys() == ('some_plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['some_plugin']
+    assert [x.name for x in some_slot['some_plugin']] == ['some_plugin']
     assert some_slot(1, 2) is None
 
     assert bread_crumbs == [4]
 
 
-def test_run_1_plugin_with_emplty_list_hint(folder_slot, folder_plugin, list_type):
+def test_run_1_plugin_with_emplty_list_hint(folder_slot, folder_plugin, list_type, slot_unique_options):
     bread_crumbs = []
 
-    @folder_slot(slot)
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(a, b) -> list_type:  # type: ignore[return]
         bread_crumbs.append(a + b)
 
@@ -88,6 +92,10 @@ def test_run_1_plugin_with_emplty_list_hint(folder_slot, folder_plugin, list_typ
         bread_crumbs.append(a + b + 1)
         return a + b + 2
 
+    assert some_slot.keys() == ('some_plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['some_plugin']
+    assert [x.name for x in some_slot['some_plugin']] == ['some_plugin']
     assert some_slot(1, 2) == [5]
 
     assert bread_crumbs == [4]
@@ -112,6 +120,37 @@ def test_2_not_unique_plugins_with_same_names(folder_slot, folder_plugin):
 
     assert [x.name for x in some_slot] == ['kek', 'kek-2', 'kek-3']
     assert [x.name for x in some_slot['kek']] == ['kek', 'kek-2', 'kek-3']
+
+
+def test_direct_call_slot_keeps_default_non_unique_policy(list_type):
+    """Direct-call slot creation keeps duplicate plugin names allowed by default.
+
+    The direct-call form `slot(function)` bypasses decorator-factory syntax but
+    should use the same default policy. This test registers two plugins with
+    the same requested name on that slot.
+    It proves the default policy is still non-unique by checking the suffixed
+    installed names, the base-name selection, and both slot-level and
+    selection-level calls.
+    """
+    def slot_function(value) -> list_type:
+        return [value][1:]
+
+    some_slot = slot(slot_function)
+
+    @some_slot.plugin('plugin')
+    def plugin_1(value):
+        return value + 1
+
+    @some_slot.plugin('plugin')
+    def plugin_2(value):
+        return value + 2
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 2
+    assert [x.name for x in some_slot] == ['plugin', 'plugin-2']
+    assert [x.name for x in some_slot['plugin']] == ['plugin', 'plugin-2']
+    assert some_slot(1) == [2, 3]
+    assert some_slot['plugin'](1) == [2, 3]
 
 
 def test_2_plugins_with_same_names_and_first_one_is_unique(folder_slot, folder_plugin):
@@ -148,6 +187,202 @@ def test_2_plugins_with_same_names_and_second_one_is_unique(folder_slot, folder_
 
     assert [x.name for x in some_slot] == ['kek']
     assert [x.name for x in some_slot['kek']] == ['kek']
+
+
+def test_slot_unique_allows_multiple_plugins_with_distinct_names(folder_slot, list_type):
+    """A unique slot accepts several plugins when their requested names differ.
+
+    The unique policy should reject only repeated requested names, not limit a
+    slot to one plugin. This test registers two distinct names and verifies the
+    public collection views, individual selections, and aggregate slot result.
+    """
+    @folder_slot(slot(unique=True))
+    def some_slot(value) -> list_type:
+        return [value][1:]
+
+    @some_slot.plugin('first')
+    def first_plugin(value):
+        return value + 1
+
+    @some_slot.plugin('second')
+    def second_plugin(value):
+        return value + 2
+
+    assert some_slot.keys() == ('first', 'second')
+    assert len(some_slot) == 2
+    assert [x.name for x in some_slot] == ['first', 'second']
+    assert [x.name for x in some_slot['first']] == ['first']
+    assert [x.name for x in some_slot['second']] == ['second']
+    assert some_slot(1) == [2, 3]
+    assert some_slot['first'](1) == [2]
+    assert some_slot['second'](1) == [3]
+
+
+def test_slot_unique_allows_reusing_plugin_name_after_removal(folder_slot, list_type):
+    """A unique slot allows a requested plugin name to be reused after removal.
+
+    Slot-level uniqueness is enforced against currently registered requested
+    names. This test registers a plugin, removes its base-name bucket through
+    the public collection API, and then registers a different plugin with the
+    same requested name. The final assertions prove the second plugin keeps the
+    base name without a suffix and is the only plugin called by the slot.
+    """
+    calls = []
+
+    @folder_slot(slot(unique=True))
+    def some_slot() -> list_type:
+        return []
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        calls.append('plugin_1')
+        return 'first'
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
+    assert some_slot() == ['first']
+    assert calls == ['plugin_1']
+
+    calls.clear()
+    del some_slot['plugin']
+
+    assert some_slot.keys() == ()
+    assert len(some_slot) == 0
+    assert 'plugin' not in some_slot
+
+    @some_slot.plugin('plugin')
+    def plugin_2():
+        calls.append('plugin_2')
+        return 'second'
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
+    assert 'plugin-2' not in some_slot
+    assert some_slot() == ['second']
+    assert calls == ['plugin_2']
+
+
+def test_slot_unique_rejects_duplicate_plugin_names(folder_slot):
+    """A unique slot rejects a second plugin with the same requested name.
+
+    The duplicate registration must fail with the shared plugin error type and
+    the slot-level message. The assertions after the exception prove that the
+    failed plugin was not installed under either the base name or a suffixed
+    fallback name.
+    """
+    @folder_slot(slot(unique=True))
+    def some_slot():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        ...
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Slot "some_slot" requires unique plugin names, but "plugin" is already registered.')):
+        @some_slot.plugin('plugin')
+        def plugin_2():
+            ...
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
+    assert 'plugin-2' not in some_slot
+
+
+def test_slot_unique_error_has_priority_over_plugin_unique_error(folder_slot):
+    """Slot-level uniqueness owns duplicate-name conflicts before plugin-level uniqueness.
+
+    The second plugin also asks to be unique, which would normally produce the
+    plugin-level uniqueness message. On a `slot(unique=True)` duplicate, the
+    slot policy should fail first, so the test checks the slot-level message and
+    that no second plugin remains registered.
+    """
+    @folder_slot(slot(unique=True))
+    def some_slot():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        ...
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Slot "some_slot" requires unique plugin names, but "plugin" is already registered.')):
+        @some_slot.plugin('plugin', unique=True)
+        def plugin_2():
+            ...
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
+    assert 'plugin-2' not in some_slot
+
+
+def test_slot_unique_keeps_max_priority_before_duplicate_check(folder_slot):
+    """The max-plugin limit is still checked before slot-level duplicate names.
+
+    A second plugin with the same requested name would violate `unique=True`,
+    but this slot is already full after one registration. The expected
+    `TooManyPluginsError` proves the existing max-limit ordering was preserved.
+    """
+    @folder_slot(slot(unique=True, max=1))
+    def some_slot():
+        ...
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        ...
+
+    with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 1.')):
+        @some_slot.plugin('plugin')
+        def plugin_2():
+            ...
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
+    assert 'plugin-2' not in some_slot
+
+
+def test_slot_unique_ignores_duplicate_name_when_engine_rejects_plugin(folder_slot, list_type):
+    """Engine-incompatible plugins do not participate in slot-level uniqueness.
+
+    The second plugin repeats an existing requested name, but its `engine`
+    constraint rejects it before duplicate-name enforcement. The test pins the
+    discovered package version to make that engine constraint fail, checks that
+    no suffixed plugin appears, and then calls the slot to prove only the
+    accepted plugin is installed and executed.
+    """
+    calls = []
+
+    @folder_slot(slot(unique=True))
+    def some_slot() -> list_type:
+        return []
+
+    some_slot.code_representation.package_version = Version('0.0.1')
+
+    @some_slot.plugin('plugin')
+    def plugin_1():
+        calls.append('plugin_1')
+        return 'accepted'
+
+    @some_slot.plugin('plugin', engine='>1000.0.0')
+    def plugin_2():
+        calls.append('plugin_2')
+        return 'rejected'
+
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
+    assert 'plugin-2' not in some_slot
+    assert some_slot() == ['accepted']
+    assert calls == ['plugin_1']
 
 
 def test_exceeding_the_limit_0_of_plugins(folder_plugin):
@@ -421,10 +656,10 @@ def test_run_not_empty_default_function_without_plugins_without_annotations(fold
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation(folder_slot, folder_plugin, dict_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation(folder_slot, folder_plugin, dict_type, slot_unique_options):
     bread_crumbs = []
 
-    @folder_slot(slot)
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(a, b) -> dict_type:
         bread_crumbs.append(f'run_slot_{a + b}')
         return {'some_slot': bread_crumbs[-1]}
@@ -439,6 +674,10 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
 
+    assert some_slot.keys() == ('function_1',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['function_1']
+    assert [x.name for x in some_slot['function_1']] == ['function_1']
     assert some_slot(1, 2) == {'function_1': 'run_plugin_3'}
     assert bread_crumbs == ['run_plugin_3']
 
@@ -465,10 +704,10 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
     assert bread_crumbs == ['run_plugin_3']
 
 
-def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation(folder_slot, folder_plugin, list_type):
+def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation(folder_slot, folder_plugin, list_type, slot_unique_options):
     bread_crumbs = []
 
-    @folder_slot(slot)
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(a, b) -> list_type:
         bread_crumbs.append(f'run_slot_{a + b}')
         return [bread_crumbs[-1]]
@@ -483,6 +722,10 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
         bread_crumbs.append(f'run_plugin_{a + b}')
         return bread_crumbs[-1]
 
+    assert some_slot.keys() == ('function_1',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['function_1']
+    assert [x.name for x in some_slot['function_1']] == ['function_1']
     assert some_slot(1, 2) == ['run_plugin_3']
     assert bread_crumbs == ['run_plugin_3']
 
@@ -978,12 +1221,17 @@ def test_repr(folder_slot):
     def some_slot_6(a, b=3):
         ...
 
+    @slot('name6', signature='..', max=3, type_check=False, unique=True)
+    def some_slot_7(a, b=3):
+        ...
+
     assert repr(some_slot) == 'Slot(some_slot)'
     assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
     assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
     assert repr(some_slot_4) == 'Slot(some_slot_4, signature=\'..\', slot_name=\'name3\', max=3)'
     assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max=3, type_check=False)'
     assert repr(some_slot_6) == 'Slot(some_slot_6, signature=\'..\', slot_name=\'name5\', max=3, type_check=False)'
+    assert repr(some_slot_7) == 'Slot(some_slot_7, signature=\'..\', slot_name=\'name6\', max=3, type_check=False, unique=True)'
 
 
 def test_getitem_repr(folder_slot, folder_plugin):
@@ -999,7 +1247,7 @@ def test_getitem_repr(folder_slot, folder_plugin):
     def plugin(a, b=3):  # noqa: F811
         ...
 
-    assert repr(some_slot['plugin']) == 'CallerWithPlugins(caller=SlotCaller(code_representation=SlotCodeRepresenter(some_slot), slot_name=None, slot_function=some_slot, type_check=True), plugins=[Plugin(\'plugin\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'plugin-2\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
+    assert repr(some_slot['plugin']) == 'CallerWithPlugins(caller=SlotCaller(code_representation=SlotCodeRepresenter(some_slot), slot_name=\'some_slot\', slot_function=some_slot, type_check=True), plugins=[Plugin(\'plugin\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'plugin-2\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
 
 
 def test_keys(folder_slot, folder_plugin):
@@ -1150,10 +1398,10 @@ def test_pop_removes_plugin_and_returns_detached_selection(folder_slot):
     assert bread_crumbs == ['plugin_1_1', 'plugin_3_1']
 
 
-def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type):
+def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type, slot_unique_options):
     body_calls = []
 
-    @folder_slot(slot)
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(a) -> subscribable_list_type[int]:
         body_calls.append(a)
         return []
@@ -1162,6 +1410,10 @@ def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_sl
     def plugin_1(a):
         return a
 
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert some_slot(1) == [1]
     assert body_calls == []
 
@@ -1176,10 +1428,10 @@ def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_sl
     assert body_calls == [1]
 
 
-def test_pop_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type):
+def test_pop_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type, slot_unique_options):
     body_calls = []
 
-    @folder_slot(slot)
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(a) -> subscribable_list_type[int]:
         body_calls.append(a)
         return []
@@ -1188,6 +1440,10 @@ def test_pop_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, 
     def plugin_1(a):
         return a
 
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert some_slot(1) == [1]
     assert body_calls == []
 
@@ -1692,8 +1948,8 @@ def test_check_engine_is_not_in_some_range(folder_slot):
     assert 'plugin' not in some_slot
 
 
-def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type):
-    @folder_slot(slot)
+def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type, slot_unique_options):
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
 
@@ -1701,12 +1957,16 @@ def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type):
     def plugin(x, y):
         return x + y
 
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert some_slot(1, 2) == [3]
     assert some_slot(1, 3) == [4]
 
 
-def test_run_once_on(folder_slot, subscribable_list_type):
-    @folder_slot(slot)
+def test_run_once_on(folder_slot, subscribable_list_type, slot_unique_options):
+    @folder_slot(slot(**slot_unique_options))
     def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
 
@@ -1714,6 +1974,10 @@ def test_run_once_on(folder_slot, subscribable_list_type):
     def plugin(x, y):
         return x + y
 
+    assert some_slot.keys() == ('plugin',)
+    assert len(some_slot) == 1
+    assert [x.name for x in some_slot] == ['plugin']
+    assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert some_slot(1, 2) == [3]
 
     with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "plugin". And this plugin has already been called previously.')):

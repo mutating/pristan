@@ -29,6 +29,18 @@ def folder_slot(request):
     return request.param
 
 
+@pytest.fixture(
+    params=(
+        {},
+        {'unique': True},
+        {'unique': False},
+    ),
+    ids=('default_unique', 'unique=True', 'unique=False'),
+)
+def slot_unique_options(request):
+    return request.param
+
+
 @pytest.fixture(params=('with_name', 'without_name'))
 def folder_plugin(request):
     def folder(slot):

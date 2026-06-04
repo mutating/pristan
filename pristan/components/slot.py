@@ -52,16 +52,20 @@ pop_default_sentinel = InnerNoneType()
 # TODO: consider to delete all the "type: ignore"d comments if python 3.9 deleted from the matrix
 @repred(
     positionals=['slot_function'],
+    getters={
+        'slot_name': lambda x: x.declared_slot_name,
+    },
     filters={
         'signature': not_none,
         'slot_name': not_none,
         'max': not_none,
         'type_check': lambda x: x != True,
         'entrypoint_group': lambda x: x != 'pristan',
+        'unique': lambda x: x,
     },
 )
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str) -> None:  # noqa: PLR0913, A002
+    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool) -> None:  # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
@@ -72,11 +76,13 @@ class Slot(Generic[PluginResult]):
             raise StrangeTypeAnnotationError('The return type annotation for a slot must be either a list or a dict, or remain empty.')
 
         self.signature = signature
-        self.slot_name = slot_name
+        self.declared_slot_name = slot_name
+        self.slot_name = slot_name if slot_name is not None else slot_function.__name__
         self.slot_function = slot_function
         self.max_number_of_plugins = max
         self.type_check = type_check
         self.entrypoint_group = entrypoint_group
+        self.unique = unique
 
         self.lock = RLock()
 
@@ -184,6 +190,9 @@ class Slot(Generic[PluginResult]):
                 raise TooManyPluginsError(f'The maximum number of plugins for this slot is {self.max_number_of_plugins}.')
 
             if self.code_representation.check_package_version(engine):
+                if self.unique and name in self.plugins.plugins_by_requested_names:
+                    raise PrimadonnaPluginError(f'Slot "{self.slot_name}" requires unique plugin names, but "{name}" is already registered.')
+
                 self.plugins.add(plugin)
                 if len(self.plugins.plugins_by_requested_names[name]) > 1:
                     plugin.set_name(f'{name}-{len(self.plugins.plugins_by_requested_names[name])}')

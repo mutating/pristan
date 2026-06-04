@@ -111,17 +111,67 @@ def test_slot_configuration_arguments_are_typed():
     def slot_with_positional_name(value: int) -> List[int]:
         return []
 
+    @slot('some_unique_slot_name', unique=True)
+    def unique_slot_with_positional_name(value: int) -> List[int]:
+        return []
+
     @slot(name='some_named_slot')
     def slot_with_keyword_name(value: int) -> Dict[str, int]:
         return {}
 
-    @slot(signature='..', max=1, type_check=False, entrypoint_group='new_namespace')
+    @slot(unique=True)
+    def unique_slot(value: int) -> List[int]:
+        return []
+
+    @slot(signature='..', max=1, type_check=False, entrypoint_group='new_namespace', unique=True)
     def configured_slot(value: int) -> List[int]:
         return []
 
     reveal_type(slot_with_positional_name(1))  # R: builtins.list[builtins.int]
+    reveal_type(unique_slot_with_positional_name(1))  # R: builtins.list[builtins.int]
     reveal_type(slot_with_keyword_name(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(unique_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot(1))  # R: builtins.list[builtins.int]
+
+
+@pytest.mark.mypy_testing
+def test_slot_direct_call_configuration_arguments_are_typed():
+    """Direct-call slot overloads preserve call and plugin result types.
+
+    The configured direct-call form accepts the same keyword options as the
+    decorator-factory form, including `unique`. The assignments to
+    `SlotProtocol` and the reveal checks prove that default and configured
+    direct calls keep precise list and dict result types, plus the documented
+    `Any` result for unannotated slots.
+    """
+    def collect_list(value: int) -> List[int]:
+        return []
+
+    def collect_dict(value: int) -> Dict[str, int]:
+        return {}
+
+    def notify(value: int):
+        return None
+
+    default_list_slot = slot(collect_list)
+    list_slot = slot(collect_list, unique=True)
+    dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
+    notify_slot = slot(notify, unique=True)
+
+    default_list_view: SlotProtocol[[int], List[int], int] = default_list_slot
+    list_view: SlotProtocol[[int], List[int], int] = list_slot
+    dict_view: SlotProtocol[[int], Dict[str, int], int] = dict_slot
+    notify_view: SlotProtocol[[int], None, Any] = notify_slot
+
+    reveal_type(default_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(dict_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(notify_slot(1))  # R: Any
+
+    default_list_view(1)
+    list_view(1)
+    dict_view(1)
+    notify_view(1)
 
 
 @pytest.mark.mypy_testing
@@ -304,6 +354,12 @@ def test_slot_bad_factory_arguments_stay_type_errors():
     slot(max='1')  # type: ignore[call-overload]
     slot(type_check='yes')  # type: ignore[call-overload]
     slot(entrypoint_group=None)  # type: ignore[call-overload]
+    slot(unique='yes')  # type: ignore[call-overload]
+
+    def collect(value: int) -> List[int]:
+        return []
+
+    slot(collect, unique='yes')  # type: ignore[call-overload]
 
 
 @pytest.mark.mypy_testing
