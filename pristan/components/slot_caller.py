@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generator, Generic, List, Optional, Type, Union
+from typing import Any, Dict, Generator, Generic, List, Type, Union
 
 from denial import InnerNoneType
 from printo import repred
@@ -18,7 +18,7 @@ from pristan.components.slot_code_representer import sentinel as return_type_sen
 @repred
 class SlotCaller(Generic[PluginResult]):
     # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
-    def __init__(self, code_representation: SlotCodeRepresenter, slot_name: Optional[str], slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], type_check: bool) -> None:
+    def __init__(self, code_representation: SlotCodeRepresenter, slot_name: str, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], type_check: bool) -> None:
         self.code_representation = code_representation
         self.slot_name = slot_name
         self.slot_function = slot_function
@@ -40,7 +40,7 @@ class SlotCaller(Generic[PluginResult]):
                 returns_type = self.code_representation.returning_type
 
             # TODO: consider to delete this "type: ignore" if python 3.9 deleted from the matrix
-            result: SlotResult[PluginResult] = Plugin(self.slot_name if self.slot_name is not None else self.slot_function.__name__, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)
+            result: SlotResult[PluginResult] = Plugin(self.slot_name, self.slot_function, returns_type, self.type_check, False)(*args, **kwargs)
 
             if self.code_representation.returning_type is return_type_sentinel and not self.code_representation.returns_dict and not self.code_representation.returns_list:
                 result = None
