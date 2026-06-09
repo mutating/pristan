@@ -33,6 +33,7 @@ from pristan.common_types import (
     SlotFunction,
     SlotParameters,
     SlotResult,
+    SlotSignature,
 )
 from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
@@ -65,17 +66,18 @@ pop_default_sentinel = InnerNoneType()
     },
 )
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], signature: Optional[str], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool) -> None:  # noqa: PLR0913, A002
+    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], signature: Optional[SlotSignature], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool) -> None:  # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
+        self.signature_matchers: Tuple[PossibleCallMatcher, ...] = self._get_signature_matchers(signature)
+        self.signature = list(signature) if isinstance(signature, list) else signature
         self.slot_function = slot_function
         self.code_representation = SlotCodeRepresenter(self.slot_function)
 
         if not self.code_representation.returns_list and not self.code_representation.returns_dict and self.code_representation.returning_type is not return_type_sentinel:
             raise StrangeTypeAnnotationError('The return type annotation for a slot must be either a list or a dict, or remain empty.')
 
-        self.signature = signature
         self.declared_slot_name = slot_name
         self.slot_name = slot_name if slot_name is not None else slot_function.__name__
         self.slot_function = slot_function
@@ -201,8 +203,24 @@ class Slot(Generic[PluginResult]):
                             self.plugins.delete_last_by_name(name)
                             raise PrimadonnaPluginError(f'Plugin "{other_plugin.name}" claims to be unique, but there are other plugins with the same name.')
 
+    @staticmethod
+    def _get_signature_matchers(signature: Optional[SlotSignature]) -> Tuple[PossibleCallMatcher, ...]:
+        if signature is None:
+            return ()
+
+        if isinstance(signature, str):
+            return (PossibleCallMatcher(signature),)
+
+        if isinstance(signature, list):
+            if not signature:
+                raise ValueError('The slot signature may be omitted, specified as a string, or specified as a non-empty list of strings; an empty list was provided.')
+            return tuple(PossibleCallMatcher(item) for item in signature)
+
+        raise TypeError('The slot signature must be either a string or a list of strings.')
+
     def _compare_signatures(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], plugin_function: PluginFunction[SlotParameters, PluginResult]) -> None:
-        if self.signature is not None:
-            PossibleCallMatcher(self.signature).match(plugin_function, raise_exception=True)
+        if self.signature_matchers:
+            for matcher in self.signature_matchers:
+                matcher.match(plugin_function, raise_exception=True)
         elif not PossibleCallMatcher.from_callable(slot_function) & PossibleCallMatcher.from_callable(plugin_function):
             raise SignatureMismatchError('No common calling method has been found between the slot and the plugin.')
