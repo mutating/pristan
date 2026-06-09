@@ -222,6 +222,8 @@ def some_slot(a, b):
     ...
 ```
 
+> ⓘ You can also pass several call descriptions, like `signature=['..', '.']`. In that case, the slot and every plugin must support all of them. This is useful when host code intentionally calls the same slot in more than one way.
+
 In this case, even functions that in principle share a common calling convention with the slot but do not match the expected one will be filtered out:
 
 ```python
