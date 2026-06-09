@@ -6,23 +6,24 @@ from pristan.common_types import (
     SlotDecoratorProtocol,
     SlotParameters,
     SlotProtocol,
+    SlotSignature,
 )
 from pristan.components.slot import Slot
 
 
 @overload
-def slot(function: Callable[SlotParameters, List[PluginResult]], /, *, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotProtocol[SlotParameters, List[PluginResult], PluginResult]: ...  # pragma: no branch, PLR0913, A002
+def slot(function: Callable[SlotParameters, List[PluginResult]], /, *, signature: Optional[SlotSignature] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotProtocol[SlotParameters, List[PluginResult], PluginResult]: ...  # pragma: no branch, PLR0913, A002
 
 @overload
-def slot(function: Callable[SlotParameters, Dict[str, PluginResult]], /, *, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotProtocol[SlotParameters, Dict[str, PluginResult], PluginResult]: ...  # pragma: no branch, PLR0913, A002
+def slot(function: Callable[SlotParameters, Dict[str, PluginResult]], /, *, signature: Optional[SlotSignature] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotProtocol[SlotParameters, Dict[str, PluginResult], PluginResult]: ...  # pragma: no branch, PLR0913, A002
 
 @overload
-def slot(function: Callable[SlotParameters, None], /, *, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotProtocol[SlotParameters, None, Any]: ...  # pragma: no branch, PLR0913, A002
+def slot(function: Callable[SlotParameters, None], /, *, signature: Optional[SlotSignature] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotProtocol[SlotParameters, None, Any]: ...  # pragma: no branch, PLR0913, A002
 
 @overload
-def slot(function: str = ..., /, *, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotDecoratorProtocol: ...  # pragma: no branch, PLR0913, A002
+def slot(function: str = ..., /, *, signature: Optional[SlotSignature] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> SlotDecoratorProtocol: ...  # pragma: no branch, PLR0913, A002
 
-def slot(function: Optional[object] = None, /, *, signature: Optional[str] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> Any:  # noqa: PLR0913, A002
+def slot(function: Optional[object] = None, /, *, signature: Optional[SlotSignature] = None, name: Optional[str] = None, max: Optional[int] = None, type_check: bool = True, entrypoint_group: str = 'pristan', unique: bool = False) -> Any:  # noqa: PLR0913, A002
     if callable(function):
         return wraps(function)(Slot(function, signature, name, max, type_check, entrypoint_group, unique))
 

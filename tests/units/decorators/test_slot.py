@@ -1,5 +1,6 @@
 from sys import version_info
 from threading import RLock
+from typing import List
 
 import pytest
 from full_match import match
@@ -58,6 +59,223 @@ def test_plugin_have_not_comparing_signature_to_slot(folder_slot, folder_plugin)
         @folder_plugin(some_slot)
         def plugin():
             ...
+
+
+def test_slot_and_plugin_support_all_passed_signatures(folder_plugin, list_type):
+    """A slot and its plugins must support every call shape in the list.
+
+    The optional second argument allows both declared positional calls, and
+    the assertions prove that the registered plugin handles each one.
+    """
+    @slot(signature=['..', '.'])
+    def on_event(event, context=None) -> list_type:  # noqa: ARG001
+        return []
+
+    @folder_plugin(on_event)
+    def plugin(event, context=None):
+        if context is None:
+            return event
+        return f'{event}:{context}'
+
+    assert on_event('event') == ['event']
+    assert on_event('event', 'context') == ['event:context']
+
+
+def test_direct_call_slot_enforces_signature_list(list_type):
+    """Direct-call slot construction enforces every listed call shape."""
+    def on_event(event, context=None) -> list_type:  # noqa: ARG001
+        return []
+
+    event_slot = slot(on_event, signature=['..', '.'])
+
+    @event_slot.plugin
+    def plugin(event, context=None):
+        return event, context
+
+    with pytest.raises(SignatureMismatchError, match=match('This is a difficult situation, there is no guarantee that a call with a variable number of positional arguments will fill all the slots of positional arguments.')):
+        @event_slot.plugin
+        def invalid_plugin(event, context):
+            return event, context
+
+    assert len(event_slot) == 1
+    assert event_slot('event') == [('event', None)]
+    assert event_slot('event', 'context') == [('event', 'context')]
+
+
+def test_plugin_with_required_second_argument_does_not_match_all_passed_signatures():
+    """A plugin requiring two arguments fails the one-argument call shape."""
+    @slot(signature=['..', '.'])
+    def on_event(event, context=None):
+        ...
+
+    with pytest.raises(SignatureMismatchError, match=match('This is a difficult situation, there is no guarantee that a call with a variable number of positional arguments will fill all the slots of positional arguments.')):
+        @on_event.plugin
+        def invalid_plugin(event, context):
+            return event, context
+
+    assert len(on_event) == 0
+
+
+def test_plugin_with_only_one_argument_does_not_match_all_passed_signatures():
+    """A plugin accepting one argument fails the two-argument call shape."""
+    @slot(signature=['..', '.'])
+    def on_event(event, context=None):
+        ...
+
+    with pytest.raises(SignatureMismatchError, match=match('The signature of the callable object does not match the expected one.')):
+        @on_event.plugin
+        def invalid_plugin(event):
+            return event
+
+    assert len(on_event) == 0
+
+
+def test_slot_has_to_match_all_passed_signatures(list_type):
+    """A slot must support every listed call shape, not only one of them.
+
+    The same required-two-argument function remains valid with the equivalent
+    single string signature, isolating the additional list requirement.
+    """
+    with pytest.raises(SignatureMismatchError, match=match('This is a difficult situation, there is no guarantee that a call with a variable number of positional arguments will fill all the slots of positional arguments.')):
+        @slot(signature=['..', '.'])
+        def on_event(event, context) -> list_type:
+            return [(event, context)]
+
+    @slot(signature='..')
+    def on_event_with_single_signature(event, context) -> list_type:
+        return [(event, context)]
+
+    assert on_event_with_single_signature('event', 'context') == [('event', 'context')]
+
+
+def test_one_signature_in_list_enforces_its_call_shape(list_type):
+    """A one-element signature list enforces its single call shape."""
+    @slot(signature=['..'])
+    def collect(a, b) -> list_type:  # noqa: ARG001
+        return []
+
+    @collect.plugin
+    def plugin(a, b):
+        return a + b
+
+    with pytest.raises(SignatureMismatchError, match=match('The signature of the callable object does not match the expected one.')):
+        @collect.plugin
+        def invalid_plugin(a):
+            return a
+
+    assert collect(1, 2) == [3]
+
+
+def test_empty_signature_list_is_not_allowed():
+    """An empty signature list is rejected because it declares no calls."""
+    with pytest.raises(ValueError, match=match('The slot signature may be omitted, specified as a string, or specified as a non-empty list of strings; an empty list was provided.')):
+        @slot(signature=[])
+        def on_event():
+            ...
+
+
+def test_empty_signature_list_is_checked_before_return_annotation():
+    """Signature-list validation takes priority over return annotations."""
+    with pytest.raises(ValueError, match=match('The slot signature may be omitted, specified as a string, or specified as a non-empty list of strings; an empty list was provided.')):
+        @slot(signature=[])
+        def on_event() -> int:
+            return 1
+
+
+@pytest.mark.parametrize(
+    'signature',
+    [
+        ('.',),
+        ('..', '.'),
+        ('invalid!',),
+        ('invalid!', 'bad-name'),
+        (1,),
+        (1, False),
+        1,
+        True,
+    ],
+    ids=(
+        'tuple_with_one_valid_string',
+        'tuple_with_several_valid_strings',
+        'tuple_with_one_invalid_string',
+        'tuple_with_several_invalid_strings',
+        'tuple_with_one_non_string',
+        'tuple_with_several_non_strings',
+        'integer_scalar',
+        'boolean_scalar',
+    ),
+)
+def test_unsupported_signature_containers_and_scalars_are_rejected(signature: object):
+    """Only a string or a list may declare slot signature constraints.
+
+    Tuple contents do not matter: tuples and scalar values are rejected before
+    the unrelated return annotation is inspected.
+    """
+    with pytest.raises(TypeError, match=match('The slot signature must be either a string or a list of strings.')):
+        @slot(signature=signature)  # type: ignore[call-overload]
+        def on_event() -> int:
+            return 1
+
+
+@pytest.mark.parametrize(
+    'signature',
+    [
+        pytest.param([1], id='one_non_string'),
+        pytest.param(['.', 1], id='valid_string_then_non_string'),
+    ],
+)
+def test_signature_list_can_contain_only_strings(signature: object):
+    """Every item in an accepted signature list must itself be a string."""
+    with pytest.raises(TypeError, match=match('Only strings can be used as symbolic representation of function parameters. You used "1" (int).')):
+        @slot(signature=signature)  # type: ignore[call-overload]
+        def on_event():
+            ...
+
+
+@pytest.mark.parametrize(
+    'signature',
+    [
+        pytest.param(['invalid!'], id='one_invalid_description'),
+        pytest.param(['.', 'invalid!'], id='valid_then_invalid_description'),
+    ],
+)
+def test_signature_list_rejects_invalid_call_descriptions(signature: List[str]):
+    """Each string in a signature list must be valid sigmatch syntax."""
+    with pytest.raises(ValueError, match=match('Only strings of a certain format can be used as symbols for function arguments: arbitrary variable names, and ".", "*", "**" strings. You used "invalid!".')):
+        @slot(signature=signature)
+        def on_event():
+            ...
+
+
+def test_signature_matchers_use_declaration_snapshot(list_type):
+    """Later list mutations do not add constraints to installed matchers."""
+    signatures = ['..', '.']
+
+    @slot(signature=signatures)
+    def on_event(event, context=None) -> list_type:  # noqa: ARG001
+        return []
+
+    signatures.append('...')
+
+    @on_event.plugin
+    def plugin(event, context=None):
+        return event, context
+
+    assert on_event('event') == [('event', None)]
+    assert on_event('event', 'context') == [('event', 'context')]
+
+
+def test_signature_list_repr_uses_declaration_snapshot():
+    """The slot repr keeps the signature list as it was when declared."""
+    signatures = ['..', '.']
+
+    @slot(signature=signatures)
+    def on_event(event, context=None):
+        ...
+
+    signatures.append('...')
+
+    assert repr(on_event) == 'Slot(on_event, signature=[\'..\', \'.\'])'
 
 
 def test_run_1_plugin_without_hints(folder_slot, folder_plugin, slot_unique_options):
@@ -1225,6 +1443,10 @@ def test_repr(folder_slot):
     def some_slot_7(a, b=3):
         ...
 
+    @slot(name='name7', signature=['..', '.'])
+    def some_slot_8(a, b=3):
+        ...
+
     assert repr(some_slot) == 'Slot(some_slot)'
     assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
     assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
@@ -1232,6 +1454,7 @@ def test_repr(folder_slot):
     assert repr(some_slot_5) == 'Slot(some_slot_5, signature=\'..\', slot_name=\'name4\', max=3, type_check=False)'
     assert repr(some_slot_6) == 'Slot(some_slot_6, signature=\'..\', slot_name=\'name5\', max=3, type_check=False)'
     assert repr(some_slot_7) == 'Slot(some_slot_7, signature=\'..\', slot_name=\'name6\', max=3, type_check=False, unique=True)'
+    assert repr(some_slot_8) == 'Slot(some_slot_8, signature=[\'..\', \'.\'], slot_name=\'name7\')'
 
 
 def test_getitem_repr(folder_slot, folder_plugin):
