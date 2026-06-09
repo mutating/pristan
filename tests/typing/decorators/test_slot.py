@@ -127,11 +127,18 @@ def test_slot_configuration_arguments_are_typed():
     def configured_slot(value: int) -> List[int]:
         return []
 
+    @slot(signature=['..', '.'])
+    def configured_slot_with_signature_list(value: int, context: str = '') -> List[int]:
+        return []
+
     reveal_type(slot_with_positional_name(1))  # R: builtins.list[builtins.int]
     reveal_type(unique_slot_with_positional_name(1))  # R: builtins.list[builtins.int]
     reveal_type(slot_with_keyword_name(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(unique_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_slot_with_signature_list(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_slot_with_signature_list(1, 'context'))  # R: builtins.list[builtins.int]
+    configured_slot_with_signature_list(1, 2)  # E: [arg-type]
 
 
 @pytest.mark.mypy_testing
@@ -141,8 +148,11 @@ def test_slot_direct_call_configuration_arguments_are_typed():
     The configured direct-call form accepts the same keyword options as the
     decorator-factory form, including `unique`. The assignments to
     `SlotProtocol` and the reveal checks prove that default and configured
-    direct calls keep precise list and dict result types, plus the documented
-    `Any` result for unannotated slots.
+    direct calls keep precise list and dict result types, including when a
+    signature list is passed. They also distinguish the documented `Any` result
+    for an unannotated slot from `None` for an explicitly annotated one.
+    Iteration over slots with signature lists proves that plugin result types
+    are kept as well.
     """
     def collect_list(value: int) -> List[int]:
         return []
@@ -153,25 +163,53 @@ def test_slot_direct_call_configuration_arguments_are_typed():
     def notify(value: int):
         return None
 
+    def typed_notify(value: int) -> None:
+        return None
+
     default_list_slot = slot(collect_list)
     list_slot = slot(collect_list, unique=True)
+    signature_list_slot = slot(collect_list, signature=['.'])
     dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
+    signature_list_dict_slot = slot(collect_dict, signature=['.'])
     notify_slot = slot(notify, unique=True)
+    signature_list_notify_slot = slot(typed_notify, signature=['.'])
 
     default_list_view: SlotProtocol[[int], List[int], int] = default_list_slot
     list_view: SlotProtocol[[int], List[int], int] = list_slot
+    signature_list_view: SlotProtocol[[int], List[int], int] = signature_list_slot
     dict_view: SlotProtocol[[int], Dict[str, int], int] = dict_slot
+    signature_list_dict_view: SlotProtocol[[int], Dict[str, int], int] = signature_list_dict_slot
     notify_view: SlotProtocol[[int], None, Any] = notify_slot
+    signature_list_notify_view: SlotProtocol[[int], None, Any] = signature_list_notify_slot
 
     reveal_type(default_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(signature_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(dict_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(signature_list_dict_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(notify_slot(1))  # R: Any
+    reveal_type(signature_list_notify_slot(1))  # R: None
+    signature_list_slot('value')  # E: [arg-type]
+    signature_list_slot()  # E: [call-arg]
 
     default_list_view(1)
     list_view(1)
+    signature_list_view(1)
     dict_view(1)
+    signature_list_dict_view(1)
     notify_view(1)
+    signature_list_notify_view(1)
+
+    for signature_list_plugin in signature_list_slot:
+        reveal_type(signature_list_plugin(1))  # R: builtins.int
+        signature_list_plugin('value')  # E: [arg-type]
+        signature_list_plugin()  # E: [call-arg]
+
+    for signature_list_dict_plugin in signature_list_dict_slot:
+        reveal_type(signature_list_dict_plugin(1))  # R: builtins.int
+
+    for signature_list_notify_plugin in signature_list_notify_slot:
+        reveal_type(signature_list_notify_plugin(1))  # R: Any
 
 
 @pytest.mark.mypy_testing
@@ -340,17 +378,18 @@ def test_plugin_argument_validation_is_typed():
 
 @pytest.mark.mypy_testing
 def test_slot_bad_factory_arguments_stay_type_errors():
-    """Pin invalid slot(...) calls via code-specific ignores.
+    """Pin invalid slot(...) calls via code-specific expectations.
 
-    These scenarios produce call-overload plus several overload notes on the
-    same physical line. pytest-mypy-testing cannot express that message bundle
-    precisely in a .py test file, so this test relies on warn-unused-ignores:
-    if any bad call ever becomes valid, mypy will report unused-ignore and the
-    test will fail.
+    Calls producing bundled overload diagnostics use targeted ignores together
+    with warn-unused-ignores. Calls with a single precise diagnostic use inline
+    expected-error annotations. Either form fails if an invalid call becomes
+    accepted.
     """
     slot(1)  # type: ignore[call-overload]
     slot(name=1)  # type: ignore[call-overload]
     slot(signature=1)  # type: ignore[call-overload]
+    slot(signature=[1])  # E: [list-item]
+    slot(signature=('.',))  # type: ignore[call-overload]
     slot(max='1')  # type: ignore[call-overload]
     slot(type_check='yes')  # type: ignore[call-overload]
     slot(entrypoint_group=None)  # type: ignore[call-overload]
@@ -360,6 +399,8 @@ def test_slot_bad_factory_arguments_stay_type_errors():
         return []
 
     slot(collect, unique='yes')  # type: ignore[call-overload]
+    slot(collect, signature=[1])  # E: [list-item]
+    slot(collect, signature=('.',))  # type: ignore[call-overload]
 
 
 @pytest.mark.mypy_testing
