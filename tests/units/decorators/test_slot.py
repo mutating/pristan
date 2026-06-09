@@ -64,8 +64,8 @@ def test_plugin_have_not_comparing_signature_to_slot(folder_slot, folder_plugin)
 def test_slot_and_plugin_support_all_passed_signatures(folder_plugin, list_type):
     """A slot and its plugins must support every call shape in the list.
 
-    The optional second argument allows both declared positional calls, and
-    the assertions prove that the registered plugin handles each one.
+    The optional context parameter lets the slot and plugin accept both
+    declared call shapes, and the assertions exercise each one.
     """
     @slot(signature=['..', '.'])
     def on_event(event, context=None) -> list_type:  # noqa: ARG001
