@@ -27,6 +27,7 @@ PluginResultCovariant = TypeVar('PluginResultCovariant', covariant=True)  # noqa
 DefaultType = TypeVar('DefaultType')
 
 SlotResult = Optional[Union[List[PluginResult], Dict[str, PluginResult]]]
+SlotSignature = Union[str, List[str]]
 SlotFunction = Callable[SlotParameters, SlotCallResult]
 PluginFunction = Callable[SlotParameters, PluginResult]
 
