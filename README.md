@@ -375,6 +375,19 @@ print(len(some_slot['name']))
 #> 2
 ```
 
+You can also convert a slot, a plugin selection, or a found result of `pop()` to [`bool`](https://docs.python.org/3/library/functions.html#bool). The result is `True` when it contains plugins or when the slot has a non-empty default function body:
+
+```python
+print(bool(some_slot))
+#> True
+print(bool(some_slot['non_existent_key']))
+#> True
+```
+
+> ⓘ Truthiness is not the same as `len(...) > 0`: `len()` counts only plugins.
+
+> ⓘ `bool()` uses the same empty-body definition as slot defaults. It does not execute the default function body or inspect runtime return values.
+
 Plugins can also be removed by key, using the `del` keyword or the `pop` method. The difference is that `pop` returns a collection of removed plugins:
 
 ```python
