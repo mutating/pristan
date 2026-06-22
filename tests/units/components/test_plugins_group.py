@@ -225,37 +225,23 @@ def test_getitem_good_key():
     ]
     group = PluginsGroup(caller, plugins=plugins)
 
-    assert group['name']
-    assert len(group['name']) == 2
-    assert [x.name for x in group['name']] == ['name', 'name']
-
-    assert not group['name-2']
-    assert len(group['name-2']) == 0
-    assert [x.name for x in group['name-2']] == []
-
-    assert group['name2']
-    assert len(group['name2']) == 1
-    assert [x.name for x in group['name2']] == ['name2']
-
-    assert not group['kek']
-    assert len(group['kek']) == 0
-    assert [x.name for x in group['kek']] == []
-
-    assert not group['kek-2']
-    assert len(group['kek-2']) == 0
-    assert [x.name for x in group['kek-2']] == []
+    for key, expected_names in (
+        ('name', ['name', 'name']),
+        ('name-2', []),
+        ('name2', ['name2']),
+        ('kek', []),
+        ('kek-2', []),
+    ):
+        assert [plugin.name for plugin in group[key]] == expected_names
 
 
 def test_pop_by_base_name(group_with_named_duplicates):
     group, plugins = group_with_named_duplicates
     plugins_reference = group.plugins
 
-    removed_plugins = group.pop('name')
-
-    assert removed_plugins == plugins[:3]
+    assert group.pop('name') == plugins[:3]
     assert group.plugins is plugins_reference
     assert group.plugins == [plugins[3]]
-    assert plugins_reference == [plugins[3]]
     assert group.plugins_by_requested_names == {
         'name2': [plugins[3]],
     }
@@ -265,12 +251,9 @@ def test_pop_first_plugin_by_name_1(group_with_named_duplicates):
     group, plugins = group_with_named_duplicates
     plugins_reference = group.plugins
 
-    removed_plugins = group.pop('name-1')
-
-    assert removed_plugins == [plugins[0]]
+    assert group.pop('name-1') == [plugins[0]]
     assert group.plugins is plugins_reference
     assert [x.name for x in group.plugins] == ['name', 'name-2', 'name2']
-    assert [x.name for x in plugins_reference] == ['name', 'name-2', 'name2']
     assert group.plugins_by_requested_names == {
         'name': [plugins[1], plugins[2]],
         'name2': [plugins[3]],
@@ -281,12 +264,9 @@ def test_pop_middle_plugin_renumbers_remaining_duplicates(group_with_named_dupli
     group, plugins = group_with_named_duplicates
     plugins_reference = group.plugins
 
-    removed_plugins = group.pop('name-2')
-
-    assert removed_plugins == [plugins[1]]
+    assert group.pop('name-2') == [plugins[1]]
     assert group.plugins is plugins_reference
     assert [x.name for x in group.plugins] == ['name', 'name-2', 'name2']
-    assert [x.name for x in plugins_reference] == ['name', 'name-2', 'name2']
     assert group.plugins_by_requested_names == {
         'name': [plugins[0], plugins[2]],
         'name2': [plugins[3]],
@@ -297,12 +277,9 @@ def test_pop_last_plugin_keeps_compact_numbering(group_with_named_duplicates):
     group, plugins = group_with_named_duplicates
     plugins_reference = group.plugins
 
-    removed_plugins = group.pop('name-3')
-
-    assert removed_plugins == [plugins[2]]
+    assert group.pop('name-3') == [plugins[2]]
     assert group.plugins is plugins_reference
     assert [x.name for x in group.plugins] == ['name', 'name-2', 'name2']
-    assert [x.name for x in plugins_reference] == ['name', 'name-2', 'name2']
     assert group.plugins_by_requested_names == {
         'name': [plugins[0], plugins[1]],
         'name2': [plugins[3]],
@@ -313,12 +290,9 @@ def test_pop_only_plugin_by_name_1_removes_requested_name_bucket(group_with_name
     group, plugins = group_with_named_duplicates
     plugins_reference = group.plugins
 
-    removed_plugins = group.pop('name2-1')
-
-    assert removed_plugins == [plugins[3]]
+    assert group.pop('name2-1') == [plugins[3]]
     assert group.plugins is plugins_reference
     assert group.plugins == plugins[:3]
-    assert plugins_reference == plugins[:3]
     assert group.plugins_by_requested_names == {
         'name': plugins[:3],
     }
@@ -326,11 +300,10 @@ def test_pop_only_plugin_by_name_1_removes_requested_name_bucket(group_with_name
 
 def test_pop_missing_valid_key(group_with_named_duplicates):
     group, _ = group_with_named_duplicates
-    with pytest.raises(KeyError, match=match("'name3'")):
-        group.pop('name3')
 
-    with pytest.raises(KeyError, match=match("'name-4'")):
-        group.pop('name-4')
+    for key in ('name3', 'name-4'):
+        with pytest.raises(KeyError, match=match(repr(key))):
+            group.pop(key)
 
 
 def test_pop_invalid_key(group_with_named_duplicates):

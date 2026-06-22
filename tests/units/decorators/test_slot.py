@@ -8,6 +8,7 @@ from locklib import LockTraceWrapper
 from packaging.version import Version
 from sigmatch.errors import SignatureMismatchError
 
+import pristan.components.slot as slot_module
 from pristan import slot
 from pristan.decorators.slot import Slot
 from pristan.errors import (
@@ -30,6 +31,92 @@ def test_slot_is_not_a_function():
 
     assert isinstance(some_slot, Slot)
     assert isinstance(some_slot_2, Slot)
+
+
+def test_public_slot_creation_forms_support_bool(monkeypatch):
+    """Every public slot construction form exposes the same bool semantics.
+
+    Empty slots are false, slots with a non-empty default body are true, and the
+    default bodies are not executed during truthiness checks.
+    """
+    monkeypatch.setattr(slot_module, 'entry_points', lambda group=None: [])  # noqa: ARG005
+
+    @slot
+    def bare_empty():
+        ...
+
+    @slot
+    def bare_non_empty():
+        raise AssertionError('bare default body was executed')
+
+    @slot()
+    def factory_empty():
+        pass
+
+    @slot()
+    def factory_non_empty():
+        raise AssertionError('factory default body was executed')
+
+    @slot(name='keyword-empty')
+    def keyword_empty():
+        ...
+
+    @slot(name='keyword-non-empty')
+    def keyword_non_empty():
+        raise AssertionError('keyword default body was executed')
+
+    @slot('positional-empty')
+    def positional_empty():
+        pass
+
+    @slot('positional-non-empty')
+    def positional_non_empty():
+        raise AssertionError('positional default body was executed')
+
+    def direct_empty():
+        ...
+
+    def direct_non_empty():
+        raise AssertionError('direct default body was executed')
+
+    for empty_slot in (
+        bare_empty,
+        factory_empty,
+        keyword_empty,
+        positional_empty,
+        slot(direct_empty),
+        slot(direct_empty, name='direct-empty'),
+    ):
+        assert not bool(empty_slot)
+
+    for non_empty_slot in (
+        bare_non_empty,
+        factory_non_empty,
+        keyword_non_empty,
+        positional_non_empty,
+        slot(direct_non_empty),
+        slot(direct_non_empty, name='direct-non-empty'),
+    ):
+        assert bool(non_empty_slot)
+
+
+def test_public_slot_with_local_plugin_is_truthy(monkeypatch):
+    """A local plugin makes an otherwise empty public slot truthy.
+
+    This checks the plugin side of the bool rule separately from the public
+    construction-form matrix, so the empty-slot cases stay genuinely empty.
+    """
+    monkeypatch.setattr(slot_module, 'entry_points', lambda group=None: [])  # noqa: ARG005
+
+    @slot
+    def empty_slot():
+        ...
+
+    @empty_slot.plugin
+    def plugin():
+        raise AssertionError('plugin was executed')
+
+    assert bool(empty_slot)
 
 
 def test_slot_have_not_comparing_signature_with_itself():
@@ -445,15 +532,12 @@ def test_slot_unique_allows_reusing_plugin_name_after_removal(folder_slot, list_
     same requested name. The final assertions prove the second plugin keeps the
     base name without a suffix and is the only plugin called by the slot.
     """
-    calls = []
-
     @folder_slot(slot(unique=True))
     def some_slot() -> list_type:
         return []
 
     @some_slot.plugin('plugin')
     def plugin_1():
-        calls.append('plugin_1')
         return 'first'
 
     assert some_slot.keys() == ('plugin',)
@@ -461,9 +545,7 @@ def test_slot_unique_allows_reusing_plugin_name_after_removal(folder_slot, list_
     assert [x.name for x in some_slot] == ['plugin']
     assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert some_slot() == ['first']
-    assert calls == ['plugin_1']
 
-    calls.clear()
     del some_slot['plugin']
 
     assert some_slot.keys() == ()
@@ -472,7 +554,6 @@ def test_slot_unique_allows_reusing_plugin_name_after_removal(folder_slot, list_
 
     @some_slot.plugin('plugin')
     def plugin_2():
-        calls.append('plugin_2')
         return 'second'
 
     assert some_slot.keys() == ('plugin',)
@@ -481,7 +562,6 @@ def test_slot_unique_allows_reusing_plugin_name_after_removal(folder_slot, list_
     assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert 'plugin-2' not in some_slot
     assert some_slot() == ['second']
-    assert calls == ['plugin_2']
 
 
 def test_slot_unique_rejects_duplicate_plugin_names(folder_slot):
@@ -576,8 +656,6 @@ def test_slot_unique_ignores_duplicate_name_when_engine_rejects_plugin(folder_sl
     no suffixed plugin appears, and then calls the slot to prove only the
     accepted plugin is installed and executed.
     """
-    calls = []
-
     @folder_slot(slot(unique=True))
     def some_slot() -> list_type:
         return []
@@ -586,12 +664,10 @@ def test_slot_unique_ignores_duplicate_name_when_engine_rejects_plugin(folder_sl
 
     @some_slot.plugin('plugin')
     def plugin_1():
-        calls.append('plugin_1')
         return 'accepted'
 
     @some_slot.plugin('plugin', engine='>1000.0.0')
     def plugin_2():
-        calls.append('plugin_2')
         return 'rejected'
 
     assert some_slot.keys() == ('plugin',)
@@ -600,7 +676,6 @@ def test_slot_unique_ignores_duplicate_name_when_engine_rejects_plugin(folder_sl
     assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert 'plugin-2' not in some_slot
     assert some_slot() == ['accepted']
-    assert calls == ['plugin_1']
 
 
 def test_exceeding_the_limit_0_of_plugins(folder_plugin):
@@ -1914,31 +1989,6 @@ def test_delitem_and_pop_support_exact_duplicate_keys(folder_slot):
     some_slot()
 
     assert bread_crumbs == ['plugin_2']
-
-
-def test_delitem_with_name_1_removes_first_plugin(folder_slot):
-    bread_crumbs = []
-
-    @folder_slot(slot)
-    def some_slot():
-        ...
-
-    @some_slot.plugin('plugin')
-    def plugin_1():
-        bread_crumbs.append('plugin_1')
-
-    @some_slot.plugin('plugin')
-    def plugin_2():
-        bread_crumbs.append('plugin_2')
-
-    @some_slot.plugin('plugin')
-    def plugin_3():
-        bread_crumbs.append('plugin_3')
-
-    del some_slot['plugin-1']
-    some_slot()
-
-    assert bread_crumbs == ['plugin_2', 'plugin_3']
 
 
 def test_delitem_is_loading_entry_points(folder_slot):

@@ -31,3 +31,8 @@ def simple_slot_5() -> Dict[str, int]:
 @slot(unique=True)
 def simple_slot_6() -> Dict[str, int]:
     return {}
+
+
+@slot
+def simple_bool_slot() -> Dict[str, int]:
+    return {}
