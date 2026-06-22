@@ -24,6 +24,10 @@ class SlotCaller(Generic[PluginResult]):
         self.slot_function = slot_function
         self.type_check = type_check
 
+    @property
+    def has_non_empty_default_body(self) -> bool:
+        return not self.code_representation.is_empty
+
     def __call__(self, plugins: Union[PluginsGroup[PluginResult], List[Plugin[PluginResult]]], *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:  # type: ignore[return]
         if not self.code_representation.is_empty and not plugins:
             if self.code_representation.returns_list:
@@ -70,7 +74,7 @@ class CallerWithPlugins(Generic[PluginResult]):
         yield from self.plugins
 
     def __bool__(self) -> bool:
-        return bool(self.plugins)
+        return bool(self.plugins) or self.caller.has_non_empty_default_body
 
     def __len__(self) -> int:
         return len(self.plugins)
