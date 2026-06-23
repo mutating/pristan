@@ -17,3 +17,8 @@ def test_all_pristan_errors_inherit_from_pristan_exception():
             continue
 
         assert issubclass(error_class, errors_module.PristanException)
+
+
+def test_explicit_plugin_names_error_inherits_from_name_error():
+    """Strict plugin-name failures can be caught as library or name errors."""
+    assert issubclass(errors_module.ExplicitNameRequiredError, NameError)
