@@ -6,9 +6,14 @@ from full_match import match
 
 import pristan.components.slot as slot_module
 from pristan import slot
-from pristan.errors import EntrypointLoadingError, PrimadonnaPluginError
+from pristan.errors import (
+    EntrypointLoadingError,
+    ExplicitNameRequiredError,
+    PrimadonnaPluginError,
+)
 from tests.smokes.demo.simple_slots import (
     simple_bool_slot,
+    simple_explicit_plugin_names_slot,
     simple_slot_1,
     simple_slot_2,
     simple_slot_3,
@@ -198,3 +203,36 @@ def test_unique_slot_rejects_duplicate_plugins_loaded_from_entrypoints(monkeypat
         simple_slot_6.plugins.plugins_by_requested_names.clear()
         simple_slot_6.loaded = False
         sys.modules.pop(module_name, None)
+
+
+def test_explicit_plugin_names_rejects_inferred_name_loaded_from_entrypoint(monkeypatch):
+    """A real EntryPoint preserves strict plugin-name registration errors."""
+    module_name = 'tests.smokes.demo.simple_explicit_plugin_names_plugins'
+
+    def get_entries(group=None):  # noqa: ARG001
+        return [
+            EntryPoint(
+                name='entrypoint_name',
+                value=module_name,
+                group='pristan',
+            ),
+        ]
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    def reset_slot():
+        simple_explicit_plugin_names_slot.plugins.plugins.clear()
+        simple_explicit_plugin_names_slot.plugins.plugins_by_requested_names.clear()
+        simple_explicit_plugin_names_slot.loaded = False
+        sys.modules.pop(module_name, None)
+
+    reset_slot()
+
+    try:
+        with pytest.raises(ExplicitNameRequiredError, match=match('Slot "simple_explicit_plugin_names_slot" requires explicit plugin names.')):
+            simple_explicit_plugin_names_slot()
+
+        assert not simple_explicit_plugin_names_slot.loaded
+        assert len(simple_explicit_plugin_names_slot) == 0
+    finally:
+        reset_slot()
