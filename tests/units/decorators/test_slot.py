@@ -13,6 +13,7 @@ from pristan import slot
 from pristan.decorators.slot import Slot
 from pristan.errors import (
     CannotGetVersionsError,
+    ExplicitNameRequiredError,
     NumberOfCallsError,
     PrimadonnaPluginError,
     StrangeTypeAnnotationError,
@@ -456,6 +457,165 @@ def test_direct_call_slot_keeps_default_non_unique_policy(list_type):
     assert [x.name for x in some_slot['plugin']] == ['plugin', 'plugin-2']
     assert some_slot(1) == [2, 3]
     assert some_slot['plugin'](1) == [2, 3]
+
+
+@pytest.mark.parametrize(
+    'slot_options',
+    [
+        {},
+        {'explicit_plugin_names': False},
+    ],
+    ids=('default', 'explicit_plugin_names=False'),
+)
+def test_explicit_plugin_names_disabled_allows_inferred_plugin_names(slot_options, list_type):
+    """Default and explicitly disabled strict naming still infer plugin names."""
+    @slot(**slot_options)
+    def some_slot(value) -> list_type:
+        return [value][1:]
+
+    @some_slot.plugin
+    def plugin(value):
+        return value + 1
+
+    @some_slot.plugin()
+    def plugin_2(value):
+        return value + 2
+
+    assert some_slot.keys() == ('plugin', 'plugin_2')
+    assert [x.name for x in some_slot] == ['plugin', 'plugin_2']
+    assert some_slot(1) == [2, 3]
+
+
+def test_explicit_plugin_names_direct_call_slot_rejects_inferred_names(list_type):
+    """The direct `slot(function, ...)` form enforces explicit plugin names."""
+    def slot_function(value) -> list_type:
+        return [value][1:]
+
+    some_slot = slot(slot_function, explicit_plugin_names=True)
+
+    def inferred_plugin(value):
+        return value + 1
+
+    with pytest.raises(ExplicitNameRequiredError, match=match('Slot "slot_function" requires explicit plugin names.')):
+        some_slot.plugin(inferred_plugin)
+
+    with pytest.raises(ExplicitNameRequiredError, match=match('Slot "slot_function" requires explicit plugin names.')):
+        some_slot.plugin()(inferred_plugin)
+
+    assert some_slot.keys() == ()
+    assert len(some_slot) == 0
+
+    @some_slot.plugin('plugin')
+    def named_plugin(value):
+        return value + 2
+
+    assert some_slot.keys() == ('plugin',)
+    assert [x.name for x in some_slot] == ['plugin']
+    assert some_slot(1) == [3]
+
+
+@pytest.mark.parametrize(
+    'registration_name',
+    [
+        'bare',
+        'parenthesized',
+        'unique',
+        'engine',
+        'run_once',
+    ],
+)
+def test_explicit_plugin_names_rejects_inferred_plugin_names(registration_name):
+    """No-name decorators fail before registration or signature validation."""
+    @slot(explicit_plugin_names=True)
+    def some_slot():
+        ...
+
+    def plugin(value):  # noqa: ARG001
+        return None
+
+    registrations = {
+        'bare': lambda function: some_slot.plugin(function),
+        'parenthesized': lambda function: some_slot.plugin()(function),
+        'unique': lambda function: some_slot.plugin(unique=True)(function),
+        'engine': lambda function: some_slot.plugin(engine='>1000.0.0')(function),
+        'run_once': lambda function: some_slot.plugin(run_once=True)(function),
+    }
+
+    with pytest.raises(ExplicitNameRequiredError, match=match('Slot "some_slot" requires explicit plugin names.')):
+        registrations[registration_name](plugin)
+
+    assert some_slot.keys() == ()
+    assert len(some_slot) == 0
+
+
+def test_explicit_plugin_names_keeps_invalid_plugin_decorator_argument_error():
+    """Invalid plugin decorator arguments keep their original error type."""
+    @slot(explicit_plugin_names=True)
+    def some_slot():
+        ...
+
+    with pytest.raises(TypeError, match=match('Only a function or plugin name followed by a function can be passed to the decorator.')):
+        some_slot.plugin(123)
+
+
+def test_explicit_plugin_names_named_plugin_unique_option_is_enforced(list_type):
+    """Strict slots still honor plugin-level uniqueness after explicit naming."""
+    @slot(explicit_plugin_names=True)
+    def some_slot() -> list_type:
+        return []
+
+    @some_slot.plugin('first', unique=True)
+    def first_plugin():
+        return 'first'
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Plugin "first" claims to be unique, but there are other plugins with the same name.')):
+        @some_slot.plugin('first')
+        def duplicate_first_plugin():
+            return 'duplicate'
+
+    assert some_slot.keys() == ('first',)
+    assert [x.name for x in some_slot] == ['first']
+    assert some_slot() == ['first']
+
+
+def test_explicit_plugin_names_named_plugin_engine_option_filters_plugins(list_type):
+    """Strict slots still apply engine constraints after explicit naming."""
+    @slot(explicit_plugin_names=True)
+    def some_slot() -> list_type:
+        return []
+
+    some_slot.code_representation.package_version = Version('0.0.1')
+
+    @some_slot.plugin('accepted', engine='>0.0.0')
+    def accepted_plugin():
+        return 'accepted'
+
+    @some_slot.plugin('rejected', engine='>1000.0.0')
+    def rejected_plugin():
+        return 'rejected'
+
+    assert some_slot.keys() == ('accepted',)
+    assert [x.name for x in some_slot] == ['accepted']
+    assert 'rejected' not in some_slot
+    assert some_slot() == ['accepted']
+
+
+def test_explicit_plugin_names_named_plugin_run_once_option_is_enforced(list_type):
+    """Strict slots still honor run-once plugins after explicit naming."""
+    @slot(explicit_plugin_names=True)
+    def some_slot() -> list_type:
+        return []
+
+    @some_slot.plugin('plugin', run_once=True)
+    def plugin():
+        return 'plugin'
+
+    assert some_slot.keys() == ('plugin',)
+    assert [x.name for x in some_slot] == ['plugin']
+    assert some_slot() == ['plugin']
+
+    with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "plugin". And this plugin has already been called previously.')):
+        some_slot()
 
 
 def test_2_plugins_with_same_names_and_first_one_is_unique(folder_slot, folder_plugin):
@@ -1522,6 +1682,10 @@ def test_repr(folder_slot):
     def some_slot_8(a, b=3):
         ...
 
+    @slot(name='name8', explicit_plugin_names=True)
+    def some_slot_9(a, b=3):
+        ...
+
     assert repr(some_slot) == 'Slot(some_slot)'
     assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
     assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
@@ -1530,6 +1694,7 @@ def test_repr(folder_slot):
     assert repr(some_slot_6) == 'Slot(some_slot_6, signature=\'..\', slot_name=\'name5\', max=3, type_check=False)'
     assert repr(some_slot_7) == 'Slot(some_slot_7, signature=\'..\', slot_name=\'name6\', max=3, type_check=False, unique=True)'
     assert repr(some_slot_8) == 'Slot(some_slot_8, signature=[\'..\', \'.\'], slot_name=\'name7\')'
+    assert repr(some_slot_9) == 'Slot(some_slot_9, slot_name=\'name8\', explicit_plugin_names=True)'
 
 
 def test_getitem_repr(folder_slot, folder_plugin):

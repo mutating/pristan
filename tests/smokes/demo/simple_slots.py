@@ -36,3 +36,8 @@ def simple_slot_6() -> Dict[str, int]:
 @slot
 def simple_bool_slot() -> Dict[str, int]:
     return {}
+
+
+@slot(explicit_plugin_names=True)
+def simple_explicit_plugin_names_slot() -> Dict[str, int]:
+    return {}
