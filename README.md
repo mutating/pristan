@@ -456,6 +456,21 @@ def plugin_2():
 #> pristan.errors.PrimadonnaPluginError: Slot "some_slot" requires unique plugin names, but "plugin" is already registered.
 ```
 
+If every plugin must declare its name manually, pass `explicit_plugin_names=True` to the slot decorator:
+
+```python
+@slot(explicit_plugin_names=True)
+def some_slot():
+    ...
+
+@some_slot.plugin
+def plugin():
+    ...
+
+#> ...
+#> pristan.errors.ExplicitNameRequiredError: Slot "some_slot" requires explicit plugin names.
+```
+
 You can also restrict a plugin to a specific version of the library that declares the slot. To do this, pass a version expression (or a `list` of them) as the `engine` argument:
 
 ```python
