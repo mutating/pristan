@@ -10,6 +10,10 @@ class PrimadonnaPluginError(PristanException):
     ...
 
 
+class ExplicitNameRequiredError(PristanException, NameError):
+    ...
+
+
 class EntrypointLoadingError(PristanException):
     ...
 

@@ -42,6 +42,7 @@ from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 from pristan.errors import (
     EntrypointLoadingError,
+    ExplicitNameRequiredError,
     PrimadonnaPluginError,
     PristanException,
     StrangeTypeAnnotationError,
@@ -65,10 +66,11 @@ pop_default_sentinel = InnerNoneType()
         'type_check': lambda x: x != True,
         'entrypoint_group': lambda x: x != 'pristan',
         'unique': lambda x: x,
+        'explicit_plugin_names': lambda x: x,
     },
 )
 class Slot(Generic[PluginResult]):
-    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], signature: Optional[SlotSignature], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool) -> None:  # noqa: PLR0913, A002
+    def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], *, signature: Optional[SlotSignature], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool, explicit_plugin_names: bool = False) -> None:  # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
 
@@ -87,6 +89,7 @@ class Slot(Generic[PluginResult]):
         self.type_check = type_check
         self.entrypoint_group = entrypoint_group
         self.unique = unique
+        self.explicit_plugin_names = explicit_plugin_names
 
         self.lock = RLock()
 
@@ -167,6 +170,9 @@ class Slot(Generic[PluginResult]):
 
         else:
             raise TypeError('Only a function or plugin name followed by a function can be passed to the decorator.')
+
+        if self.explicit_plugin_names and not isinstance(plugin_function_or_name, str):
+            raise ExplicitNameRequiredError(f'Slot "{self.slot_name}" requires explicit plugin names.')
 
         def decorator(plugin_function: Callable[SlotParameters, PluginResult]) -> Callable[SlotParameters, PluginResult]:
             # TODO: consider to delete this "type: ignore" if python 3.8 deleted from the matrix
