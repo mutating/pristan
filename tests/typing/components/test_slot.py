@@ -10,6 +10,6 @@ def test_concrete_slot_bool_method_is_typed_as_bool():
     def collect() -> list:
         return []
 
-    slot_view = Slot(collect, None, None, None, True, 'pristan', False)
+    slot_view = Slot(collect, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     reveal_type(slot_view.__bool__())  # R: builtins.bool

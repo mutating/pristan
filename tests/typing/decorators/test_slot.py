@@ -79,7 +79,7 @@ def test_slot_without_return_annotation_is_typed_as_any_in_both_forms():
 
 
 @pytest.mark.mypy_testing
-def test_slot_configuration_arguments_are_typed():
+def test_slot_configuration_arguments_include_explicit_plugin_names():
     @slot('some_another_slot_name')
     def slot_with_positional_name(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -96,6 +96,10 @@ def test_slot_configuration_arguments_are_typed():
     def unique_slot(value: int) -> List[int]:  # noqa: ARG001
         return []
 
+    @slot(explicit_plugin_names=True)
+    def explicit_plugin_names_slot(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
     @slot(signature='.', max=1, type_check=False, entrypoint_group='new_namespace', unique=True)
     def configured_slot(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -108,6 +112,7 @@ def test_slot_configuration_arguments_are_typed():
     reveal_type(unique_slot_with_positional_name(1))  # R: builtins.list[builtins.int]
     reveal_type(slot_with_keyword_name(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(unique_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(explicit_plugin_names_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot_with_signature_list(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot_with_signature_list(1, 'context'))  # R: builtins.list[builtins.int]
@@ -115,17 +120,17 @@ def test_slot_configuration_arguments_are_typed():
 
 
 @pytest.mark.mypy_testing
-def test_slot_direct_call_configuration_arguments_are_typed():
+def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names():
     """Direct-call slot overloads preserve call and plugin result types.
 
     The configured direct-call form accepts the same keyword options as the
-    decorator-factory form, including `unique`. Assignments and reveal checks
-    cover default and configured direct calls, signature strings and lists,
-    custom options, precise list and dict results, and the unannotated `Any`
-    result. The `typed_notify` block keeps the static `None` expectation covered
-    while documenting the current runtime `StrangeTypeAnnotationError`.
-    Iteration over slots with signature lists proves that plugin result types
-    are kept as well.
+    decorator-factory form, including `unique` and `explicit_plugin_names`.
+    Assignments and reveal checks cover default and configured direct calls,
+    signature strings and lists, custom options, precise list and dict results,
+    and the unannotated `Any` result. The `typed_notify` block keeps the static
+    `None` expectation covered while documenting the current runtime
+    `StrangeTypeAnnotationError`. Iteration over slots with signature lists
+    proves that plugin result types are kept as well.
     """
     def collect_list(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -140,7 +145,7 @@ def test_slot_direct_call_configuration_arguments_are_typed():
         return None
 
     default_list_slot = slot(collect_list)
-    list_slot = slot(collect_list, unique=True)
+    list_slot = slot(collect_list, unique=True, explicit_plugin_names=True)
     signature_list_slot = slot(collect_list, signature=['.'])
     dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
     signature_list_dict_slot = slot(collect_dict, signature=['.'])
@@ -400,7 +405,7 @@ def test_plugin_argument_validation_is_typed():
 
 
 @pytest.mark.mypy_testing
-def test_slot_bad_factory_arguments_stay_type_errors():
+def test_slot_bad_factory_arguments_include_explicit_plugin_names_type_errors():
     """Pin invalid slot(...) calls via code-specific expectations.
 
     Calls producing bundled overload diagnostics use targeted ignores together
@@ -417,11 +422,13 @@ def test_slot_bad_factory_arguments_stay_type_errors():
     slot(type_check='yes')  # type: ignore[call-overload]
     slot(entrypoint_group=None)  # type: ignore[call-overload]
     slot(unique='yes')  # type: ignore[call-overload]
+    slot(explicit_plugin_names='yes')  # type: ignore[call-overload]
 
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
 
     slot(collect, unique='yes')  # type: ignore[call-overload]
+    slot(collect, explicit_plugin_names='yes')  # type: ignore[call-overload]
     with pytest.raises(TypeError):
         slot(collect, signature=[1])  # E: [list-item]
     with pytest.raises(TypeError):

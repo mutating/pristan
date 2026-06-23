@@ -7,6 +7,7 @@ import pristan.components.slot as slot_module
 from pristan.components.slot import Slot
 from pristan.errors import (
     EntrypointLoadingError,
+    ExplicitNameRequiredError,
     PrimadonnaPluginError,
     PristanException,
 )
@@ -14,7 +15,7 @@ from pristan.errors import (
 
 def test_set_max_less_than_zero():
     with pytest.raises(ValueError, match=match('The maximum number of plugins cannot be less than zero.')):
-        Slot(lambda x: x, '.', 'slot_name', -1, False, 'pristan', False)
+        Slot(lambda x: x, signature='.', slot_name='slot_name', max=-1, type_check=False, entrypoint_group='pristan', unique=False)
 
 
 def test_bool_loads_entrypoints_before_checking_local_plugins(monkeypatch):
@@ -27,7 +28,7 @@ def test_bool_loads_entrypoints_before_checking_local_plugins(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     @slot.plugin
     def plugin():
@@ -55,7 +56,7 @@ def test_bool_passes_custom_entrypoint_group(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'custom-group', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='custom-group', unique=False)
 
     def get_entries(group=None):
         assert group == 'custom-group'
@@ -73,7 +74,7 @@ def test_bool_is_idempotent_after_successful_loading(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     provider_calls = []
 
     class FakeEntryPoint:
@@ -100,7 +101,7 @@ def test_bool_does_not_execute_default_or_plugins(monkeypatch):
     def default():
         raise AssertionError('default body was executed')
 
-    slot = Slot(default, None, None, None, True, 'pristan', False)
+    slot = Slot(default, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     @slot.plugin
     def plugin():
@@ -125,7 +126,7 @@ def test_bool_short_circuits_default_body_when_plugins_exist(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     @slot.plugin
     def plugin():
@@ -198,7 +199,7 @@ def test_bool_with_empty_loaded_entrypoints_depends_on_default_body(monkeypatch)
         (unannotated_list_body, True),
         (docstring_with_annotated_list_body, True),
     ):
-        slot = Slot(function, None, None, None, True, 'pristan', False)
+        slot = Slot(function, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
         assert bool(slot) is expected
 
@@ -218,7 +219,7 @@ def test_bool_with_fixture_container_annotations_is_false_for_empty_returns(monk
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     for function in (list_slot, dict_slot):
-        assert not bool(Slot(function, None, None, None, True, 'pristan', False))
+        assert not bool(Slot(function, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False))
 
 
 def test_bool_keeps_loaded_after_successful_load_and_inspection_error(monkeypatch):
@@ -232,7 +233,7 @@ def test_bool_keeps_loaded_after_successful_load_and_inspection_error(monkeypatc
         pass
 
     calls = []
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         calls.append(group)
@@ -257,7 +258,7 @@ def test_len_and_contains_do_not_load_entrypoints(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         assert group == 'pristan'
@@ -274,7 +275,7 @@ def test_invalid_contains_does_not_load_entrypoints(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         assert group == 'pristan'
@@ -296,7 +297,7 @@ def test_iter_creation_does_not_load_until_consumed(monkeypatch):
 
     provider_error = RuntimeError('provider')
     calls = []
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         calls.append(group)
@@ -324,7 +325,7 @@ def test_truthy_slot_with_non_empty_default_can_have_zero_plugins(monkeypatch):
         assert group == 'pristan'
         return []
 
-    slot = Slot(none_return_body, None, None, None, True, 'pristan', False)
+    slot = Slot(none_return_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert bool(slot)
@@ -336,7 +337,7 @@ def test_getitem_loads_before_returning_selection(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         assert group == 'pristan'
@@ -368,7 +369,7 @@ def test_getitem_and_delitem_load_errors_dominate_key_validation(monkeypatch):
 
     for operation in (getitem_invalid, delitem_invalid):
         provider_error = RuntimeError('provider')
-        slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+        slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
         monkeypatch.setattr(slot_module, 'entry_points', make_failing_provider(provider_error))
 
         with pytest.raises(EntrypointLoadingError) as exception_info:
@@ -383,7 +384,7 @@ def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
         pass
 
     calls = []
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         calls.append(group)
@@ -430,7 +431,7 @@ def test_selection_bool_branches(monkeypatch):
         return []
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
-    slot_with_plugin = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot_with_plugin = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     @slot_with_plugin.plugin
     def plugin():
@@ -440,8 +441,8 @@ def test_selection_bool_branches(monkeypatch):
 
     assert bool(slot_with_plugin['plugin'])
 
-    assert bool(Slot(none_return_body, None, None, None, True, 'pristan', False)['missing'])
-    assert not bool(Slot(empty_body, None, None, None, True, 'pristan', False)['missing'])
+    assert bool(Slot(none_return_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)['missing'])
+    assert not bool(Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)['missing'])
 
 
 def test_selection_bool_does_not_execute_default_or_plugins(monkeypatch):
@@ -449,7 +450,7 @@ def test_selection_bool_does_not_execute_default_or_plugins(monkeypatch):
     def default():
         raise AssertionError('default body was executed')
 
-    slot = Slot(default, None, None, None, True, 'pristan', False)
+    slot = Slot(default, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     @slot.plugin('plugin')
     def plugin():
@@ -483,7 +484,7 @@ def test_selection_bool_for_absent_duplicate_depends_on_default_body(monkeypatch
         (empty_body, False),
         (none_return_body, True),
     ):
-        current_slot = Slot(body, None, None, None, True, 'pristan', False)
+        current_slot = Slot(body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
         @current_slot.plugin('name')
         def plugin():
@@ -512,7 +513,7 @@ def test_del_last_plugin_updates_parent_bool(monkeypatch):
         (empty_body, False),
         (none_return_body, True),
     ):
-        current_slot = Slot(body, None, None, None, True, 'pristan', False)
+        current_slot = Slot(body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
         @current_slot.plugin('plugin')
         def plugin():
@@ -532,7 +533,7 @@ def test_pop_existing_returns_detached_truthy_selection(monkeypatch):
         assert group == 'pristan'
         return []
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     @slot.plugin('plugin')
@@ -556,7 +557,7 @@ def test_pop_existing_with_default_returns_selection_not_default(monkeypatch):
         return []
 
     default = object()
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     @slot.plugin('plugin')
@@ -576,7 +577,7 @@ def test_pop_default_returns_default_after_successful_load(monkeypatch, key):
         pass
 
     default = object()
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         assert group == 'pristan'
@@ -597,7 +598,7 @@ def test_duplicate_plugin_selection_keys(monkeypatch):
         assert group == 'pristan'
         return []
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     @slot.plugin('name')
@@ -685,7 +686,7 @@ def test_entrypoint_loading_errors_are_wrapped_for_lazy_operation_matrix(monkeyp
         'point-load-key-error': (point_load_failure, KeyError('broken import')),
     }
     provider_factory, cause = provider_cases[provider_name]
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', provider_factory(cause))
 
     with pytest.raises(EntrypointLoadingError, match=match('An error occurred while loading entry points.')) as exception_info:
@@ -757,7 +758,7 @@ def test_pristan_errors_from_entrypoint_loading_are_not_wrapped_for_source_matri
         'custom': CustomPristanError('future internal error'),
     }
     cause = causes[cause_name]
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', provider_factories[provider_name](cause))
 
     with pytest.raises(PristanException) as exception_info:
@@ -792,7 +793,7 @@ def test_pristan_errors_from_entrypoint_loading_are_not_wrapped_for_lazy_operati
         'pop-default': lambda slot: slot.pop('missing', None),
     }
     cause = PristanException('provider')
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def get_entries(group=None):
         assert group == 'pristan'
@@ -812,7 +813,7 @@ def test_registration_error_during_entrypoint_loading_is_not_wrapped(monkeypatch
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', True)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
     captured = []
 
     def register_duplicates():
@@ -846,6 +847,41 @@ def test_registration_error_during_entrypoint_loading_is_not_wrapped(monkeypatch
     assert [plugin.name for plugin in slot.plugins.plugins] == ['name']
 
 
+def test_explicit_plugin_names_error_during_entrypoint_loading_is_not_wrapped(monkeypatch):
+    """Strict plugin-name failures raised inside point.load remain direct Pristan errors."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False, explicit_plugin_names=True)
+    captured = []
+
+    def register_inferred_name():
+        try:
+            @slot.plugin
+            def plugin():
+                return None
+        except ExplicitNameRequiredError as exception:
+            captured.append(exception)
+            raise
+
+    class FakeEntryPoint:
+        def load(self):
+            register_inferred_name()
+
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return [FakeEntryPoint()]
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    with pytest.raises(ExplicitNameRequiredError, match=match('Slot "empty_body" requires explicit plugin names.')) as exception_info:
+        bool(slot)
+
+    assert exception_info.value is captured[0]
+    assert not slot.loaded
+    assert len(slot.plugins.plugins) == 0
+
+
 def test_load_failure_then_retry_success_keeps_partial_plugins(monkeypatch):
     """A failed load keeps partial plugins and retries from the provider start.
 
@@ -863,7 +899,7 @@ def test_load_failure_then_retry_success_keeps_partial_plugins(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     attempts = []
 
     def register_name():
@@ -916,7 +952,7 @@ def test_stable_load_failure_can_accumulate_partial_duplicates(monkeypatch):
     def empty_body():
         pass
 
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     def register_name():
         @slot.plugin('name')
@@ -990,7 +1026,7 @@ def test_base_exception_from_entrypoint_loading_passes_through(monkeypatch, prov
         'point-load': point_load_failure,
     }
     cause = CustomBaseException(provider_name)
-    slot = Slot(empty_body, None, None, None, True, 'pristan', False)
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', provider_cases[provider_name](cause))
 
     with pytest.raises(CustomBaseException) as exception_info:
@@ -1009,13 +1045,13 @@ def test_direct_local_errors_are_not_wrapped(monkeypatch):
         assert group == 'pristan'
         return []
 
-    default_slot = Slot(default_body, None, None, None, True, 'pristan', False)
+    default_slot = Slot(default_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     with pytest.raises(ValueError, match=match('default failed')):
         default_slot()
 
-    plugin_slot = Slot(default_body, None, None, None, True, 'pristan', False)
+    plugin_slot = Slot(default_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
     @plugin_slot.plugin
     def plugin():
