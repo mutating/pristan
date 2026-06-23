@@ -41,7 +41,9 @@ from pristan.components.slot_caller import CallerWithPlugins, SlotCaller
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 from pristan.errors import (
+    EntrypointLoadingError,
     PrimadonnaPluginError,
+    PristanException,
     StrangeTypeAnnotationError,
     TooManyPluginsError,
 )
@@ -99,6 +101,10 @@ class Slot(Generic[PluginResult]):
     def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:
         self._load_entrypoints()
         return self.backed_caller(*args, **kwargs)
+
+    def __bool__(self) -> bool:
+        self._load_entrypoints()
+        return bool(self.backed_caller)
 
     def __iter__(self) -> Generator[PluginProtocol[SlotParameters, PluginResult], None, None]:
         self._load_entrypoints()
@@ -180,8 +186,13 @@ class Slot(Generic[PluginResult]):
     def _load_entrypoints(self) -> None:
         with self.lock:
             if not self.loaded:
-                for point in entry_points(group=self.entrypoint_group):
-                    point.load()
+                try:
+                    for point in entry_points(group=self.entrypoint_group):
+                        point.load()
+                except PristanException:
+                    raise
+                except Exception as exception:
+                    raise EntrypointLoadingError('An error occurred while loading entry points.') from exception
                 self.loaded = True
 
     def _add_plugin(self, name: str, function: PluginFunction[SlotParameters, PluginResult], unique: bool, engine: Optional[Union[str, List[str]]], run_once: bool) -> None:

@@ -1,14 +1,26 @@
-class TooManyPluginsError(Exception):
+class PristanException(Exception):  # noqa: N818
     ...
 
-class PrimadonnaPluginError(Exception):
+
+class TooManyPluginsError(PristanException):
     ...
 
-class StrangeTypeAnnotationError(Exception):
+
+class PrimadonnaPluginError(PristanException):
     ...
 
-class CannotGetVersionsError(Exception):
+
+class EntrypointLoadingError(PristanException):
     ...
 
-class NumberOfCallsError(Exception):
+
+class StrangeTypeAnnotationError(PristanException):
+    ...
+
+
+class CannotGetVersionsError(PristanException):
+    ...
+
+
+class NumberOfCallsError(PristanException):
     ...
