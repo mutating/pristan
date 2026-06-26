@@ -14,6 +14,7 @@ from typing import (
     Generator,
     Generic,
     List,
+    NoReturn,
     Optional,
     Tuple,
     TypeVar,
@@ -37,7 +38,10 @@ from pristan.common_types import (
 )
 from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
-from pristan.components.slot_caller import CallerWithPlugins, SlotCaller
+from pristan.components.slot_caller import (
+    CallerWithPlugins,
+    SlotCaller,
+)
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
 from pristan.errors import (
@@ -119,6 +123,14 @@ class Slot(Generic[PluginResult]):
         if len(snapshot) > 1:
             raise OneResolutionError(f'Slot "{self.slot_name}" has {len(snapshot)} registered plugins, so .one cannot choose one.')
         return snapshot
+
+    @one.setter
+    def one(self, value: Any) -> NoReturn:  # noqa: ARG002
+        raise AttributeError('Attribute ".one" is read-only.')
+
+    @one.deleter
+    def one(self) -> NoReturn:
+        raise AttributeError('Attribute ".one" is read-only.')
 
     def __iter__(self) -> Generator[PluginProtocol[SlotParameters, PluginResult], None, None]:
         self._load_entrypoints()

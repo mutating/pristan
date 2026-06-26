@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generator, Generic, List, Type, Union
+from typing import Any, Dict, Generator, Generic, List, NoReturn, Type, Union
 
 from denial import InnerNoneType
 from printo import repred
@@ -87,3 +87,11 @@ class CallerWithPlugins(Generic[PluginResult]):
         if len(self) > 1:
             raise OneResolutionError(f'Selection from slot "{self.caller.slot_name}" has {len(self)} selected plugins, so .one cannot choose one.')
         return self
+
+    @one.setter
+    def one(self, value: Any) -> NoReturn:  # noqa: ARG002
+        raise AttributeError('Attribute ".one" is read-only.')
+
+    @one.deleter
+    def one(self) -> NoReturn:
+        raise AttributeError('Attribute ".one" is read-only.')
