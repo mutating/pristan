@@ -13,6 +13,7 @@ from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
+from pristan.errors import OneResolutionError
 
 
 @repred
@@ -78,3 +79,11 @@ class CallerWithPlugins(Generic[PluginResult]):
 
     def __len__(self) -> int:
         return len(self.plugins)
+
+    @property
+    def one(self) -> 'CallerWithPlugins[PluginResult]':
+        if not self:
+            raise OneResolutionError(f'Selection from slot "{self.caller.slot_name}" has no selected plugins and the slot body is empty.')
+        if len(self) > 1:
+            raise OneResolutionError(f'Selection from slot "{self.caller.slot_name}" has {len(self)} selected plugins, so .one cannot choose one.')
+        return self

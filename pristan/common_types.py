@@ -49,11 +49,15 @@ class BaseSlotViewProtocol(Protocol[SlotParameters, SlotCallResultCovariant, Plu
     def __len__(self) -> int: ...
 
 
-class SlotSelectionProtocol(BaseSlotViewProtocol[SlotParameters, SlotCallResultCovariant, PluginResultCovariant], Protocol[SlotParameters, SlotCallResultCovariant, PluginResultCovariant]):
-    pass
+class SlotSelectionProtocol(BaseSlotViewProtocol[SlotParameters, SlotCallResultCovariant, PluginResultCovariant], Protocol[SlotParameters, SlotCallResultCovariant, PluginResultCovariant]):  # pragma: no cover
+    @property
+    def one(self) -> 'SlotSelectionProtocol[SlotParameters, SlotCallResultCovariant, PluginResultCovariant]': ...
 
 
 class SlotProtocol(BaseSlotViewProtocol[SlotParameters, SlotCallResultCovariant, PluginResult], Protocol[SlotParameters, SlotCallResultCovariant, PluginResult]):  # pragma: no cover
+    @property
+    def one(self) -> SlotSelectionProtocol[SlotParameters, SlotCallResultCovariant, PluginResult]: ...
+
     @overload
     def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]: ...
 
