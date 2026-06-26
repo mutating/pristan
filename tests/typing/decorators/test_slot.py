@@ -1037,10 +1037,10 @@ def test_typing_generics_one_preserves_result_types():
     reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
     reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
 
-    wrong_list_selection: 'SlotSelectionProtocol[[str], List[int], int]' = collect_list.one  # E: [assignment]  # noqa: F841
-    wrong_dict_selection: 'SlotSelectionProtocol[[str], Dict[str, int], int]' = collect_dict.one  # E: [assignment]  # noqa: F841
-    wrong_selected_list_selection: 'SlotSelectionProtocol[[str], List[int], int]' = list_selection.one  # E: [assignment]  # noqa: F841
-    wrong_selected_dict_selection: 'SlotSelectionProtocol[[str], Dict[str, int], int]' = dict_selection.one  # E: [assignment]  # noqa: F841
+    wrong_list_selection_call: Callable[[str], List[int]] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_dict_selection_call: Callable[[str], Dict[str, int]] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_selected_list_selection_call: Callable[[str], List[int]] = list_selection.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_selected_dict_selection_call: Callable[[str], Dict[str, int]] = dict_selection.one.__call__  # E: [assignment]  # noqa: F841
     wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
     wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
     wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
@@ -1113,10 +1113,10 @@ def test_built_in_generics_one_preserves_result_types():
     reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
     reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
 
-    wrong_list_selection: 'SlotSelectionProtocol[[str], list[int], int]' = collect_list.one  # E: [assignment]  # noqa: F841
-    wrong_dict_selection: 'SlotSelectionProtocol[[str], dict[str, int], int]' = collect_dict.one  # E: [assignment]  # noqa: F841
-    wrong_selected_list_selection: 'SlotSelectionProtocol[[str], list[int], int]' = list_selection.one  # E: [assignment]  # noqa: F841
-    wrong_selected_dict_selection: 'SlotSelectionProtocol[[str], dict[str, int], int]' = dict_selection.one  # E: [assignment]  # noqa: F841
+    wrong_list_selection_call: Callable[[str], list[int]] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_dict_selection_call: Callable[[str], dict[str, int]] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_selected_list_selection_call: Callable[[str], list[int]] = list_selection.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_selected_dict_selection_call: Callable[[str], dict[str, int]] = dict_selection.one.__call__  # E: [assignment]  # noqa: F841
     wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
     wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
     wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
