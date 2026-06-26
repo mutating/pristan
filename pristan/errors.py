@@ -28,3 +28,7 @@ class CannotGetVersionsError(PristanException):
 
 class NumberOfCallsError(PristanException):
     ...
+
+
+class OneResolutionError(PristanException):
+    ...

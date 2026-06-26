@@ -1,4 +1,3 @@
-import sys
 from importlib.metadata import EntryPoint
 
 import pytest
@@ -13,7 +12,9 @@ from pristan.errors import (
 )
 from tests.smokes.demo.simple_slots import (
     simple_bool_slot,
+    simple_custom_one_slot,
     simple_explicit_plugin_names_slot,
+    simple_one_slot,
     simple_slot_1,
     simple_slot_2,
     simple_slot_3,
@@ -24,10 +25,12 @@ from tests.smokes.demo.simple_slots import (
 
 
 def test_run_simple_slot(monkeypatch):
-    def get_entries(group=None):  # noqa: ARG001
+    """Calling a slot loads its plugins from the default entry point group."""
+    def get_entries(group=None):
+        assert group == 'pristan'
         return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
 
-    monkeypatch.setattr(slot_module, "entry_points", get_entries)
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_slot_1.loaded
     assert simple_slot_1() == {'name': 1}
@@ -36,10 +39,12 @@ def test_run_simple_slot(monkeypatch):
 
 
 def test_run_simple_slot_with_another_name(monkeypatch):
-    def get_entries(group=None):  # noqa: ARG001
+    """Calling a slot respects its custom entry point group."""
+    def get_entries(group=None):
+        assert group == 'another_name'
         return [EntryPoint(name='name2', value='tests.smokes.demo.plugins_another_name', group='another_name')]
 
-    monkeypatch.setattr(slot_module, "entry_points", get_entries)
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_slot_2.loaded
     assert simple_slot_2() == {'name2': 2}
@@ -48,10 +53,12 @@ def test_run_simple_slot_with_another_name(monkeypatch):
 
 
 def test_plugins_are_loaded_when_called(monkeypatch):
-    def get_entries(group=None):  # noqa: ARG001
-        return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
+    """A slot call triggers lazy entry point loading."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_call_plugins', group='pristan')]
 
-    monkeypatch.setattr(slot_module, "entry_points", get_entries)
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_slot_3.loaded
 
@@ -60,11 +67,13 @@ def test_plugins_are_loaded_when_called(monkeypatch):
     assert simple_slot_3.loaded
 
 
-def test_plugins_are_loaded_when_keys_readed(monkeypatch):
-    def get_entries(group=None):  # noqa: ARG001
-        return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
+def test_plugins_are_loaded_when_keys_are_read(monkeypatch):
+    """Reading keys triggers lazy entry point loading."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_keys_plugins', group='pristan')]
 
-    monkeypatch.setattr(slot_module, "entry_points", get_entries)
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_slot_4.loaded
 
@@ -73,11 +82,13 @@ def test_plugins_are_loaded_when_keys_readed(monkeypatch):
     assert simple_slot_4.loaded
 
 
-def test_plugins_are_loaded_when_getitem(monkeypatch):
-    def get_entries(group=None):  # noqa: ARG001
-        return [EntryPoint(name='name', value='tests.smokes.demo.simple_plugins', group='pristan')]
+def test_getitem_loads_plugins_from_real_entrypoint(monkeypatch):
+    """Getting a selection triggers lazy entry point loading."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_getitem_plugins', group='pristan')]
 
-    monkeypatch.setattr(slot_module, "entry_points", get_entries)
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_slot_5.loaded
 
@@ -87,45 +98,61 @@ def test_plugins_are_loaded_when_getitem(monkeypatch):
 
 
 def test_bool_loads_plugins_from_real_entrypoint_once(monkeypatch):
-    """Bool resolves a real EntryPoint and does not import it again after success.
+    """Bool loads a real EntryPoint once and reuses the plugin.
 
-    The plugin lives in the demo package and is imported through
-    `EntryPoint.load()`, so this stays a real module-loading smoke test. The
-    global demo slot is necessary here because plugin registration happens as a
-    module import side effect.
+    `EntryPoint.load()` imports a demo module that registers against a global
+    slot, keeping this a real module-loading smoke test.
     """
-    calls = []
-    module_name = 'tests.smokes.demo.simple_bool_plugins'
+    requested_groups = []
 
     def get_entries(group=None):
-        calls.append(group)
-        return [
-            EntryPoint(
-                name='name',
-                value=module_name,
-                group='pristan',
-            ),
-        ]
+        requested_groups.append(group)
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_bool_plugins', group='pristan')]
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
-    simple_bool_slot.plugins.plugins.clear()
-    simple_bool_slot.plugins.plugins_by_requested_names.clear()
-    simple_bool_slot.loaded = False
-    sys.modules.pop(module_name, None)
+    assert bool(simple_bool_slot)
+    assert simple_bool_slot.loaded
+    assert [plugin.name for plugin in simple_bool_slot.plugins.plugins] == ['name']
 
-    try:
-        assert bool(simple_bool_slot)
-        assert simple_bool_slot.loaded
-        assert [plugin.name for plugin in simple_bool_slot.plugins.plugins] == ['name']
+    assert bool(simple_bool_slot)
+    assert requested_groups == ['pristan']
 
-        assert bool(simple_bool_slot)
-        assert calls == ['pristan']
-    finally:
-        simple_bool_slot.plugins.plugins.clear()
-        simple_bool_slot.plugins.plugins_by_requested_names.clear()
-        simple_bool_slot.loaded = False
-        sys.modules.pop(module_name, None)
+
+def test_slot_one_loads_plugin_from_real_entrypoint_and_calls_result(monkeypatch):
+    """`Slot.one` loads a real entry point once and returns a callable selection."""
+    requested_groups = []
+
+    def get_entries(group=None):
+        requested_groups.append(group)
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_one_plugins', group='pristan')]
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    assert not simple_one_slot.loaded
+    assert simple_one_slot.one() == {'name': 7}
+    assert simple_one_slot.loaded
+
+    assert simple_one_slot.one() == {'name': 7}
+    assert requested_groups == ['pristan']
+
+
+def test_slot_one_loads_plugin_from_custom_entrypoint_group(monkeypatch):
+    """`Slot.one` loads a custom-group entry point once into a callable selection."""
+    requested_groups = []
+
+    def get_entries(group=None):
+        requested_groups.append(group)
+        return [EntryPoint(name='name2', value='tests.smokes.demo.simple_custom_one_plugins', group='another_name')]
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    assert not simple_custom_one_slot.loaded
+    assert simple_custom_one_slot.one() == {'name2': 8}
+    assert simple_custom_one_slot.loaded
+
+    assert simple_custom_one_slot.one() == {'name2': 8}
+    assert requested_groups == ['another_name']
 
 
 def test_broken_import_from_entrypoint_is_wrapped(monkeypatch):
@@ -139,7 +166,8 @@ def test_broken_import_from_entrypoint_is_wrapped(monkeypatch):
     def target_slot():
         pass
 
-    def get_entries(group=None):  # noqa: ARG001
+    def get_entries(group=None):
+        assert group == 'pristan'
         return [
             EntryPoint(
                 name='broken',
@@ -161,78 +189,54 @@ def test_broken_import_from_entrypoint_is_wrapped(monkeypatch):
 def test_unique_slot_rejects_duplicate_plugins_loaded_from_entrypoints(monkeypatch):
     """Lazy entry point registration errors keep their Pristan exception type.
 
-    Loading the demo plugin module through a real `EntryPoint` registers two
-    plugins with the same requested name. The duplicate registration happens in
-    Pristan code during `point.load()`, so it must pass through directly
-    instead of being converted to an external-loading wrapper.
-
-    After that failure, replacing entry points with an empty provider lets the
-    next public call prove that the first plugin registered before the failure
-    remains installed and usable.
+    The real demo module registers duplicate requested names during
+    `point.load()`, so the Pristan error passes through directly. A second call
+    with no entry points proves the plugin registered before the failure remains
+    usable.
     """
-    module_name = 'tests.smokes.demo.simple_unique_plugins'
-
-    def get_entries(group=None):  # noqa: ARG001
+    def get_entries(group=None):
+        assert group == 'pristan'
         return [
             EntryPoint(
                 name='name',
-                value=module_name,
+                value='tests.smokes.demo.simple_unique_plugins',
                 group='pristan',
             ),
         ]
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
-    simple_slot_6.plugins.plugins.clear()
-    simple_slot_6.plugins.plugins_by_requested_names.clear()
-    simple_slot_6.loaded = False
-    sys.modules.pop(module_name, None)
+    with pytest.raises(PrimadonnaPluginError, match=match('Slot "simple_slot_6" requires unique plugin names, but "name" is already registered.')):
+        simple_slot_6()
 
-    try:
-        with pytest.raises(PrimadonnaPluginError, match=match('Slot "simple_slot_6" requires unique plugin names, but "name" is already registered.')):
-            simple_slot_6()
+    assert not simple_slot_6.loaded
 
-        assert not simple_slot_6.loaded
+    def get_empty_entries(group=None):
+        assert group == 'pristan'
+        return []
 
-        monkeypatch.setattr(slot_module, 'entry_points', lambda group=None: [])  # noqa: ARG005
+    monkeypatch.setattr(slot_module, 'entry_points', get_empty_entries)
 
-        assert simple_slot_6() == {'name': 1}
-        assert simple_slot_6.loaded
-    finally:
-        simple_slot_6.plugins.plugins.clear()
-        simple_slot_6.plugins.plugins_by_requested_names.clear()
-        simple_slot_6.loaded = False
-        sys.modules.pop(module_name, None)
+    assert simple_slot_6() == {'name': 1}
+    assert simple_slot_6.loaded
 
 
 def test_explicit_plugin_names_rejects_inferred_name_loaded_from_entrypoint(monkeypatch):
     """A real EntryPoint preserves strict plugin-name registration errors."""
-    module_name = 'tests.smokes.demo.simple_explicit_plugin_names_plugins'
-
-    def get_entries(group=None):  # noqa: ARG001
+    def get_entries(group=None):
+        assert group == 'pristan'
         return [
             EntryPoint(
                 name='entrypoint_name',
-                value=module_name,
+                value='tests.smokes.demo.simple_explicit_plugin_names_plugins',
                 group='pristan',
             ),
         ]
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
-    def reset_slot():
-        simple_explicit_plugin_names_slot.plugins.plugins.clear()
-        simple_explicit_plugin_names_slot.plugins.plugins_by_requested_names.clear()
-        simple_explicit_plugin_names_slot.loaded = False
-        sys.modules.pop(module_name, None)
+    with pytest.raises(ExplicitNameRequiredError, match=match('Slot "simple_explicit_plugin_names_slot" requires explicit plugin names.')):
+        simple_explicit_plugin_names_slot()
 
-    reset_slot()
-
-    try:
-        with pytest.raises(ExplicitNameRequiredError, match=match('Slot "simple_explicit_plugin_names_slot" requires explicit plugin names.')):
-            simple_explicit_plugin_names_slot()
-
-        assert not simple_explicit_plugin_names_slot.loaded
-        assert len(simple_explicit_plugin_names_slot) == 0
-    finally:
-        reset_slot()
+    assert not simple_explicit_plugin_names_slot.loaded
+    assert len(simple_explicit_plugin_names_slot) == 0

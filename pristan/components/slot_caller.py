@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generator, Generic, List, Type, Union
+from typing import Any, Dict, Generator, Generic, List, NoReturn, Type, Union
 
 from denial import InnerNoneType
 from printo import repred
@@ -13,6 +13,7 @@ from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
 from pristan.components.slot_code_representer import SlotCodeRepresenter
 from pristan.components.slot_code_representer import sentinel as return_type_sentinel
+from pristan.errors import OneResolutionError
 
 
 @repred
@@ -78,3 +79,19 @@ class CallerWithPlugins(Generic[PluginResult]):
 
     def __len__(self) -> int:
         return len(self.plugins)
+
+    @property
+    def one(self) -> 'CallerWithPlugins[PluginResult]':
+        if not self:
+            raise OneResolutionError(f'Selection from slot "{self.caller.slot_name}" has no selected plugins and the slot body is empty.')
+        if len(self) > 1:
+            raise OneResolutionError(f'Selection from slot "{self.caller.slot_name}" has {len(self)} selected plugins, so .one cannot choose one.')
+        return self
+
+    @one.setter
+    def one(self, value: Any) -> NoReturn:  # noqa: ARG002
+        raise AttributeError('Attribute ".one" is read-only.')
+
+    @one.deleter
+    def one(self) -> NoReturn:
+        raise AttributeError('Attribute ".one" is read-only.')
