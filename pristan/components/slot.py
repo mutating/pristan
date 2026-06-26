@@ -75,6 +75,32 @@ pop_default_sentinel = InnerNoneType()
     },
 )
 class Slot(Generic[PluginResult]):
+    """
+    A callable plugin slot created by the public ``@slot`` decorator.
+
+    Slots are usually created by decorating a function. Plugins can be attached
+    next to the slot with the slot's ``.plugin`` decorator:
+
+    >>> from pristan import slot
+    >>> @slot
+    ... def collect_values() -> list[int]:
+    ...     return []
+    >>> @collect_values.plugin
+    ... def collect_integer() -> int:
+    ...     return 1
+    >>> collect_values()
+    [1]
+
+    Plugins exposed through Python entry points are discovered lazily. Operations
+    that call the slot, select plugins, report the slot's internal plugin state,
+    or mutate that state resolve entry points before they inspect or change the
+    plugin collection.
+
+    Operations that mutate the slot's plugin collection are protected by the slot
+    mutex. Plugin registration through ``.plugin(...)`` is synchronized as well
+    and is the registration path used by modules loaded from entry points.
+    """
+
     def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], *, signature: Optional[SlotSignature], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool, explicit_plugin_names: bool = False) -> None:  # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
@@ -144,9 +170,11 @@ class Slot(Generic[PluginResult]):
         self._pop_plugins(key)
 
     def __contains__(self, item: Any) -> bool:
+        self._load_entrypoints()
         return item in self.plugins
 
     def __len__(self) -> int:
+        self._load_entrypoints()
         return len(self.plugins)
 
     @overload

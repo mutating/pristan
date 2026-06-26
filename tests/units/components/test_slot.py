@@ -48,7 +48,7 @@ def test_bool_loads_entrypoints_before_checking_local_plugins(monkeypatch):
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
-    assert len(slot) == 1
+    assert len(slot.plugins.plugins) == 1
 
     with pytest.raises(EntrypointLoadingError, match=match('An error occurred while loading entry points.')) as exception_info:
         bool(slot)
@@ -259,41 +259,88 @@ def test_bool_keeps_loaded_after_successful_load_and_inspection_error(monkeypatc
     assert requested_groups == ['pristan']
 
 
-def test_len_and_contains_do_not_load_entrypoints(monkeypatch):
-    """Length and valid membership checks remain plugin-only no-load operations."""
+def test_len_loads_entrypoints_before_counting_plugins(monkeypatch):
+    """Length resolves entry points before reading the plugin collection."""
     def empty_body():
         pass
 
     slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    requested_groups = []
+
+    class FakeEntryPoint:
+        def load(self):
+            @slot.plugin('plugin')
+            def plugin():
+                pass
 
     def get_entries(group=None):
-        assert group == 'pristan'
-        raise RuntimeError('provider')
+        requested_groups.append(group)
+        return [FakeEntryPoint()]
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
-    assert len(slot) == 0
-    assert 'plugin' not in slot
+    assert not slot.loaded
+    assert len(slot) == 1
+    assert slot.loaded
+    assert requested_groups == ['pristan']
+    assert [plugin.name for plugin in slot.plugins.plugins] == ['plugin']
 
 
-def test_invalid_contains_does_not_load_entrypoints(monkeypatch):
-    """Invalid membership checks raise local collection errors without loading."""
+def test_contains_loads_entrypoints_before_checking_plugins(monkeypatch):
+    """Membership checks resolve entry points before reading the plugin collection."""
     def empty_body():
         pass
 
     slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    requested_groups = []
+
+    class FakeEntryPoint:
+        def load(self):
+            @slot.plugin('plugin')
+            def plugin():
+                pass
 
     def get_entries(group=None):
-        assert group == 'pristan'
-        raise RuntimeError('provider')
+        requested_groups.append(group)
+        return [FakeEntryPoint()]
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
-    with pytest.raises(ValueError, match=match("The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. 'bad--' is not a valid name for a plugin.")):
-        'bad--' in slot  # noqa: B015
+    assert not slot.loaded
+    assert 'plugin' in slot
+    assert slot.loaded
+    assert requested_groups == ['pristan']
+    assert [plugin.name for plugin in slot.plugins.plugins] == ['plugin']
 
-    with pytest.raises(TypeError, match=match('Checking for inclusion is only possible for strings of a valid format or for plugin objects.')):
-        1 in slot  # noqa: B015
+
+@pytest.mark.parametrize(
+    ('item', 'exception', 'error_message'),
+    [
+        ('bad--', ValueError, "The plugin name string must look like either a valid Python identifier or an identifier plus one or more digits separated by a hyphen, for example, 'name-22'. 'bad--' is not a valid name for a plugin."),
+        (1, TypeError, 'Checking for inclusion is only possible for strings of a valid format or for plugin objects.'),
+    ],
+)
+def test_invalid_contains_loads_entrypoints_before_validation(monkeypatch, item, exception, error_message):
+    """Invalid membership checks raise local collection errors after loading."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    requested_groups = []
+
+    def get_entries(group=None):
+        requested_groups.append(group)
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    assert not slot.loaded
+
+    with pytest.raises(exception, match=match(error_message)):
+        item in slot  # noqa: B015
+
+    assert slot.loaded
+    assert requested_groups == ['pristan']
 
 
 def test_iter_creation_does_not_load_until_consumed(monkeypatch):
@@ -1579,10 +1626,10 @@ def test_popped_group_one_resolution_error_happens_after_parent_mutation(monkeyp
         _ = popped_selection.one
 
 
-@pytest.mark.parametrize('operation_name', ['bool', 'call', 'iter', 'keys', 'getitem', 'delitem', 'pop', 'pop-default', 'one'])
+@pytest.mark.parametrize('operation_name', ['bool', 'call', 'iter', 'keys', 'getitem', 'delitem', 'pop', 'pop-default', 'one', 'len', 'contains', 'contains-invalid'])
 @pytest.mark.parametrize('provider_name', ['provider-call', 'provider-iteration', 'point-load-runtime', 'point-load-key-error'])
 def test_entrypoint_loading_errors_are_wrapped_for_lazy_operation_matrix(monkeypatch, operation_name, provider_name):
-    """Lazy operations, including `.one`, wrap external entry point failures with their original cause."""
+    """Lazy operations, including state inspection, wrap external entry point failures with their original cause."""
     class FakeEntryPoint:
         def __init__(self, exception):
             self.exception = exception
@@ -1634,6 +1681,9 @@ def test_entrypoint_loading_errors_are_wrapped_for_lazy_operation_matrix(monkeyp
         'pop': lambda slot: slot.pop('missing'),
         'pop-default': lambda slot: slot.pop('missing', None),
         'one': lambda slot: slot.one,
+        'len': len,
+        'contains': lambda slot: 'missing' in slot,
+        'contains-invalid': lambda slot: 'bad--' in slot,
     }
     provider_cases = {
         'provider-call': (make_provider_call_failure, KeyError('provider')),
@@ -1718,11 +1768,11 @@ def test_pristan_errors_from_entrypoint_loading_stages_are_not_wrapped(monkeypat
     assert not slot.loaded
 
 
-@pytest.mark.parametrize('operation_name', ['bool', 'call', 'iter', 'keys', 'getitem', 'delitem', 'pop', 'pop-default', 'one'])
+@pytest.mark.parametrize('operation_name', ['bool', 'call', 'iter', 'keys', 'getitem', 'delitem', 'pop', 'pop-default', 'one', 'len', 'contains', 'contains-invalid'])
 @pytest.mark.parametrize('provider_name', ['provider-call', 'provider-iteration', 'point-load'])
 @pytest.mark.parametrize('cause_name', ['base-pristan', 'one-resolution'])
 def test_pristan_errors_from_entrypoint_loading_are_not_wrapped_for_lazy_operation_matrix(monkeypatch, operation_name, provider_name, cause_name):
-    """Lazy public operations, including defaulted pop and `.one`, pass through Pristan exceptions across loading stages."""
+    """Lazy public operations, including state inspection, pass through Pristan exceptions across loading stages."""
     class FakeEntryPoint:
         def __init__(self, exception):
             self.exception = exception
@@ -1774,6 +1824,9 @@ def test_pristan_errors_from_entrypoint_loading_are_not_wrapped_for_lazy_operati
         'pop': lambda slot: slot.pop('missing'),
         'pop-default': lambda slot: slot.pop('missing', None),
         'one': lambda slot: slot.one,
+        'len': len,
+        'contains': lambda slot: 'missing' in slot,
+        'contains-invalid': lambda slot: 'bad--' in slot,
     }
     provider_cases = {
         'provider-call': make_provider_call_failure,
@@ -2081,7 +2134,7 @@ def test_stable_load_failure_can_accumulate_partial_duplicates(monkeypatch):
     assert not slot.loaded
 
 
-@pytest.mark.parametrize('operation_name', ['bool', 'call', 'iter', 'keys', 'getitem', 'delitem', 'pop', 'pop-default', 'one'])
+@pytest.mark.parametrize('operation_name', ['bool', 'call', 'iter', 'keys', 'getitem', 'delitem', 'pop', 'pop-default', 'one', 'len', 'contains', 'contains-invalid'])
 @pytest.mark.parametrize('provider_name', ['provider-call', 'provider-iteration', 'point-load'])
 def test_base_exception_from_entrypoint_loading_passes_through(monkeypatch, operation_name, provider_name):
     """BaseException subclasses pass through every lazy loading operation."""
@@ -2144,6 +2197,9 @@ def test_base_exception_from_entrypoint_loading_passes_through(monkeypatch, oper
         'pop': lambda slot: slot.pop('missing'),
         'pop-default': lambda slot: slot.pop('missing', None),
         'one': lambda slot: slot.one,
+        'len': len,
+        'contains': lambda slot: 'missing' in slot,
+        'contains-invalid': lambda slot: 'bad--' in slot,
     }
     cause = CustomBaseException(provider_name)
     slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
