@@ -12,8 +12,10 @@ from pristan.errors import (
 )
 from tests.smokes.demo.simple_slots import (
     simple_bool_slot,
+    simple_contains_slot,
     simple_custom_one_slot,
     simple_explicit_plugin_names_slot,
+    simple_len_slot,
     simple_one_slot,
     simple_slot_1,
     simple_slot_2,
@@ -137,6 +139,46 @@ def test_slot_one_loads_plugin_from_real_entrypoint_and_calls_result(monkeypatch
     assert requested_groups == ['pristan']
 
 
+def test_len_loads_plugins_from_real_entrypoint(monkeypatch):
+    """Length loads a real entry point once and counts the registered plugin."""
+    requested_groups = []
+
+    def get_entries(group=None):
+        requested_groups.append(group)
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_len_plugins', group='pristan')]
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    assert not simple_len_slot.loaded
+    assert len(simple_len_slot) == 1
+    assert simple_len_slot.loaded
+    assert [plugin.name for plugin in simple_len_slot.plugins.plugins] == ['name']
+
+    assert len(simple_len_slot) == 1
+    assert simple_len_slot() == {'name': 9}
+    assert requested_groups == ['pristan']
+
+
+def test_contains_loads_plugins_from_real_entrypoint(monkeypatch):
+    """Membership checks load a real entry point once and inspect the registered plugin."""
+    requested_groups = []
+
+    def get_entries(group=None):
+        requested_groups.append(group)
+        return [EntryPoint(name='name', value='tests.smokes.demo.simple_contains_plugins', group='pristan')]
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    assert not simple_contains_slot.loaded
+    assert 'name' in simple_contains_slot
+    assert simple_contains_slot.loaded
+    assert [plugin.name for plugin in simple_contains_slot.plugins.plugins] == ['name']
+
+    assert 'name' in simple_contains_slot
+    assert simple_contains_slot() == {'name': 10}
+    assert requested_groups == ['pristan']
+
+
 def test_slot_one_loads_plugin_from_custom_entrypoint_group(monkeypatch):
     """`Slot.one` loads a custom-group entry point once into a callable selection."""
     requested_groups = []
@@ -239,4 +281,4 @@ def test_explicit_plugin_names_rejects_inferred_name_loaded_from_entrypoint(monk
         simple_explicit_plugin_names_slot()
 
     assert not simple_explicit_plugin_names_slot.loaded
-    assert len(simple_explicit_plugin_names_slot) == 0
+    assert simple_explicit_plugin_names_slot.plugins.plugins == []

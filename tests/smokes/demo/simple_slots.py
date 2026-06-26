@@ -51,6 +51,18 @@ def simple_one_slot() -> Dict[str, int]:
     return {}
 
 
+@slot
+def simple_len_slot() -> Dict[str, int]:
+    """For test_len_loads_plugins_from_real_entrypoint only; do not reuse."""
+    return {}
+
+
+@slot
+def simple_contains_slot() -> Dict[str, int]:
+    """For test_contains_loads_plugins_from_real_entrypoint only; do not reuse."""
+    return {}
+
+
 @slot(entrypoint_group='another_name')
 def simple_custom_one_slot() -> Dict[str, int]:
     """For test_slot_one_loads_plugin_from_custom_entrypoint_group only; do not reuse."""
