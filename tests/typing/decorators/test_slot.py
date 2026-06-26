@@ -4,7 +4,7 @@ import sys
 from typing import Any, Callable, Dict, List
 
 import pytest
-from typing_extensions import assert_type, reveal_type
+from typing_extensions import reveal_type
 
 import pristan.components.slot as slot_module
 from pristan import slot
@@ -1037,10 +1037,10 @@ def test_typing_generics_one_preserves_result_types():
     reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
     reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
 
-    assert_type(collect_list.one, SlotSelectionProtocol[[str], List[int], int])  # E: [assert-type]
-    assert_type(collect_dict.one, SlotSelectionProtocol[[str], Dict[str, int], int])  # E: [assert-type]
-    assert_type(list_selection.one, SlotSelectionProtocol[[str], List[int], int])  # E: [assert-type]
-    assert_type(dict_selection.one, SlotSelectionProtocol[[str], Dict[str, int], int])  # E: [assert-type]
+    wrong_list_selection: Callable[[str], List[int]] = collect_list.one  # E: [assignment]  # noqa: F841
+    wrong_dict_selection: Callable[[str], Dict[str, int]] = collect_dict.one  # E: [assignment]  # noqa: F841
+    wrong_selected_list_selection: Callable[[str], List[int]] = list_selection.one  # E: [assignment]  # noqa: F841
+    wrong_selected_dict_selection: Callable[[str], Dict[str, int]] = dict_selection.one  # E: [assignment]  # noqa: F841
     wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
     wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
     wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
@@ -1113,10 +1113,10 @@ def test_built_in_generics_one_preserves_result_types():
     reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
     reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
 
-    assert_type(collect_list.one, SlotSelectionProtocol[[str], list[int], int])  # E: [assert-type]
-    assert_type(collect_dict.one, SlotSelectionProtocol[[str], dict[str, int], int])  # E: [assert-type]
-    assert_type(list_selection.one, SlotSelectionProtocol[[str], list[int], int])  # E: [assert-type]
-    assert_type(dict_selection.one, SlotSelectionProtocol[[str], dict[str, int], int])  # E: [assert-type]
+    wrong_list_selection: Callable[[str], list[int]] = collect_list.one  # E: [assignment]  # noqa: F841
+    wrong_dict_selection: Callable[[str], dict[str, int]] = collect_dict.one  # E: [assignment]  # noqa: F841
+    wrong_selected_list_selection: Callable[[str], list[int]] = list_selection.one  # E: [assignment]  # noqa: F841
+    wrong_selected_dict_selection: Callable[[str], dict[str, int]] = dict_selection.one  # E: [assignment]  # noqa: F841
     wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
     wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
     wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
