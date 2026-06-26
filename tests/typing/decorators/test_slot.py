@@ -1146,7 +1146,7 @@ def test_one_protocols_accept_slot_and_selection():
 
 @pytest.mark.mypy_testing
 def test_one_read_only_surface_rejects_assignment_and_deletion():
-    """`.one` rejects assignment statically and deletion at runtime on slots and selections."""
+    """`.one` rejects assignment and deletion on slots and selections."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []

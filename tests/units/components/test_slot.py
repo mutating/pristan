@@ -1,4 +1,3 @@
-import sys
 from typing import Dict, List
 
 import pytest
@@ -672,20 +671,13 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
     assert [plugin.name for plugin in slot.one] == ['plugin']
     assert selection.one is selection
 
-    if sys.version_info < (3, 11):
-        setter_message = "can't set attribute"
-        deleter_message = "can't delete attribute"
-    else:
-        setter_message = "property 'one' of '{class_name}' object has no setter"
-        deleter_message = "property 'one' of '{class_name}' object has no deleter"
-
-    with pytest.raises(AttributeError, match=match(setter_message.format(class_name='Slot'))):
+    with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         slot.one = object()  # type: ignore[misc]
-    with pytest.raises(AttributeError, match=match(setter_message.format(class_name='CallerWithPlugins'))):
+    with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         selection.one = object()  # type: ignore[misc]
-    with pytest.raises(AttributeError, match=match(deleter_message.format(class_name='Slot'))):
+    with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         del slot.one  # type: ignore[misc]
-    with pytest.raises(AttributeError, match=match(deleter_message.format(class_name='CallerWithPlugins'))):
+    with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         del selection.one  # type: ignore[misc]
 
     assert [plugin.name for plugin in slot.one] == ['plugin']
