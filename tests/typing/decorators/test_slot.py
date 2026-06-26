@@ -4,8 +4,9 @@ import sys
 from typing import Any, Callable, Dict, List
 
 import pytest
-from typing_extensions import reveal_type
+from typing_extensions import assert_type, reveal_type
 
+import pristan.components.slot as slot_module
 from pristan import slot
 from pristan.common_types import (
     SlotDecoratorProtocol,
@@ -15,14 +16,18 @@ from pristan.common_types import (
 from pristan.errors import CannotGetVersionsError, StrangeTypeAnnotationError
 
 
+@pytest.fixture(autouse=True)
+def clean_entrypoints(monkeypatch):
+    """Typing tests do not depend on installed entry points."""
+    monkeypatch.setattr(slot_module, 'entry_points', lambda group=None: [])  # noqa: ARG005
+
+
 @pytest.mark.mypy_testing
 def test_typing_collection_result_matrix_preserves_exact_slot_types():
-    """Explicitly cover decorator and typing collection combinations.
+    """Cover decorator, `.one`, and typing collection combinations.
 
-    `pytest-mypy-testing` checks this source statically, so pytest fixtures such
-    as `folder_slot`, `list_type`, and `dict_type` would not create typed mypy
-    variants. Keeping the matrix in one function preserves the `@slot`/`@slot()`
-    and `List`/`Dict` coverage without duplicating separate mypy items.
+    Mypy sees this file statically, so the matrix keeps normal calls,
+    `@slot`/`@slot()`, and `List`/`Dict` variants explicit.
     """
     @slot
     def bare_list_slot(value: int) -> List[int]:  # noqa: ARG001
@@ -40,20 +45,39 @@ def test_typing_collection_result_matrix_preserves_exact_slot_types():
     def factory_dictionary_slot(value: int) -> Dict[str, int]:  # noqa: ARG001
         return {}
 
+    @bare_list_slot.plugin('bare_list')
+    def bare_list_plugin(value: int) -> int:
+        return value
+
+    @bare_dictionary_slot.plugin('bare_dictionary')
+    def bare_dictionary_plugin(value: int) -> int:
+        return value
+
+    @factory_list_slot.plugin('factory_list')
+    def factory_list_plugin(value: int) -> int:
+        return value
+
+    @factory_dictionary_slot.plugin('factory_dictionary')
+    def factory_dictionary_plugin(value: int) -> int:
+        return value
+
     reveal_type(bare_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(bare_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(factory_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(factory_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(bare_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(bare_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(factory_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(factory_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(bare_dictionary_slot.keys())  # R: builtins.tuple[builtins.str, ...]
     reveal_type(factory_dictionary_slot.keys())  # R: builtins.tuple[builtins.str, ...]
 
 
 @pytest.mark.mypy_testing
 def test_slot_without_return_annotation_is_typed_as_any_in_both_forms():
-    """Unannotated slots keep Any call results in both decorator forms.
+    """Unannotated slots and selections keep Any call results through `.one`.
 
-    The reveal checks cover `@slot` and `@slot()`, while the plugin calls keep
-    both plugin decorator forms runnable at runtime.
+    Covers `@slot`/`@slot()` and both plugin decorator forms.
     """
     @slot
     def notify(value: int):  # noqa: ARG001
@@ -73,6 +97,10 @@ def test_slot_without_return_annotation_is_typed_as_any_in_both_forms():
 
     reveal_type(notify(1))  # R: Any
     reveal_type(notify_too(1))  # R: Any
+    reveal_type(notify.one(1))  # R: Any
+    reveal_type(notify_too.one(1))  # R: Any
+    reveal_type(notify['plugin_without_parentheses'].one(1))  # R: Any
+    reveal_type(notify_too['plugin_with_parentheses'].one(1))  # R: Any
 
     plugin_without_parentheses(1)
     plugin_with_parentheses(1)
@@ -80,6 +108,7 @@ def test_slot_without_return_annotation_is_typed_as_any_in_both_forms():
 
 @pytest.mark.mypy_testing
 def test_slot_configuration_arguments_include_explicit_plugin_names():
+    """Configured decorators keep normal and `.one` calls typed under strict naming."""
     @slot('some_another_slot_name')
     def slot_with_positional_name(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -108,6 +137,34 @@ def test_slot_configuration_arguments_include_explicit_plugin_names():
     def configured_slot_with_signature_list(value: int, context: str = '') -> List[int]:  # noqa: ARG001
         return []
 
+    @slot_with_positional_name.plugin('positional_plugin')
+    def positional_plugin(value: int) -> int:
+        return value
+
+    @unique_slot_with_positional_name.plugin('unique_positional_plugin')
+    def unique_positional_plugin(value: int) -> int:
+        return value
+
+    @slot_with_keyword_name.plugin('keyword_plugin')
+    def keyword_plugin(value: int) -> int:
+        return value
+
+    @unique_slot.plugin('unique_plugin')
+    def unique_plugin(value: int) -> int:
+        return value
+
+    @explicit_plugin_names_slot.plugin('explicit_plugin')
+    def explicit_plugin(value: int) -> int:
+        return value
+
+    @configured_slot.plugin('configured_plugin')
+    def configured_plugin(value: int) -> int:
+        return value
+
+    @configured_slot_with_signature_list.plugin('signature_list_plugin')
+    def signature_list_plugin(value: int, context: str = '') -> int:  # noqa: ARG001
+        return value
+
     reveal_type(slot_with_positional_name(1))  # R: builtins.list[builtins.int]
     reveal_type(unique_slot_with_positional_name(1))  # R: builtins.list[builtins.int]
     reveal_type(slot_with_keyword_name(1))  # R: builtins.dict[builtins.str, builtins.int]
@@ -116,21 +173,22 @@ def test_slot_configuration_arguments_include_explicit_plugin_names():
     reveal_type(configured_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot_with_signature_list(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot_with_signature_list(1, 'context'))  # R: builtins.list[builtins.int]
+    reveal_type(slot_with_positional_name.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(unique_slot_with_positional_name.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(slot_with_keyword_name.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(unique_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(explicit_plugin_names_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_slot_with_signature_list.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_slot_with_signature_list.one(1, 'context'))  # R: builtins.list[builtins.int]
     configured_slot_with_signature_list(1, 2)  # E: [arg-type]
 
 
 @pytest.mark.mypy_testing
 def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names():
-    """Direct-call slot overloads preserve call and plugin result types.
+    """Direct-call overloads preserve call, plugin, and `.one` result types.
 
-    The configured direct-call form accepts the same keyword options as the
-    decorator-factory form, including `unique` and `explicit_plugin_names`.
-    Assignments and reveal checks cover default and configured direct calls,
-    signature strings and lists, custom options, precise list and dict results,
-    and the unannotated `Any` result. The `typed_notify` block keeps the static
-    `None` expectation covered while documenting the current runtime
-    `StrangeTypeAnnotationError`. Iteration over slots with signature lists
-    proves that plugin result types are kept as well.
+    Covers factory options, signatures, result shapes, and plugin iteration.
     """
     def collect_list(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -155,6 +213,8 @@ def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names(
         signature_list_notify_slot = slot(typed_notify, signature=['.'])
         signature_list_notify_view: SlotProtocol[[int], None, Any] = signature_list_notify_slot
         reveal_type(signature_list_notify_slot(1))  # R: None
+        reveal_type(signature_list_notify_slot.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], None, Any]
+        reveal_type(signature_list_notify_slot.one(1))  # R: None
         signature_list_notify_view(1)
 
         for signature_list_notify_plugin in signature_list_notify_slot:
@@ -193,6 +253,100 @@ def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names(
 
     for signature_list_dict_plugin in signature_list_dict_slot:
         reveal_type(signature_list_dict_plugin(1))  # R: builtins.int
+
+
+@pytest.mark.mypy_testing
+def test_slot_direct_call_one_preserves_result_types():
+    """Direct-call slot forms expose `.one` with the same result types."""
+    def collect_list(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    def collect_dict(value: int) -> Dict[str, int]:  # noqa: ARG001
+        return {}
+
+    def notify(value: int):  # noqa: ARG001
+        return None
+
+    default_list_slot = slot(collect_list)
+    list_slot = slot(collect_list, unique=True, explicit_plugin_names=True)
+    signature_list_slot = slot(collect_list, signature=['.'])
+    dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
+    signature_list_dict_slot = slot(collect_dict, signature=['.'])
+    notify_slot = slot(notify, unique=True)
+
+    @default_list_slot.plugin('default_list')
+    def default_list_plugin(value: int) -> int:
+        return value
+
+    @list_slot.plugin('list_plugin')
+    def list_plugin(value: int) -> int:
+        return value
+
+    @signature_list_slot.plugin('signature_list')
+    def signature_list_plugin(value: int) -> int:
+        return value
+
+    @dict_slot.plugin('dict_plugin')
+    def dict_plugin(value: int) -> int:
+        return value
+
+    @signature_list_dict_slot.plugin('signature_list_dict')
+    def signature_list_dict_plugin(value: int) -> int:
+        return value
+
+    @notify_slot.plugin('notify')
+    def notify_plugin(value: int) -> str:
+        return str(value)
+
+    reveal_type(default_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(signature_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(signature_list_dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(notify_slot.one(1))  # R: Any
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
+@pytest.mark.mypy_testing
+def test_slot_direct_call_one_preserves_built_in_result_types():
+    """Direct-call slot forms expose `.one` with built-in generic result types."""
+    def collect_list(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    def collect_dict(value: int) -> dict[str, int]:  # noqa: ARG001
+        return {}
+
+    default_list_slot = slot(collect_list)
+    list_slot = slot(collect_list, unique=True, explicit_plugin_names=True)
+    signature_list_slot = slot(collect_list, signature=['.'])
+    dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
+    signature_list_dict_slot = slot(collect_dict, signature=['.'])
+
+    @default_list_slot.plugin('default_list')
+    def default_list_plugin(value: int) -> int:
+        return value
+
+    @list_slot.plugin('list_plugin')
+    def list_plugin(value: int) -> int:
+        return value
+
+    @signature_list_slot.plugin('signature_list')
+    def signature_list_plugin(value: int) -> int:
+        return value
+
+    @dict_slot.plugin('dict_plugin')
+    def dict_plugin(value: int) -> int:
+        return value
+
+    @signature_list_dict_slot.plugin('signature_list_dict')
+    def signature_list_dict_plugin(value: int) -> int:
+        return value
+
+    reveal_type(default_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(signature_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(signature_list_dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
 
 
 @pytest.mark.mypy_testing
@@ -286,6 +440,7 @@ def test_non_existent_slot_selection_keeps_slot_call_contract():
 
 @pytest.mark.mypy_testing
 def test_slot_pop_returns_selection_type():
+    """Popped selections keep their call and `.one` result types."""
     @slot
     def collect_list(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -302,17 +457,23 @@ def test_slot_pop_returns_selection_type():
     def dict_plugin(value: int) -> int:
         return value
 
-    popped_list = collect_list.pop('name')
-    popped_dict = collect_dict.pop('name')
+    popped_list_selection = collect_list.pop('name')
+    popped_dict_selection = collect_dict.pop('name')
 
-    popped_list_view: SlotSelectionProtocol[[int], List[int], int] = popped_list
-    popped_dict_view: SlotSelectionProtocol[[int], Dict[str, int], int] = popped_dict
+    popped_list_selection_view: SlotSelectionProtocol[[int], List[int], int] = popped_list_selection
+    popped_dict_selection_view: SlotSelectionProtocol[[int], Dict[str, int], int] = popped_dict_selection
 
-    reveal_type(popped_list(1))  # R: builtins.list[builtins.int]
-    reveal_type(popped_dict(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(popped_list_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(popped_dict_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(popped_list_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(popped_dict_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(popped_list_selection(1))  # R: builtins.list[builtins.int]
+    reveal_type(popped_dict_selection(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(popped_list_selection.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(popped_dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
 
-    popped_list_view(1)
-    popped_dict_view(1)
+    popped_list_selection_view(1)
+    popped_dict_selection_view(1)
 
 
 @pytest.mark.mypy_testing
@@ -597,6 +758,7 @@ def test_collection_api_reports_wrong_argument_types():
 
 @pytest.mark.mypy_testing
 def test_slot_with_loose_list_and_dict_annotations_keeps_any_payload_type():
+    """Loose built-in containers keep Any payload types through `.one`."""
     @slot
     def collect_list() -> list:
         return []
@@ -615,6 +777,37 @@ def test_slot_with_loose_list_and_dict_annotations_keeps_any_payload_type():
 
     reveal_type(collect_list())  # R: builtins.list[Any]
     reveal_type(collect_dict())  # R: builtins.dict[builtins.str, Any]
+    reveal_type(collect_list.one())  # R: builtins.list[Any]
+    reveal_type(collect_dict.one())  # R: builtins.dict[builtins.str, Any]
+    reveal_type(collect_list['list_plugin'].one())  # R: builtins.list[Any]
+    reveal_type(collect_dict['dict_plugin'].one())  # R: builtins.dict[builtins.str, Any]
+
+
+@pytest.mark.mypy_testing
+def test_slot_with_loose_typing_list_and_dict_annotations_keeps_any_payload_type():
+    """Loose typing containers keep Any payload types through `.one`."""
+    @slot
+    def collect_list() -> List:
+        return []
+
+    @slot
+    def collect_dict() -> Dict:
+        return {}
+
+    @collect_list.plugin
+    def list_plugin() -> str:
+        return 'value'
+
+    @collect_dict.plugin
+    def dict_plugin() -> str:
+        return 'value'
+
+    reveal_type(collect_list())  # R: builtins.list[Any]
+    reveal_type(collect_dict())  # R: builtins.dict[builtins.str, Any]
+    reveal_type(collect_list.one())  # R: builtins.list[Any]
+    reveal_type(collect_dict.one())  # R: builtins.dict[builtins.str, Any]
+    reveal_type(collect_list['list_plugin'].one())  # R: builtins.list[Any]
+    reveal_type(collect_dict['dict_plugin'].one())  # R: builtins.dict[builtins.str, Any]
 
 
 @pytest.mark.mypy_testing
@@ -638,10 +831,10 @@ def test_decorated_plugin_type_is_not_widened():
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_built_in_generic_result_matrix_preserves_exact_slot_types():
-    """Explicitly cover decorator and built-in collection combinations.
+    """Cover decorator, `.one`, and built-in collection combinations.
 
-    The static matrix mirrors the typing-collection test because fixtures and
-    pytest parametrization do not specialize the source that mypy receives.
+    Mypy sees this file statically, so the matrix keeps built-in list/dict and
+    configured variants explicit.
     """
     @slot
     def bare_dictionary_slot(value: int) -> dict[str, int]:  # noqa: ARG001
@@ -659,10 +852,92 @@ def test_built_in_generic_result_matrix_preserves_exact_slot_types():
     def factory_list_slot(value: int) -> list[int]:  # noqa: ARG001
         return []
 
+    @slot(name='builtin_keyword')
+    def keyword_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot('builtin_positional')
+    def positional_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(unique=True)
+    def unique_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(explicit_plugin_names=True)
+    def explicit_plugin_names_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(signature='.', max=1, type_check=False)
+    def configured_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(signature=['..', '.'])
+    def configured_list_slot_with_signature_list(value: int, context: str = '') -> list[int]:  # noqa: ARG001
+        return []
+
+    @bare_dictionary_slot.plugin('bare_dictionary')
+    def bare_dictionary_plugin(value: int) -> int:
+        return value
+
+    @bare_list_slot.plugin('bare_list')
+    def bare_list_plugin(value: int) -> int:
+        return value
+
+    @factory_dictionary_slot.plugin('factory_dictionary')
+    def factory_dictionary_plugin(value: int) -> int:
+        return value
+
+    @factory_list_slot.plugin('factory_list')
+    def factory_list_plugin(value: int) -> int:
+        return value
+
+    @keyword_list_slot.plugin('keyword')
+    def keyword_plugin(value: int) -> int:
+        return value
+
+    @positional_list_slot.plugin('positional')
+    def positional_plugin(value: int) -> int:
+        return value
+
+    @unique_list_slot.plugin('unique')
+    def unique_plugin(value: int) -> int:
+        return value
+
+    @explicit_plugin_names_slot.plugin('explicit')
+    def explicit_plugin(value: int) -> int:
+        return value
+
+    @configured_list_slot.plugin('configured')
+    def configured_plugin(value: int) -> int:
+        return value
+
+    @configured_list_slot_with_signature_list.plugin('signature_list')
+    def signature_list_plugin(value: int, context: str = '') -> int:  # noqa: ARG001
+        return value
+
     reveal_type(bare_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(bare_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(factory_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(factory_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(keyword_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(positional_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(unique_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(explicit_plugin_names_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_list_slot_with_signature_list(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_list_slot_with_signature_list(1, 'context'))  # R: builtins.list[builtins.int]
+    reveal_type(bare_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(bare_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(factory_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(factory_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(keyword_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(positional_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(unique_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(explicit_plugin_names_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_list_slot_with_signature_list.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_list_slot_with_signature_list.one(1, 'context'))  # R: builtins.list[builtins.int]
     reveal_type(bare_list_slot['name'](1))  # R: builtins.list[builtins.int]
     reveal_type(factory_list_slot['name'](1))  # R: builtins.list[builtins.int]
 
@@ -692,6 +967,7 @@ def test_built_in_generic_results_are_not_widened():
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_slot_pop_returns_selection_type_for_built_in_generics():
+    """Popped built-in generic selections keep call, `.one`, and default-pop types."""
     @slot
     def collect(value: int) -> list[int]:  # noqa: ARG001
         return []
@@ -700,8 +976,11 @@ def test_slot_pop_returns_selection_type_for_built_in_generics():
     def plugin(value: int) -> int:
         return value
 
-    popped = collect.pop('name')
-    reveal_type(popped(1))  # R: builtins.list[builtins.int]
+    popped_selection = collect.pop('name')
+    reveal_type(popped_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(popped_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(popped_selection(1))  # R: builtins.list[builtins.int]
+    reveal_type(popped_selection.one(1))  # R: builtins.list[builtins.int]
     reveal_type(collect.pop('name', 'fallback'))  # R: Union[pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int], builtins.str]
 
 
@@ -723,3 +1002,183 @@ def test_plugin_return_type_mismatch_is_reported_for_built_in_generics():
     @collect_dict.plugin(run_once=True)  # E: [arg-type]
     def bad_dict_plugin(value: int) -> str:
         return str(value)
+
+
+@pytest.mark.mypy_testing
+def test_typing_generics_one_preserves_result_types():
+    """`.one` keeps typing-generic call result types for slots and selections."""
+    @slot
+    def collect_list(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot
+    def collect_dict(value: int) -> Dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @collect_list.plugin('list_plugin')
+    def list_plugin(value: int) -> int:
+        return value
+
+    @collect_dict.plugin('dict_plugin')
+    def dict_plugin(value: int) -> int:
+        return value
+
+    list_selection = collect_list['list_plugin']
+    dict_selection = collect_dict['dict_plugin']
+
+    reveal_type(collect_list.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(collect_dict.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(list_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(dict_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(list_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(dict_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(collect_list.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(collect_dict.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+
+    assert_type(collect_list.one, SlotSelectionProtocol[[str], List[int], int])  # E: [assert-type]
+    assert_type(collect_dict.one, SlotSelectionProtocol[[str], Dict[str, int], int])  # E: [assert-type]
+    assert_type(list_selection.one, SlotSelectionProtocol[[str], List[int], int])  # E: [assert-type]
+    assert_type(dict_selection.one, SlotSelectionProtocol[[str], Dict[str, int], int])  # E: [assert-type]
+    wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
+    wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
+    wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
+    wrong_selection_dict_result: List[int] = dict_selection.one(1)  # E: [assignment]  # noqa: F841
+
+
+@pytest.mark.mypy_testing
+def test_one_preserves_accepted_and_rejected_call_shapes():
+    """`.one` preserves accepted and rejected call shapes for slots and selections."""
+    @slot
+    def collect(value: int, label: str = 'default', *, enabled: bool = True) -> List[str]:  # noqa: ARG001
+        return []
+
+    @collect.plugin('name')
+    def plugin(value: int, label: str = 'default', *, enabled: bool = True) -> str:
+        return f'{value + 1}:{label}:{enabled}'
+
+    selection = collect['name']
+
+    reveal_type(collect.one(1))  # R: builtins.list[builtins.str]
+    reveal_type(collect.one(1, 'label', enabled=False))  # R: builtins.list[builtins.str]
+    reveal_type(selection.one(1))  # R: builtins.list[builtins.str]
+    reveal_type(selection.one(1, 'label', enabled=False))  # R: builtins.list[builtins.str]
+
+    with pytest.raises(TypeError):
+        collect.one('value')  # E: [arg-type]
+    with pytest.raises(TypeError):
+        collect.one()  # E: [call-arg]
+    with pytest.raises(TypeError):
+        collect.one(1, unknown=True)  # E: [call-arg]
+    with pytest.raises(TypeError):
+        selection.one('value')  # E: [arg-type]
+    with pytest.raises(TypeError):
+        selection.one()  # E: [call-arg]
+    with pytest.raises(TypeError):
+        selection.one(1, unknown=True)  # E: [call-arg]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
+@pytest.mark.mypy_testing
+def test_built_in_generics_one_preserves_result_types():
+    """`.one` keeps built-in generic call result types for slots and selections."""
+    @slot
+    def collect_list(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot
+    def collect_dict(value: int) -> dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @collect_list.plugin('list_plugin')
+    def list_plugin(value: int) -> int:
+        return value
+
+    @collect_dict.plugin('dict_plugin')
+    def dict_plugin(value: int) -> int:
+        return value
+
+    list_selection = collect_list['list_plugin']
+    dict_selection = collect_dict['dict_plugin']
+
+    reveal_type(collect_list.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(collect_dict.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(list_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(dict_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(list_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
+    reveal_type(dict_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(collect_list.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(collect_dict.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+
+    assert_type(collect_list.one, SlotSelectionProtocol[[str], list[int], int])  # E: [assert-type]
+    assert_type(collect_dict.one, SlotSelectionProtocol[[str], dict[str, int], int])  # E: [assert-type]
+    assert_type(list_selection.one, SlotSelectionProtocol[[str], list[int], int])  # E: [assert-type]
+    assert_type(dict_selection.one, SlotSelectionProtocol[[str], dict[str, int], int])  # E: [assert-type]
+    wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
+    wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
+    wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
+    wrong_selection_dict_result: List[int] = dict_selection.one(1)  # E: [assignment]  # noqa: F841
+
+
+@pytest.mark.mypy_testing
+def test_one_protocols_accept_slot_and_selection():
+    """Protocols expose `.one` with the same callable surface as concrete values."""
+    @slot
+    def collect(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @collect.plugin('name')
+    def plugin(value: int) -> int:
+        return value
+
+    def call_slot(target: 'SlotProtocol[[int], List[int], int]') -> List[int]:
+        return target.one(1)
+
+    def call_selection(target: 'SlotSelectionProtocol[[int], List[int], int]') -> List[int]:
+        return target.one(1)
+
+    reveal_type(call_slot(collect))  # R: builtins.list[builtins.int]
+    reveal_type(call_selection(collect['name']))  # R: builtins.list[builtins.int]
+
+
+@pytest.mark.mypy_testing
+def test_one_read_only_surface_rejects_assignment_and_deletion():
+    """`.one` rejects assignment statically and deletion at runtime on slots and selections."""
+    @slot
+    def collect(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    selection = collect['name']
+    collect_view: SlotProtocol[[int], List[int], int] = collect
+    selection_view: SlotSelectionProtocol[[int], List[int], int] = selection
+
+    with pytest.raises(AttributeError):
+        collect.one = selection  # E: [misc]
+    with pytest.raises(AttributeError):
+        selection.one = selection  # E: [misc]
+    with pytest.raises(AttributeError):
+        del collect_view.one
+    with pytest.raises(AttributeError):
+        del selection_view.one
+
+
+@pytest.mark.mypy_testing
+def test_pop_with_default_exposes_one_after_selection_narrowing():
+    """Pop with a default exposes `.one` in the narrowed selection branch."""
+    @slot
+    def collect(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @collect.plugin('name')
+    def plugin(value: int) -> int:
+        return value
+
+    popped_or_default = collect.pop('name', 'fallback')
+
+    if isinstance(popped_or_default, str):
+        reveal_type(popped_or_default)  # R: builtins.str
+    else:
+        reveal_type(popped_or_default.one(1))  # R: builtins.list[builtins.int]
