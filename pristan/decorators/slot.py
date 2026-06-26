@@ -49,7 +49,6 @@ def slot(function: Optional[object] = None, /, *, signature: Optional[SlotSignat
     mutex. Plugin registration through ``.plugin(...)`` is synchronized as well
     and is the registration path used by modules loaded from entry points.
     """
-
     if callable(function):
         return wraps(function)(Slot(function, signature=signature, slot_name=name, max=max, type_check=type_check, entrypoint_group=entrypoint_group, unique=unique, explicit_plugin_names=explicit_plugin_names))
 
