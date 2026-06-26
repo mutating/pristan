@@ -889,6 +889,14 @@ def test_strange_slot_return_type_annotation(folder_slot):
             ...
 
 
+def test_typed_none_slot_still_raises_before_one_can_resolve():
+    """None-annotated slots fail during decoration before `.one` can be read."""
+    with pytest.raises(StrangeTypeAnnotationError, match=match('The return type annotation for a slot must be either a list or a dict, or remain empty.')):
+        @slot
+        def some_slot() -> None:
+            pass
+
+
 def test_plugin_name_is_not_valid_python_identifier(folder_slot):
     @folder_slot(slot)
     def some_slot(a, b):
