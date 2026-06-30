@@ -1718,7 +1718,7 @@ def test_getitem_repr(folder_slot, folder_plugin):
     def plugin(a, b=3):  # noqa: F811
         ...
 
-    assert repr(some_slot['plugin']) == 'CallerWithPlugins(caller=SlotCaller(code_representation=SlotCodeRepresenter(some_slot), slot_name=\'some_slot\', slot_function=some_slot, type_check=True), plugins=[Plugin(\'plugin\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'plugin-2\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
+    assert repr(some_slot['plugin']) == 'CallerWithPlugins(caller=SlotCaller(slot=Slot(some_slot)), plugins=[Plugin(\'plugin\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False), Plugin(\'plugin-2\', plugin_function=plugin, expected_result_type=InnerNoneType(1), type_check=True, unique=False)])'
 
 
 def test_keys(folder_slot, folder_plugin):

@@ -142,7 +142,7 @@ def test_bool_short_circuits_default_body_when_plugins_exist(monkeypatch):
         assert group == 'pristan'
         return []
 
-    slot.caller.code_representation = BrokenCodeRepresentation()
+    slot.code_representation = BrokenCodeRepresentation()
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert bool(slot)
@@ -246,7 +246,7 @@ def test_bool_keeps_loaded_after_successful_load_and_inspection_error(monkeypatc
         return []
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
-    slot.caller.code_representation = BrokenCodeRepresentation()
+    slot.code_representation = BrokenCodeRepresentation()
 
     with pytest.raises(RuntimeError, match=match('inspection failed')):
         bool(slot)
@@ -515,7 +515,7 @@ def test_selection_bool_branches(monkeypatch):
     def plugin():
         return None
 
-    slot_with_plugin.caller.code_representation = BrokenCodeRepresentation()
+    slot_with_plugin.code_representation = BrokenCodeRepresentation()
 
     assert bool(slot_with_plugin['plugin'])
 
@@ -1364,7 +1364,7 @@ def test_slot_one_plugin_count_resolution_skips_fallback_body():
             def plugin():
                 return None
 
-        slot.caller.code_representation = BrokenCodeRepresentation()
+        slot.code_representation = BrokenCodeRepresentation()
         slot._load_entrypoints = lambda: None  # type: ignore[method-assign]
 
         if plugin_count == 1:
@@ -1450,7 +1450,7 @@ def test_slot_one_propagates_body_inspection_errors_without_plugins(monkeypatch)
         return []
 
     slot = empty_body
-    slot.caller.code_representation = BrokenCodeRepresentation()
+    slot.code_representation = BrokenCodeRepresentation()
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     with pytest.raises(RuntimeError, match=match('inspection failed')):
@@ -1489,7 +1489,7 @@ def test_one_result_type_checks_happen_on_call_for_plugins_and_fallback(monkeypa
 
     fallback_slot = fallback_body
     fallback_selection = fallback_slot.one
-    fallback_expected_type = List[fallback_selection.caller.code_representation.returning_type]
+    fallback_expected_type = List[fallback_slot.code_representation.returning_type]
     fallback_expected_type_name = getattr(fallback_expected_type, '__name__', str(fallback_expected_type))
 
     with pytest.raises(TypeError, match=match(f'The type list of the plugin\'s "fallback_body" return value [1] does not match the expected type {fallback_expected_type_name}.')):

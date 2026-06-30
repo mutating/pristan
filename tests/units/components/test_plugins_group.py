@@ -3,14 +3,13 @@ from full_match import match
 
 from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
-from pristan.components.slot_caller import SlotCaller
-from pristan.components.slot_code_representer import SlotCodeRepresenter
+from pristan.components.slot import Slot
 
 
 @pytest.fixture
 def group_with_named_duplicates():
     """Build a group with duplicate plugin names for deletion and renumbering tests."""
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -23,21 +22,21 @@ def group_with_named_duplicates():
 
 
 def test_bool():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
 
     assert not PluginsGroup(caller)
     assert PluginsGroup(caller, plugins=[Plugin('name', lambda x: x, int, False, False)])
 
 
 def test_repr():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
 
-    assert repr(PluginsGroup(caller)) == 'PluginsGroup(SlotCaller(code_representation=SlotCodeRepresenter(λ), slot_name=\'kek\', slot_function=λ, type_check=False))'
-    assert repr(PluginsGroup(caller, plugins=[Plugin('name', lambda x: x, int, False, False)])) == 'PluginsGroup(SlotCaller(code_representation=SlotCodeRepresenter(λ), slot_name=\'kek\', slot_function=λ, type_check=False), plugins=[Plugin(\'name\', plugin_function=lambda x: x, expected_result_type=int, type_check=False, unique=False)])'
+    assert repr(PluginsGroup(caller)) == 'PluginsGroup(SlotCaller(slot=Slot(lambda x: x, slot_name=\'kek\', type_check=False)))'
+    assert repr(PluginsGroup(caller, plugins=[Plugin('name', lambda x: x, int, False, False)])) == 'PluginsGroup(SlotCaller(slot=Slot(lambda x: x, slot_name=\'kek\', type_check=False)), plugins=[Plugin(\'name\', plugin_function=lambda x: x, expected_result_type=int, type_check=False, unique=False)])'
 
 
 def test_it_saves_default_plugins_without_renaming():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -53,7 +52,7 @@ def test_it_saves_default_plugins_without_renaming():
 
 
 def test_it_saves_plugins_without_renaming():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -73,7 +72,7 @@ def test_it_saves_plugins_without_renaming():
 
 
 def test_iter():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -95,7 +94,7 @@ def test_iter():
 
 
 def test_zero_len():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     group = PluginsGroup(caller)
 
     assert len(group) == 0
@@ -110,7 +109,7 @@ def test_zero_len():
 
 
 def test_len():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -122,7 +121,7 @@ def test_len():
 
 
 def test_contains_by_name():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -144,7 +143,7 @@ def test_contains_by_name():
 
 
 def test_contains_with_not_valid_names():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -178,7 +177,7 @@ def test_contains_with_not_valid_names():
 
 
 def test_contains_plugins():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -195,7 +194,7 @@ def test_contains_plugins():
 
 
 def test_getitem_bad_key():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
@@ -217,7 +216,7 @@ def test_getitem_bad_key():
 
 
 def test_getitem_good_key():
-    caller = SlotCaller(SlotCodeRepresenter(lambda x: x), 'kek', lambda x: x, False)
+    caller = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False).caller
     plugins = [
         Plugin('name', lambda x: x, int, False, False),
         Plugin('name', lambda x: x, int, False, False),
