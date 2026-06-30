@@ -162,8 +162,10 @@ def test_call_snapshots_current_slot_state_once_per_call():
     slot.slot_name = 'original_slot'
     slot.type_check = True
     slot.code_representation = MutatingCodeRepresentation(slot)
+    expected_type = List[slot.code_representation.returning_type]
+    expected_type_name = getattr(expected_type, '__name__', str(expected_type))
 
-    with pytest.raises(TypeError, match=match('The type list of the plugin\'s "original_slot" return value [\'wrong\'] does not match the expected type typing.List[int].')):
+    with pytest.raises(TypeError, match=match(f'The type list of the plugin\'s "original_slot" return value [\'wrong\'] does not match the expected type {expected_type_name}.')):
         slot.caller([])
 
 
