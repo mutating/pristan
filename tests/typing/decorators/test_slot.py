@@ -556,10 +556,29 @@ def test_iterated_plugins_preserve_slot_parameter_types():
     for loaded_plugin in collect:
         callable_view: Callable[[int], int] = loaded_plugin
         reveal_type(loaded_plugin(1))  # R: builtins.int
+        reveal_type(loaded_plugin(value=1))  # R: builtins.int
         with pytest.raises(TypeError):
             loaded_plugin('wrong')  # E: [arg-type]
+        with pytest.raises(TypeError):
+            loaded_plugin(value='bad')  # E: [arg-type]
 
         callable_view(1)
+
+    @slot
+    def collect_pair(left: int, right: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @collect_pair.plugin
+    def pair_plugin(left: int, right: int) -> int:
+        return left + right
+
+    for loaded_pair_plugin in collect_pair:
+        pair_callable_view: Callable[[int, int], int] = loaded_pair_plugin
+        reveal_type(loaded_pair_plugin(1, 2))  # R: builtins.int
+        with pytest.raises(TypeError):
+            loaded_pair_plugin(1, 'bad')  # E: [arg-type]
+
+        pair_callable_view(1, 2)
 
 
 @pytest.mark.mypy_testing
@@ -652,6 +671,18 @@ def test_slot_factory_results_are_typed_as_slot_decorators():
     reveal_type(collect_with_bare_factory(1))  # R: builtins.list[builtins.int]
     reveal_type(collect_with_named_factory(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(collect_with_keyword_named_factory(1))  # R: builtins.list[builtins.int]
+
+    @collect_with_bare_factory.plugin  # E: [arg-type]
+    def bad_bare_factory_plugin(value: int) -> str:
+        return str(value)
+
+    @collect_with_named_factory.plugin('bad_named_factory')  # E: [arg-type]
+    def bad_named_factory_plugin(value: int) -> str:
+        return str(value)
+
+    @collect_with_keyword_named_factory.plugin  # E: [arg-type]
+    def bad_keyword_named_factory_plugin(value: int) -> str:
+        return str(value)
 
 
 @pytest.mark.mypy_testing

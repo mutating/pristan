@@ -1330,6 +1330,12 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
     assert bread_crumbs == ['run_slot_3']
 
+    @folder_slot(slot(type_check=False))
+    def unchecked_slot(a, b) -> subscribable_dict_type[str, str]:
+        return {a + b: bread_crumbs[-1]}
+
+    assert unchecked_slot(1, 2) == {3: 'run_slot_3'}
+
     bread_crumbs.pop()
 
     @folder_plugin(some_slot)
@@ -1376,6 +1382,12 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
         some_slot_4(1, 2)
 
     assert bread_crumbs == ['run_slot_3']
+
+    @folder_slot(slot(type_check=False))
+    def unchecked_slot(a, b) -> subscribable_dict_type[str, str]:
+        return {a + b: bread_crumbs[-1]}
+
+    assert unchecked_slot(1, 2) == {3: 'run_slot_3'}
 
     bread_crumbs.pop()
 
@@ -1744,6 +1756,10 @@ def test_repr(folder_slot):
     def some_slot_9(a, b=3):
         ...
 
+    @slot(name='name9', max=0)
+    def some_slot_10(a, b=3):
+        ...
+
     assert repr(some_slot) == 'Slot(some_slot)'
     assert repr(some_slot_2) == 'Slot(some_slot_2, slot_name=\'name\')'
     assert repr(some_slot_3) == 'Slot(some_slot_3, signature=\'..\', slot_name=\'name2\')'
@@ -1753,6 +1769,7 @@ def test_repr(folder_slot):
     assert repr(some_slot_7) == 'Slot(some_slot_7, signature=\'..\', slot_name=\'name6\', max=3, type_check=False, unique=True)'
     assert repr(some_slot_8) == 'Slot(some_slot_8, signature=[\'..\', \'.\'], slot_name=\'name7\')'
     assert repr(some_slot_9) == 'Slot(some_slot_9, slot_name=\'name8\', explicit_plugin_names=True)'
+    assert repr(some_slot_10) == 'Slot(some_slot_10, slot_name=\'name9\', max=0)'
 
 
 def test_getitem_repr(folder_slot, folder_plugin):
@@ -2477,7 +2494,15 @@ def test_check_engine_is_in_some_range(folder_slot):
     def plugin():
         ...
 
-    assert 'plugin' in some_slot
+    @some_slot.plugin('inclusive_lower', engine='>=0.0.2')
+    def inclusive_lower():
+        ...
+
+    @some_slot.plugin('inclusive_upper', engine='<=0.0.2')
+    def inclusive_upper():
+        ...
+
+    assert some_slot.keys() == ('plugin', 'inclusive_lower', 'inclusive_upper')
 
 
 def test_check_engine_is_not_in_some_range(folder_slot):
@@ -2515,12 +2540,15 @@ def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type, slot_u
 
 def test_run_once_on(folder_slot, subscribable_list_type, slot_unique_options):
     """A run-once plugin is enforced across repeated slot calls for the parametrized slot forms and unique settings: the first call aggregates its result, and the second raises NumberOfCallsError."""
+    calls = []
+
     @folder_slot(slot(**slot_unique_options))
     def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
 
     @some_slot.plugin(run_once=True)
     def plugin(x, y):
+        calls.append((x, y))
         return x + y
 
     assert some_slot.keys() == ('plugin',)
@@ -2528,6 +2556,9 @@ def test_run_once_on(folder_slot, subscribable_list_type, slot_unique_options):
     assert [x.name for x in some_slot] == ['plugin']
     assert [x.name for x in some_slot['plugin']] == ['plugin']
     assert some_slot(1, 2) == [3]
+    assert calls == [(1, 2)]
 
     with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "plugin". And this plugin has already been called previously.')):
         some_slot(3, 4)
+
+    assert calls == [(1, 2)]

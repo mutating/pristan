@@ -357,6 +357,11 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
         """
         return a + b + c
 
+    @transformed
+    def function_10():
+        ...  # noqa: PIE790
+        return 'kek'
+
     assert not SlotCodeRepresenter(function_1).is_empty
     assert not SlotCodeRepresenter(function_2).is_empty
     assert not SlotCodeRepresenter(function_3).is_empty
@@ -366,6 +371,7 @@ def test_function_with_ellipsis_and_some_code_after_is_not_empty(transformed):
     assert not SlotCodeRepresenter(function_7).is_empty
     assert not SlotCodeRepresenter(function_8).is_empty
     assert not SlotCodeRepresenter(function_9).is_empty
+    assert not SlotCodeRepresenter(function_10).is_empty
 
 
 def test_function_with_ellipsis_and_some_code_before_is_not_empty(transformed):

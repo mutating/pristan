@@ -203,6 +203,18 @@ def test_contains_plugins():
     assert plugins[1] in group
     assert plugins[2] in group
 
+    assert Plugin('name', lambda x: x, int, False, False) in group
+    assert Plugin('name2', lambda x: x, int, False, False) in group
+
+    same_requested_name_with_missing_actual_name = Plugin('name', lambda x: x, int, False, False)
+    same_requested_name_with_missing_actual_name.set_name('name-3')
+
+    assert same_requested_name_with_missing_actual_name not in group
+
+    different_requested_name_with_matching_actual_name = Plugin('other', lambda x: x, int, False, False)
+    different_requested_name_with_matching_actual_name.set_name('name')
+
+    assert different_requested_name_with_matching_actual_name not in group
     assert Plugin('name3', lambda x: x, int, False, False) not in group
     assert Plugin('name-3', lambda x: x, int, False, False) not in group
 
