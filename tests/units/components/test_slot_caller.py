@@ -109,6 +109,7 @@ def test_empty_list_and_dict_defaults_still_call_to_empty_containers():
 
 
 def test_repr():
+    """SlotCaller repr exposes the referenced Slot with its explicit non-default options."""
     slot = Slot(lambda x: x, signature=None, slot_name='kek', max=None, type_check=False, entrypoint_group='pristan', unique=False)
 
     assert repr(slot.caller) == 'SlotCaller(slot=Slot(lambda x: x, slot_name=\'kek\', type_check=False))'

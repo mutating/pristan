@@ -401,6 +401,7 @@ def test_plugin_decorator_variants_preserve_callable_types():
 
 @pytest.mark.mypy_testing
 def test_slot_selection_has_narrower_public_type():
+    """A named slot selection exposes the narrower public selection view while preserving the slot call signature and aggregate result type. The parent slot keeps typed collection APIs."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -424,6 +425,7 @@ def test_slot_selection_has_narrower_public_type():
 
 @pytest.mark.mypy_testing
 def test_non_existent_slot_selection_keeps_slot_call_contract():
+    """Valid missing-key slot selections keep the parent slot's static call contract: the same arguments, Dict[str, int] result, and assignment to SlotSelectionProtocol and Callable."""
     @slot
     def collect(value: int) -> Dict[str, int]:  # noqa: ARG001
         return {}
@@ -478,6 +480,7 @@ def test_slot_pop_returns_selection_type():
 
 @pytest.mark.mypy_testing
 def test_slot_pop_with_default_returns_union():
+    """Defaulted Slot.pop on a typing.List slot is typed as the removed selection or the exact supplied default type."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -537,6 +540,11 @@ def test_slot_and_selection_bool_methods_are_typed():
 
 @pytest.mark.mypy_testing
 def test_iterated_plugins_preserve_slot_parameter_types():
+    """
+    Iterating a typed slot yields plugin callables that preserve the slot parameter types and plugin result type.
+
+    For a slot returning List[int], each iterated plugin is callable as (int) -> int, so mypy rejects a string argument to the plugin.
+    """
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -556,6 +564,11 @@ def test_iterated_plugins_preserve_slot_parameter_types():
 
 @pytest.mark.mypy_testing
 def test_plugin_argument_validation_is_typed():
+    """
+    Slot plugin decorators type-check engine lists at the element level.
+
+    This guards both unnamed and positional-name plugin factories so non-string list items are reported as [list-item], separately from broader overload failures.
+    """
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -619,6 +632,7 @@ def test_plugin_bad_factory_arguments_stay_type_errors():
 
 @pytest.mark.mypy_testing
 def test_slot_factory_results_are_typed_as_slot_decorators():
+    """Stored `slot()`, `slot('name')`, and `slot(name=...)` factories fit `SlotDecoratorProtocol` and preserve List/Dict result inference when applied."""
     bare_factory: SlotDecoratorProtocol = slot()
     named_factory: SlotDecoratorProtocol = slot('named_slot')
     keyword_named_factory: SlotDecoratorProtocol = slot(name='other_named_slot')
@@ -642,6 +656,7 @@ def test_slot_factory_results_are_typed_as_slot_decorators():
 
 @pytest.mark.mypy_testing
 def test_slot_selection_is_not_assignable_to_full_slot_protocol():
+    """A keyed slot selection is not assignable to the full slot protocol, preserving the narrower selection surface."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -651,6 +666,7 @@ def test_slot_selection_is_not_assignable_to_full_slot_protocol():
 
 @pytest.mark.mypy_testing
 def test_exact_result_type_is_not_widened_for_typing_collections():
+    """`typing.List` and `typing.Dict` slot calls remain distinct, and a `typing.List` selection is still rejected by a dict consumer."""
     @slot
     def collect_list(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -672,6 +688,7 @@ def test_exact_result_type_is_not_widened_for_typing_collections():
 
 @pytest.mark.mypy_testing
 def test_plugin_return_type_mismatch_is_reported_for_typing_collections():
+    """Static .plugin typing rejects str-returning plugins for typing.List[int] and typing.Dict[str, int] slots in bare and factory decorator forms."""
     @slot
     def collect_list(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -691,6 +708,7 @@ def test_plugin_return_type_mismatch_is_reported_for_typing_collections():
 
 @pytest.mark.mypy_testing
 def test_selection_does_not_expose_full_slot_api():
+    """`collect['name']` returns a callable selection that lacks slot-only APIs such as plugin registration, key listing, nested lookup, and name membership."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -708,6 +726,7 @@ def test_selection_does_not_expose_full_slot_api():
 
 @pytest.mark.mypy_testing
 def test_popped_selection_does_not_expose_full_slot_api():
+    """Popped plugin selections expose only the narrowed selection API in static typing and at runtime, not full slot registration, key listing, nested selection, or name-membership APIs."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -729,6 +748,7 @@ def test_popped_selection_does_not_expose_full_slot_api():
 
 @pytest.mark.mypy_testing
 def test_collection_api_reports_wrong_argument_types():
+    """`keys()`, indexing, deletion, and `pop()` enforce their argument contracts; collection lookups return selections, and `keys()` returns `tuple[str, ...]`."""
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -812,6 +832,11 @@ def test_slot_with_loose_typing_list_and_dict_annotations_keeps_any_payload_type
 
 @pytest.mark.mypy_testing
 def test_decorated_plugin_type_is_not_widened():
+    """
+    Slot plugin decorators preserve the decorated function's precise callable type.
+
+    Both @collect.plugin and @collect.plugin() should keep a List[int] slot plugin typed as Callable[[int], int], so assigning either result to Callable[[int], str] remains a mypy error instead of passing through Any.
+    """
     @slot
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -945,6 +970,7 @@ def test_built_in_generic_result_matrix_preserves_exact_slot_types():
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_built_in_generic_results_are_not_widened():
+    """Built-in `list[int]` and `dict[str, int]` slot calls remain distinct, and a `list[int]` selection is still rejected by a dict consumer."""
     @slot
     def collect_list(value: int) -> list[int]:  # noqa: ARG001
         return []
@@ -987,6 +1013,7 @@ def test_slot_pop_returns_selection_type_for_built_in_generics():
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_plugin_return_type_mismatch_is_reported_for_built_in_generics():
+    """Built-in generic list and dict slots reject plugins with incompatible payload return types across bare `.plugin` and configured `.plugin(run_once=True)` forms."""
     @slot
     def collect_list(value: int) -> list[int]:  # noqa: ARG001
         return []

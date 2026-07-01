@@ -20,6 +20,7 @@ from pristan.errors import (
 
 
 def test_set_max_less_than_zero():
+    """Slot construction rejects negative plugin limits."""
     with pytest.raises(ValueError, match=match('The maximum number of plugins cannot be less than zero.')):
         Slot(lambda x: x, signature='.', slot_name='slot_name', max=-1, type_check=False, entrypoint_group='pristan', unique=False)
 

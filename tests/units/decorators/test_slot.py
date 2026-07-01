@@ -22,6 +22,7 @@ from pristan.errors import (
 
 
 def test_slot_is_not_a_function():
+    """Both @slot and @slot() replace the decorated function binding with a Slot wrapper."""
     @slot
     def some_slot():
         ...
@@ -121,6 +122,7 @@ def test_public_slot_with_local_plugin_is_truthy(monkeypatch):
 
 
 def test_slot_have_not_comparing_signature_with_itself():
+    """An explicit slot signature is enforced against the decorated slot function itself; signature='..' requires two positional arguments, so a zero-argument slot raises before any plugin registration."""
     with pytest.raises(SignatureMismatchError, match=match('The signature of the callable object does not match the expected one.')):
         @slot(signature='..')
         def some_slot():
@@ -128,6 +130,7 @@ def test_slot_have_not_comparing_signature_with_itself():
 
 
 def test_plugin_have_not_comparing_signature_to_passed_one_to_slot(folder_plugin):
+    """With signature='..', plugin registration is checked against the explicit two-argument signature, so a zero-argument plugin is rejected even though the slot function itself is valid."""
     @slot(signature='..')
     def some_slot(a, b):
         ...
@@ -139,6 +142,7 @@ def test_plugin_have_not_comparing_signature_to_passed_one_to_slot(folder_plugin
 
 
 def test_plugin_have_not_comparing_signature_to_slot(folder_slot, folder_plugin):
+    """Reject plugins at registration when a slot that omits signature= cannot be called the same way as the plugin, across public slot and plugin decorator forms."""
     @folder_slot(slot)
     def some_slot(a, b):
         ...
@@ -367,6 +371,7 @@ def test_signature_list_repr_uses_declaration_snapshot():
 
 
 def test_run_1_plugin_without_hints(folder_slot, folder_plugin, slot_unique_options):
+    """An unannotated slot with one registered plugin exposes it as a collection item, runs it instead of the non-empty default body, and returns None."""
     bread_crumbs = []
 
     @folder_slot(slot(**slot_unique_options))
@@ -387,6 +392,7 @@ def test_run_1_plugin_without_hints(folder_slot, folder_plugin, slot_unique_opti
 
 
 def test_run_1_plugin_with_emplty_list_hint(folder_slot, folder_plugin, list_type, slot_unique_options):
+    """A slot with one registered plugin and a bare list/typing.List return annotation aggregates the plugin result into a one-item list and skips the non-empty default body."""
     bread_crumbs = []
 
     @folder_slot(slot(**slot_unique_options))
@@ -408,6 +414,7 @@ def test_run_1_plugin_with_emplty_list_hint(folder_slot, folder_plugin, list_typ
 
 
 def test_2_not_unique_plugins_with_same_names(folder_slot, folder_plugin):
+    """Default slot decorators allow duplicate requested names, exposing `kek`, `kek-2`, and `kek-3` while `some_slot['kek']` returns the whole group."""
     @folder_slot(slot)
     def some_slot(a, b):
         ...
@@ -619,6 +626,7 @@ def test_explicit_plugin_names_named_plugin_run_once_option_is_enforced(list_typ
 
 
 def test_2_plugins_with_same_names_and_first_one_is_unique(folder_slot, folder_plugin):
+    """An existing unique plugin rejects later same-name plugins in an otherwise non-unique slot instead of allowing duplicate suffixing, and the failed registration leaves only the original base-name plugin."""
     @folder_slot(slot)
     def some_slot(a, b):
         ...
@@ -637,6 +645,7 @@ def test_2_plugins_with_same_names_and_first_one_is_unique(folder_slot, folder_p
 
 
 def test_2_plugins_with_same_names_and_second_one_is_unique(folder_slot, folder_plugin):
+    """Reject a second duplicate plugin that claims uniqueness after it would be named "kek-2", with the error naming that attempted plugin and only the original "kek" left visible."""
     @folder_slot(slot)
     def some_slot(a, b):
         ...
@@ -839,6 +848,7 @@ def test_slot_unique_ignores_duplicate_name_when_engine_rejects_plugin(folder_sl
 
 
 def test_exceeding_the_limit_0_of_plugins(folder_plugin):
+    """max=0 creates a valid slot that rejects every plugin, including the first, with TooManyPluginsError."""
     @slot(max=0)
     def some_slot(a, b):
         ...
@@ -850,6 +860,7 @@ def test_exceeding_the_limit_0_of_plugins(folder_plugin):
 
 
 def test_exceeding_the_limit_1_of_plugins(folder_plugin):
+    """A slot capped at one plugin accepts the first registration and raises TooManyPluginsError for a second registration, for both plugin decorator forms."""
     @slot(max=1)
     def some_slot(a, b):
         ...
@@ -865,6 +876,7 @@ def test_exceeding_the_limit_1_of_plugins(folder_plugin):
 
 
 def test_exceeding_the_limit_1000_of_plugins(folder_plugin):
+    """A slot with max=1000 accepts 1000 explicitly named plugins and rejects the next public plugin registration with TooManyPluginsError."""
     allowed_number_of_plugins = 1000
 
     @slot(max=allowed_number_of_plugins)
@@ -883,6 +895,7 @@ def test_exceeding_the_limit_1000_of_plugins(folder_plugin):
 
 
 def test_strange_slot_return_type_annotation(folder_slot):
+    """Reject explicit slot return annotations that are not list or dict containers for both @slot forms."""
     with pytest.raises(StrangeTypeAnnotationError, match=match('The return type annotation for a slot must be either a list or a dict, or remain empty.')):
         @folder_slot(slot)
         def some_slot(a, b) -> int:  # type: ignore[empty-body]
@@ -898,6 +911,7 @@ def test_typed_none_slot_still_raises_before_one_can_resolve():
 
 
 def test_plugin_name_is_not_valid_python_identifier(folder_slot):
+    """Invalid explicit plugin names such as 'lol kek' raise ValueError as soon as the plugin decorator is created."""
     @folder_slot(slot)
     def some_slot(a, b):
         ...
@@ -909,6 +923,7 @@ def test_plugin_name_is_not_valid_python_identifier(folder_slot):
 
 
 def test_slot_return_type_is_dict_but_keys_are_not_str(folder_slot, subscribable_dict_type):
+    """Dict slot annotations require str keys because results are keyed by plugin name, so int-keyed annotations are rejected at decoration time."""
     with pytest.raises(TypeError, match=match('Incorrect type annotation for the dict.')):
         @folder_slot(slot)
         def some_slot(a, b) -> subscribable_dict_type[int, int]:
@@ -916,6 +931,7 @@ def test_slot_return_type_is_dict_but_keys_are_not_str(folder_slot, subscribable
 
 
 def test_run_slot_with_empty_dict_annotation(folder_slot, folder_plugin, dict_type):
+    """Slots annotated with bare dict/Dict aggregate plugin results by installed plugin name, including suffixed duplicates, without constraining value types."""
     @folder_slot(slot)
     def some_slot(a, b) -> dict_type:
         ...
@@ -936,6 +952,7 @@ def test_run_slot_with_empty_dict_annotation(folder_slot, folder_plugin, dict_ty
 
 
 def test_run_slot_with_not_empty_dict_annotation(folder_slot, folder_plugin, subscribable_dict_type):
+    """A dict[str, int] or typing.Dict[str, int] slot aggregates int plugin returns under final plugin names, including the `function_2-2` duplicate suffix."""
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_dict_type[str, int]:
         ...
@@ -956,6 +973,7 @@ def test_run_slot_with_not_empty_dict_annotation(folder_slot, folder_plugin, sub
 
 
 def test_run_slot_with_not_empty_wrong_dict_annotation(folder_slot, folder_plugin, subscribable_dict_type):
+    """Parameterized dict slots use str keys for plugin names and enforce the value type on each plugin result, so dict[str, str] rejects an integer return."""
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_dict_type[str, str]:
         ...
@@ -973,6 +991,7 @@ def test_run_slot_with_not_empty_wrong_dict_annotation(folder_slot, folder_plugi
 
 
 def test_run_slot_with_not_empty_wrong_dict_annotation_but_type_check_is_off(subscribable_dict_type, folder_plugin):
+    """Disabling type checking lets a parameterized dict slot collect plugin results that violate the annotated value type while preserving name keys and duplicate-name suffixes."""
     @slot(type_check=False)
     def some_slot(a, b) -> subscribable_dict_type[str, str]:
         ...
@@ -993,6 +1012,7 @@ def test_run_slot_with_not_empty_wrong_dict_annotation_but_type_check_is_off(sub
 
 
 def test_run_slot_with_empty_list_annotation(folder_slot, folder_plugin, list_type):
+    """Slots annotated with a bare list aggregate plugin results in registration order without element-type checks, even when plugin names collide."""
     @folder_slot(slot)
     def some_slot(a, b) -> list_type:
         ...
@@ -1013,6 +1033,7 @@ def test_run_slot_with_empty_list_annotation(folder_slot, folder_plugin, list_ty
 
 
 def test_run_slot_with_not_empty_list_annotation(folder_slot, folder_plugin, subscribable_list_type):
+    """A parameterized list slot accepts plugin results matching its element type and returns them as an ordered list, including duplicate-named plugin functions."""
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_list_type[int]:
         ...
@@ -1033,6 +1054,7 @@ def test_run_slot_with_not_empty_list_annotation(folder_slot, folder_plugin, sub
 
 
 def test_run_slot_with_not_empty_wrong_list_annotation(folder_slot, folder_plugin, subscribable_list_type):
+    """Parameterized list slot annotations enforce their item type on plugin results during normal list aggregation, so both builtin and typing.List variants raise on the first int result where str is required."""
     @folder_slot(slot)
     def some_slot(a, b) -> subscribable_list_type[str]:
         ...
@@ -1050,6 +1072,7 @@ def test_run_slot_with_not_empty_wrong_list_annotation(folder_slot, folder_plugi
 
 
 def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(subscribable_list_type, folder_plugin):
+    """type_check=False suppresses plugin result validation without disabling list aggregation, so int results under a str-parameterized list slot are returned as [4, 5, 6]."""
     @slot(type_check=False)
     def some_slot(a, b) -> subscribable_list_type[str]:
         ...
@@ -1070,6 +1093,7 @@ def test_run_slot_with_not_empty_wrong_list_annotation_but_type_check_is_off(sub
 
 
 def test_run_slot_without_type_annotation(folder_slot, folder_plugin):
+    """An unannotated slot still runs every registered plugin, but discards their return values and returns None."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1096,6 +1120,7 @@ def test_run_slot_without_type_annotation(folder_slot, folder_plugin):
 
 
 def test_run_not_empty_default_function_without_plugins_without_annotations(folder_slot, folder_plugin):
+    """Unannotated slots return None while running side effects from a non-empty default body before plugin registration and from the plugin afterward."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1118,6 +1143,7 @@ def test_run_not_empty_default_function_without_plugins_without_annotations(fold
 
 
 def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation(folder_slot, folder_plugin, dict_type, slot_unique_options):
+    """Bare dict/Dict slots use the non-empty body only as the no-plugin fallback, then expose the registered plugin through collection APIs and aggregate its result by name."""
     bread_crumbs = []
 
     @folder_slot(slot(**slot_unique_options))
@@ -1144,6 +1170,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
 
 def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation(folder_slot, folder_plugin, subscribable_dict_type):
+    """Dict[str, str] slots return the default body's own dict when no plugins exist, then skip the body and aggregate registered plugin returns by name."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1166,6 +1193,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
 
 def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation(folder_slot, folder_plugin, list_type, slot_unique_options):
+    """Bare list-annotated slots run a non-empty body only as the no-plugin fallback, then expose the single registered plugin through collection APIs and aggregate its result into a list."""
     bread_crumbs = []
 
     @folder_slot(slot(**slot_unique_options))
@@ -1192,6 +1220,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
 
 def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation(folder_slot, folder_plugin, subscribable_list_type):
+    """Typed-list slots fall back to their non-empty body only when no plugins are registered, then skip it and aggregate a registered scalar string result into the annotated list."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1215,6 +1244,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, dict_type):
+    """On Python 3.10+, an unsubscripted dict/typing.Dict slot validates a non-empty no-plugin fallback as a dict. A scalar fallback raises TypeError with expected `Dict`, and after plugin registration calls skip the fallback and aggregate the plugin result by name."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1240,6 +1270,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
 @pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotation_with_wrong_return_type(folder_slot, folder_plugin, dict_type):
+    """On Python 3.8/3.9, an unsubscripted dict/typing.Dict slot rejects a scalar no-plugin fallback with the legacy `typing.Dict` TypeError. After plugin registration, calls skip the fallback and aggregate the plugin result by name."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1265,6 +1296,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_dict_annotati
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, subscribable_dict_type):
+    """On Python 3.10+, parameterized dict fallback bodies reject scalar returns and dict key/value mismatches while rendering the expected type as `Dict`. After plugin registration, calls skip the fallback and aggregate the plugin return by name."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1311,6 +1343,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
 @pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_annotation_with_wrong_return_type(folder_slot, folder_plugin, subscribable_dict_type):
+    """On Python 3.8/3.9, a parameterized dict slot validates a non-empty no-plugin fallback as a full `typing.Dict[str, str]` result, rejecting scalar returns and bad key/value types. After plugin registration, calls skip the fallback and aggregate plugin results by name."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1357,6 +1390,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_dict_anno
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, list_type):
+    """On Python 3.10+, an unsubscripted list/typing.List slot validates a non-empty no-plugin fallback as a list. String and integer fallbacks raise TypeError with expected `List`; after plugin registration, calls skip the fallback and aggregate plugin results into a list."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1388,6 +1422,7 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
 @pytest.mark.skipif(not (version_info[:2] == (3, 8) or version_info[:2] == (3, 9)), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_empty_list_annotation_with_wrong_return_type(folder_slot, folder_plugin, list_type):
+    """On Python 3.8/3.9, an unsubscripted list/typing.List slot validates a non-empty no-plugin fallback as a list. Scalar fallbacks raise TypeError with expected `typing.List`; after plugin registration, calls skip the fallback and aggregate plugin results into a list."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1419,6 +1454,11 @@ def test_run_not_empty_default_function_without_plugins_with_empty_list_annotati
 
 @pytest.mark.skipif(version_info >= (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type(folder_slot, folder_plugin, subscribable_list_type):
+    """
+    On Python before 3.9, a parameterized List[str] slot validates the no-plugin fallback as the whole list result.
+
+    A string scalar, an integer scalar, and a list with a non-str item all raise the legacy typing.List[str] TypeError. After a plugin is registered, the fallback is skipped and the plugin's str result is aggregated.
+    """
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1456,6 +1496,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
 @pytest.mark.skipif(version_info[:2] == (3, 8) or version_info[:2] == (3, 9), reason='On new versions of Python, there is an another mechanism of printing type annotations.')
 def test_run_not_empty_default_function_without_plugins_with_not_empty_list_annotation_with_wrong_return_type_new_pythons(folder_slot, folder_plugin, subscribable_list_type):
+    """Type-checked parameterized list slots validate a non-empty fallback body as the whole list result before any plugins exist. On Python 3.10+, bad scalar returns and wrong item types report expected type List, while a later registered plugin bypasses the fallback and is aggregated normally."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1492,6 +1533,7 @@ def test_run_not_empty_default_function_without_plugins_with_not_empty_list_anno
 
 
 def test_getitem_bad_key(folder_slot, folder_plugin):
+    """Invalid slot selection keys raise KeyError with the public invalid-key message instead of producing a selection. This covers malformed strings and non-string keys."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -1522,6 +1564,7 @@ def test_getitem_bad_key(folder_slot, folder_plugin):
 
 
 def test_getitem_good_key(folder_slot, folder_plugin):
+    """Bracket lookup on a slot selects plugins by valid base and numeric-suffix keys. Duplicate requested names are returned together by the base key, suffixes select exact duplicates with name-1 meaning the first plugin, and valid missing keys return an empty selection."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -1564,6 +1607,7 @@ def test_getitem_good_key(folder_slot, folder_plugin):
 
 
 def test_getitem_call(folder_slot, folder_plugin):
+    """Item lookup returns a callable narrowed slot selection that calls matching plugins, including duplicate base-name plugins in registration order, and falls back to the slot body for a valid missing key."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1602,6 +1646,11 @@ def test_getitem_call(folder_slot, folder_plugin):
 
 
 def test_getitem_call_with_parameters(folder_slot, folder_plugin):
+    """
+    Calling a selected slot by key forwards arguments to the selected callables while preserving their defaults.
+
+    Duplicate-name selections call both duplicate plugins, named selections call only that plugin, and a valid missing key falls back to the slot body with the same argument/default behavior.
+    """
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1658,6 +1707,7 @@ def test_getitem_call_with_parameters(folder_slot, folder_plugin):
 
 
 def test_repr(folder_slot):
+    """Pin the exact Slot repr produced by the public slot decorator. Default options are omitted, configured non-defaults appear in stable order, @slot and @slot() stay minimal, custom names render as slot_name whether passed as name=... or a positional string, and list signatures are shown as list values."""
     @folder_slot(slot)
     def some_slot(a, b=3):
         ...
@@ -1706,6 +1756,7 @@ def test_repr(folder_slot):
 
 
 def test_getitem_repr(folder_slot, folder_plugin):
+    """Base-name slot selection repr shows the live SlotCaller(slot=Slot(...)) and both duplicate plugins, including the generated -2 name."""
     @folder_slot(slot)
     def some_slot(a, b=3):
         ...
@@ -1722,6 +1773,7 @@ def test_getitem_repr(folder_slot, folder_plugin):
 
 
 def test_keys(folder_slot, folder_plugin):
+    """keys() reports requested plugin-name groups without duplicate suffixes, so duplicate `plugin` registrations and distinct `plugin2` appear as `('plugin', 'plugin2')` while an empty slot returns `()`."""
     @folder_slot(slot)
     def slot_1():
         ...
@@ -1747,6 +1799,7 @@ def test_keys(folder_slot, folder_plugin):
 
 
 def test_getitem_is_loading_entry_points(folder_slot):
+    """Indexing a public slot by name resolves lazy entry points even when the name selects no plugins."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -1759,6 +1812,7 @@ def test_getitem_is_loading_entry_points(folder_slot):
 
 
 def test_iter_is_loading_entry_points(folder_slot, folder_plugin):
+    """Iterating a public slot resolves lazy entry points before yielding any plugin. The slot is already marked loaded inside the first loop iteration and remains loaded afterward."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -1780,6 +1834,7 @@ def test_iter_is_loading_entry_points(folder_slot, folder_plugin):
 
 
 def test_getting_keys_is_loading_entry_points(folder_slot, folder_plugin):
+    """Reading public slot keys lazily loads entry points and reports duplicate requested plugin names as one base key."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -1800,6 +1855,11 @@ def test_getting_keys_is_loading_entry_points(folder_slot, folder_plugin):
 
 
 def test_delitem_removes_plugins_from_slot(folder_slot, folder_plugin):
+    """
+    Deleting a plugin by base name removes the entire requested-name group, including suffixed duplicates.
+
+    Across public slot/plugin decorator variants, unrelated plugins remain registered and indexed, and the next call runs only those survivors rather than deleted plugins or the default body. This pins base-name deletion, not exact-key deletion or pop behavior.
+    """
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1834,6 +1894,7 @@ def test_delitem_removes_plugins_from_slot(folder_slot, folder_plugin):
 
 
 def test_pop_removes_plugin_and_returns_detached_selection(folder_slot):
+    """Popping an exact duplicate key removes only that plugin, not the duplicate group, and returns a detached selection. For `pop('plugin-2')`, the parent compacts survivors so `plugin-2` can name a different plugin, while the returned selection still calls the removed plugin and the parent slot no longer does."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -1870,6 +1931,11 @@ def test_pop_removes_plugin_and_returns_detached_selection(folder_slot):
 
 
 def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type, slot_unique_options):
+    """
+    Deleting the only list-slot plugin by base name clears the collection and restores the slot body fallback.
+
+    The fallback returns an empty list here, so a side effect is what proves the body ran instead of a stale plugin.
+    """
     body_calls = []
 
     @folder_slot(slot(**slot_unique_options))
@@ -1900,6 +1966,11 @@ def test_delitem_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_sl
 
 
 def test_pop_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, subscribable_list_type, slot_unique_options):
+    """
+    Popping the only list-slot plugin by base name returns a detached selection while restoring parent fallback.
+
+    The detached selection can still call the removed plugin. The parent collection becomes empty, and later parent calls run the slot body fallback, which returns an empty list and is observed through a side effect.
+    """
     body_calls = []
 
     @folder_slot(slot(**slot_unique_options))
@@ -1932,6 +2003,7 @@ def test_pop_by_base_name_last_list_plugin_falls_back_to_slot_body(folder_slot, 
 
 
 def test_delitem_by_base_name_removes_group_from_list_slot_call(folder_slot, subscribable_list_type):
+    """Deleting plugins by base name removes the whole duplicate-name group from slot state and later list-aggregated calls while preserving other plugin groups."""
     @folder_slot(slot)
     def some_slot(a) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
@@ -1963,6 +2035,7 @@ def test_delitem_by_base_name_removes_group_from_list_slot_call(folder_slot, sub
 
 
 def test_pop_by_base_name_returns_detached_group_and_keeps_survivors_in_list_slot_call(folder_slot, subscribable_list_type):
+    """Base-name pop detaches all duplicate plugins with that declared name as a callable selection while the parent list slot keeps unrelated survivors."""
     @folder_slot(slot)
     def some_slot(a) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
@@ -1996,6 +2069,7 @@ def test_pop_by_base_name_returns_detached_group_and_keeps_survivors_in_list_slo
 
 
 def test_delitem_by_base_name_removes_group_from_dict_slot_call(folder_slot, subscribable_dict_type):
+    """Deleting by base requested plugin name from a dict-returning slot removes every duplicate in that group before the next call, leaving unrelated plugin results intact."""
     @folder_slot(slot)
     def some_slot(a) -> subscribable_dict_type[str, int]:  # noqa: ARG001
         return {}
@@ -2027,6 +2101,11 @@ def test_delitem_by_base_name_removes_group_from_dict_slot_call(folder_slot, sub
 
 
 def test_pop_by_base_name_returns_detached_group_and_keeps_survivors_in_dict_slot_call(folder_slot, subscribable_dict_type):
+    """
+    Base-name pop detaches all plugins sharing a requested name while preserving dict aggregation by actual name.
+
+    The returned selection remains callable with duplicate suffixes, and the parent slot keeps unrelated survivors visible through keys, len, contains, iteration, and later calls.
+    """
     @folder_slot(slot)
     def some_slot(a) -> subscribable_dict_type[str, int]:  # noqa: ARG001
         return {}
@@ -2060,6 +2139,7 @@ def test_pop_by_base_name_returns_detached_group_and_keeps_survivors_in_dict_slo
 
 
 def test_pop_returns_default_for_missing_key(folder_slot):
+    """pop returns the exact supplied default for a missing valid plugin key, including None."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2071,6 +2151,7 @@ def test_pop_returns_default_for_missing_key(folder_slot):
 
 
 def test_pop_and_delitem_raise_key_error_for_empty_slot(folder_slot):
+    """An empty slot still raises KeyError for removal of a valid but absent plugin key by no-default pop or del."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2083,6 +2164,7 @@ def test_pop_and_delitem_raise_key_error_for_empty_slot(folder_slot):
 
 
 def test_pop_and_delitem_raise_key_error_for_non_string_keys(folder_slot):
+    """Public slot removal via pop or del raises KeyError with the invalid-key message for non-string keys passed at runtime."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2095,6 +2177,7 @@ def test_pop_and_delitem_raise_key_error_for_non_string_keys(folder_slot):
 
 
 def test_deleting_plugin_prevents_it_from_running(folder_slot):
+    """Deleting a duplicate plugin by its numbered key removes only that plugin from later slot dispatch, so subsequent calls run the remaining duplicates in order and skip the deleted one."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -2120,6 +2203,7 @@ def test_deleting_plugin_prevents_it_from_running(folder_slot):
 
 
 def test_delitem_and_pop_support_exact_duplicate_keys(folder_slot):
+    """Exact numbered duplicate keys work across deletion, renumbering, and pop. Deleting `plugin-1` removes the unsuffixed first duplicate, renumbers survivors, and a later `pop('plugin-2')` detaches only the current `plugin-2` while leaving the parent with the other survivor."""
     bread_crumbs = []
 
     @folder_slot(slot)
@@ -2165,6 +2249,7 @@ def test_delitem_and_pop_support_exact_duplicate_keys(folder_slot):
 
 
 def test_delitem_is_loading_entry_points(folder_slot):
+    """Deleting a missing valid key from an unloaded public slot loads entry points before raising KeyError, so the slot is marked loaded."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2178,6 +2263,7 @@ def test_delitem_is_loading_entry_points(folder_slot):
 
 
 def test_pop_is_loading_entry_points(folder_slot):
+    """pop() loads entry points before raising KeyError for a missing plugin key, leaving the slot marked loaded."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2191,6 +2277,7 @@ def test_pop_is_loading_entry_points(folder_slot):
 
 
 def test_deleting_plugins_is_protected_by_slot_lock(folder_slot):
+    """Exact-key deletion of a duplicate plugin keeps both removal and survivor renumbering inside the slot lock."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2229,6 +2316,7 @@ def test_deleting_plugins_is_protected_by_slot_lock(folder_slot):
 
 
 def test_pass_to_plugin_decorator_something_wrong(folder_slot):
+    """Slot.plugin raises the generic TypeError for both @slot and @slot() slots when the first decorator argument is neither a callable plugin nor a plugin-name string."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2238,6 +2326,7 @@ def test_pass_to_plugin_decorator_something_wrong(folder_slot):
 
 
 def test_pass_two_slot_names_different_ways():
+    """The slot decorator rejects conflicting positional and keyword slot names instead of silently preferring either value."""
     with pytest.raises(ValueError, match=match('You have specified two different names for the slot.')):
         @slot('lol', name='kek')
         def some_slot():
@@ -2245,6 +2334,7 @@ def test_pass_two_slot_names_different_ways():
 
 
 def test_positional_name_is_same_as_keyword():
+    """A positional string passed to @slot is treated as the explicit slot name, so @slot('lol') sets slot_name to 'lol'."""
     @slot('lol')
     def some_slot():
         ...
@@ -2253,6 +2343,7 @@ def test_positional_name_is_same_as_keyword():
 
 
 def test_contains_plugins(folder_slot, folder_plugin):
+    """String membership on a public slot recognizes registered plugin names and aliases.\n\nAfter normal decorator registration, requested base names are present, the first plugin is also present through its `-1` alias, later duplicates are present through real suffixes such as `-2`, and missing suffixes or unrelated names are absent."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2283,6 +2374,7 @@ def test_contains_plugins(folder_slot, folder_plugin):
 
 
 def test_len(folder_slot, folder_plugin):
+    """len() reports plugin counts for slots and named selections, including duplicate base-name buckets, numbered aliases like -1, and zero for empty or missing selections."""
     @folder_slot(slot)
     def empty_slot():
         ...
@@ -2328,6 +2420,7 @@ def test_len(folder_slot, folder_plugin):
     ],
 )
 def test_check_engine_is_newer_than_zero(tag, folder_slot):
+    """Satisfied engine constraints register plugins for the slot; with package version 0.0.1, both >0.0.0 and <1000.0.0 make the plugin visible by containment."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2342,6 +2435,7 @@ def test_check_engine_is_newer_than_zero(tag, folder_slot):
 
 
 def test_check_engine_is_older_than_1000(folder_slot):
+    """Plugins requiring a newer engine than the slot package version are skipped without error."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2356,6 +2450,11 @@ def test_check_engine_is_older_than_1000(folder_slot):
 
 
 def test_by_default_get_version_of_tests_package_is_impossible(folder_slot):
+    """
+    Engine-constrained plugin registration requires a discoverable version for the package that declares the slot.
+
+    A slot declared in the local tests package has no package version by default, so applying @slot.plugin(engine=...) raises CannotGetVersionsError instead of installing or silently skipping the plugin.
+    """
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2367,6 +2466,7 @@ def test_by_default_get_version_of_tests_package_is_impossible(folder_slot):
 
 
 def test_check_engine_is_in_some_range(folder_slot):
+    """A plugin with engine version constraints supplied as a list is installed when the slot package version satisfies every constraint, as Version('0.0.2') does for >0.0.1 and <0.0.3."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2381,6 +2481,7 @@ def test_check_engine_is_in_some_range(folder_slot):
 
 
 def test_check_engine_is_not_in_some_range(folder_slot):
+    """Plugins constrained by a list of engine expressions are not registered when the slot package version fails the upper bound despite satisfying the lower bound."""
     @folder_slot(slot)
     def some_slot():
         ...
@@ -2395,6 +2496,7 @@ def test_check_engine_is_not_in_some_range(folder_slot):
 
 
 def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type, slot_unique_options):
+    """Plugins registered with the default run_once=False remain reusable across repeated slot calls, dispatching with fresh arguments and staying visible in the slot collection."""
     @folder_slot(slot(**slot_unique_options))
     def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
@@ -2412,6 +2514,7 @@ def test_run_once_off(folder_slot, folder_plugin, subscribable_list_type, slot_u
 
 
 def test_run_once_on(folder_slot, subscribable_list_type, slot_unique_options):
+    """A run-once plugin is enforced across repeated slot calls for the parametrized slot forms and unique settings: the first call aggregates its result, and the second raises NumberOfCallsError."""
     @folder_slot(slot(**slot_unique_options))
     def some_slot(x, y) -> subscribable_list_type[int]:  # noqa: ARG001
         return []
