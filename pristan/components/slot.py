@@ -175,8 +175,7 @@ class Slot(Generic[PluginResult]):
             return self.plugins.pop(key)
 
     @overload
-    def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]:
-        ...  # pragma: no cover
+    def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]: ...  # pragma: no cover
 
     @overload
     def plugin(self, plugin_function_or_name: Callable[SlotParameters, PluginResult], unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[SlotParameters, PluginResult]: ...  # pragma: no cover
