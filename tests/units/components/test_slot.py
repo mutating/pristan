@@ -433,7 +433,12 @@ def test_getitem_and_delitem_load_errors_dominate_key_validation(monkeypatch):
 
 
 def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
-    """Saved selections keep their plugin snapshots for `.one` after parent mutation."""
+    """
+    Saved selections keep their plugin snapshots for `.one` after parent mutation.
+
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
+    """
     def empty_body():
         pass
 
@@ -475,18 +480,19 @@ def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
 
     assert bool(singleton_selection)
     assert len(singleton_selection) == 1
-    assert singleton_selection.one is singleton_selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert singleton_selection.one is singleton_selection
     assert len(slot['plugin']) == 0
     with pytest.raises(OneResolutionError, match=match('Slot "empty_body" has 2 registered plugins, so .one cannot choose one.')):
         _ = slot.one
     assert len(grouped_selection) == 2
     assert [plugin.name for plugin in grouped_selection] == ['group', 'group-2']
     assert [plugin.name for plugin in slot['group']] == ['group']
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
         _ = grouped_selection.one
     assert not bool(empty_selection)
     assert len(empty_selection) == 0
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
         _ = empty_selection.one
     assert bool(slot)
     assert requested_groups == ['pristan']
@@ -698,7 +704,12 @@ def test_duplicate_plugin_selection_keys(monkeypatch):
 
 
 def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
-    """`.one` is read-only and cannot be shadowed by failed assignment or deletion."""
+    """
+    `.one` is read-only and cannot be shadowed by failed assignment or deletion.
+
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
+    """
     @public_slot
     def empty_body():
         pass
@@ -715,9 +726,9 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
         return None
 
     selection = slot['plugin']
-
     assert [plugin.name for plugin in slot.one] == ['plugin']
-    assert selection.one is selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
 
     with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         slot.one = object()  # type: ignore[misc]
@@ -729,7 +740,8 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
         del selection.one  # type: ignore[misc]
 
     assert [plugin.name for plugin in slot.one] == ['plugin']
-    assert selection.one is selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
 
 
 def test_slot_one_returns_caller_with_plugins_for_singleton_and_fallback(monkeypatch, subscribable_list_type, subscribable_dict_type):
@@ -845,7 +857,12 @@ def test_slot_one_returns_caller_with_plugins_for_singleton_and_fallback(monkeyp
 
 
 def test_caller_with_plugins_one_resolves_by_count_and_fallback():
-    """Selections return themselves for one plugin or fallback, else raise selection-specific errors."""
+    """
+    Selections return themselves for one plugin or fallback, else raise selection-specific errors.
+
+    Catching selection warnings keeps these slots non-unique; changing them to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
+    """
     @public_slot
     def empty_body():
         pass
@@ -874,21 +891,28 @@ def test_caller_with_plugins_one_resolves_by_count_and_fallback():
     def second_group_plugin():
         return None
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
         _ = CallerWithPlugins(empty_slot.caller, []).one
 
     fallback_selection = CallerWithPlugins(fallback_slot.caller, [])
-    assert fallback_selection.one is fallback_selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_slot", because this code uses .one to work with a single plugin.')):
+        assert fallback_selection.one is fallback_selection
 
     singleton_selection = plugin_slot.plugins['plugin']
-    assert singleton_selection.one is singleton_selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "plugin_slot", because this code uses .one to work with a single plugin.')):
+        assert singleton_selection.one is singleton_selection
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "plugin_slot" has 2 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "plugin_slot", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "plugin_slot" has 2 selected plugins, so .one cannot choose one.')):
         _ = plugin_slot.plugins['group'].one
 
 
 def test_caller_with_plugins_one_does_not_load_entrypoints(monkeypatch):
-    """A saved selection does not trigger entry point loading again."""
+    """
+    A saved selection does not trigger entry point loading again.
+
+    Catching the warning keeps the slot non-unique; changing it to unique=True
+    would bias coverage, while leaving it uncaught would add warning noise.
+    """
     @public_slot
     def empty_body():
         pass
@@ -911,12 +935,18 @@ def test_caller_with_plugins_one_does_not_load_entrypoints(monkeypatch):
 
     slot._load_entrypoints = raise_loading_error  # type: ignore[method-assign]
 
-    assert selection.one is selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
 
 
 @pytest.mark.parametrize(('operation_name', 'remaining_plugin_count'), [('getitem', 1), ('pop', 0)])
 def test_getitem_and_pop_selections_resolve_loaded_plugins_through_one(monkeypatch, subscribable_list_type, operation_name, remaining_plugin_count):
-    """Getitem/pop selections resolve newly loaded plugins through `.one`; pop mutates after successful loading."""
+    """
+    Getitem/pop selections resolve newly loaded plugins through `.one`; pop mutates after successful loading.
+
+    Catching the warning keeps the slot non-unique; changing it to unique=True
+    would bias coverage, while leaving it uncaught would add warning noise.
+    """
     @public_slot
     def empty_body() -> subscribable_list_type[int]:
         return []
@@ -941,7 +971,8 @@ def test_getitem_and_pop_selections_resolve_loaded_plugins_through_one(monkeypat
     }
     selection = operations[operation_name]()
 
-    assert selection.one() == [1]
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one() == [1]
     assert slot.loaded
     assert len(slot) == remaining_plugin_count
 
@@ -981,18 +1012,21 @@ def test_getitem_and_pop_loading_errors_prevent_selection_creation(monkeypatch, 
 
 
 @pytest.mark.parametrize(
-    ('access_selection', 'remaining_plugin_count'),
+    ('access_selection', 'remaining_plugin_count', 'selection_access_warns'),
     [
-        (lambda slot: slot.one, 1),
-        (lambda slot: slot['name'].one, 1),
-        (lambda slot: slot.pop('name').one, 0),
+        (lambda slot: slot.one, 1, False),
+        (lambda slot: slot['name'].one, 1, True),
+        (lambda slot: slot.pop('name').one, 0, True),
     ],
     ids=('slot', 'getitem', 'pop'),
 )
-def test_public_one_single_plugin_access_paths_return_callable_selections(monkeypatch, subscribable_list_type, access_selection, remaining_plugin_count):
-    """Public singleton access paths return callable selections.
+def test_public_one_single_plugin_access_paths_return_callable_selections(monkeypatch, subscribable_list_type, access_selection, remaining_plugin_count, selection_access_warns):
+    """
+    Public singleton access paths return callable selections.
 
     The pop row proves parent mutation does not affect the returned selection.
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
     """
     @public_slot
     def empty_body() -> subscribable_list_type[int]:
@@ -1009,7 +1043,11 @@ def test_public_one_single_plugin_access_paths_return_callable_selections(monkey
     def plugin():
         return 1
 
-    selection = access_selection(slot)
+    if selection_access_warns:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            selection = access_selection(slot)
+    else:
+        selection = access_selection(slot)
 
     assert selection() == [1]
     assert len(slot) == remaining_plugin_count
@@ -1215,9 +1253,13 @@ def test_slot_one_raises_slot_specific_resolution_errors(monkeypatch):
 
 
 def test_one_raises_for_empty_bodies_without_plugins(monkeypatch, list_type, dict_type):
-    """`Slot.one` uses existing empty-body rules for slots and selections.
+    """
+    `.one` uses existing empty-body rules for slots and selections.
 
     Annotated empty list/dict returns are not fallback candidates.
+    Catching the selection warning keeps the representative slot non-unique;
+    changing it to unique=True would bias coverage, while leaving it uncaught
+    would add warning noise.
     """
     def empty_body():
         pass
@@ -1259,7 +1301,7 @@ def test_one_raises_for_empty_bodies_without_plugins(monkeypatch, list_type, dic
 
     representative_slot = public_slot(empty_list_body, name='representative')
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "representative" has no selected plugins and the slot body is empty.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "representative", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "representative" has no selected plugins and the slot body is empty.')):
         _ = representative_slot['missing'].one
 
 
@@ -1557,9 +1599,12 @@ def test_slot_one_returns_independent_snapshots_with_shared_plugins(monkeypatch)
 
 
 def test_duplicate_plugin_selection_keys_and_pop_resolve_through_one(monkeypatch, subscribable_list_type):
-    """Duplicate numbered keys and exact-key pops resolve through `.one`.
+    """
+    Duplicate numbered keys and exact-key pops resolve through `.one`.
 
     Base-name lookup remains ambiguous; pop renumbers survivors.
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
     """
     @public_slot
     def empty_body() -> subscribable_list_type[int]:
@@ -1584,22 +1629,30 @@ def test_duplicate_plugin_selection_keys_and_pop_resolve_through_one(monkeypatch
     def third():
         return 3
 
-    for key, expected_result in (('name-1', [1]), ('name-2', [2]), ('name-3', [3])):
-        assert slot[key].one() == expected_result
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        for key, expected_result in (('name-1', [1]), ('name-2', [2]), ('name-3', [3])):
+            assert slot[key].one() == expected_result
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 3 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 3 selected plugins, so .one cannot choose one.')):
         _ = slot['name'].one
 
     popped_selection = slot.pop('name-2')
 
-    assert popped_selection.one() == [2]
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert popped_selection.one() == [2]
     assert [plugin.name for plugin in slot.plugins.plugins] == ['name', 'name-2']
-    for key, expected_result in (('name-1', [1]), ('name-2', [3])):
-        assert slot[key].one() == expected_result
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        for key, expected_result in (('name-1', [1]), ('name-2', [3])):
+            assert slot[key].one() == expected_result
 
 
 def test_popped_group_one_resolution_error_happens_after_parent_mutation(monkeypatch):
-    """A popped multi-plugin selection raises OneResolutionError after parent mutation."""
+    """
+    A popped multi-plugin selection raises OneResolutionError after parent mutation.
+
+    Catching the selection warning keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving it uncaught would add warning noise.
+    """
     @public_slot
     def empty_body() -> List[int]:
         return []
@@ -1623,7 +1676,7 @@ def test_popped_group_one_resolution_error_happens_after_parent_mutation(monkeyp
 
     assert len(slot) == 0
     assert [plugin.name for plugin in popped_selection] == ['name', 'name-2']
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
         _ = popped_selection.one
 
 
