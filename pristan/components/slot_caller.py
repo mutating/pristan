@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Dict, Generator, Generic, List, NoReturn, Type, Union
 
 from denial import InnerNoneType
@@ -82,6 +83,8 @@ class CallerWithPlugins(Generic[PluginResult]):
 
     @property
     def one(self) -> 'CallerWithPlugins[PluginResult]':
+        if not self.caller.slot.unique:
+            warnings.warn(f'Consider setting unique=True for slot "{self.caller.slot.slot_name}", because this code uses .one to work with a single plugin.', SyntaxWarning, stacklevel=2)
         if not self:
             raise OneResolutionError(f'Selection from slot "{self.caller.slot.slot_name}" has no selected plugins and the slot body is empty.')
         if len(self) > 1:
