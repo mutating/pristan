@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, List
 
 import pytest
@@ -6,6 +7,7 @@ from full_match import match
 from pristan.components.plugin import Plugin
 from pristan.components.slot import Slot
 from pristan.components.slot_caller import CallerWithPlugins
+from pristan.errors import OneResolutionError
 
 
 def test_has_non_empty_default_body_reflects_code_representer_is_empty():
@@ -89,6 +91,73 @@ def test_bool_does_not_execute_plugins_or_default():
 
     assert CallerWithPlugins(slot.caller, [])
     assert CallerWithPlugins(slot.caller, [Plugin('plugin', plugin_function, int, True, False)])
+
+
+def test_caller_with_plugins_one_warns_when_slot_is_not_unique():
+    """Non-unique slot selection `.one` warns on success."""
+    def empty_body():
+        pass
+
+    def plugin_function():
+        return None
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    selection = CallerWithPlugins(slot.caller, [Plugin('plugin', plugin_function, int, True, False)])
+
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
+
+
+def test_caller_with_plugins_one_does_not_warn_when_slot_is_unique():
+    """Unique slot selection `.one` does not warn on success."""
+    def empty_body():
+        pass
+
+    def plugin_function():
+        return None
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
+    selection = CallerWithPlugins(slot.caller, [Plugin('plugin', plugin_function, int, True, False)])
+
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter('always')
+        assert selection.one is selection
+
+    assert not any(issubclass(warning.category, SyntaxWarning) for warning in caught_warnings)
+
+
+def test_caller_with_plugins_one_resolution_errors_warn_when_slot_is_not_unique():
+    """
+    Selections from non-unique slots warn before `.one` resolution errors.
+
+    User code expected one plugin, so the warning should recommend unique=True
+    before raising OneResolutionError.
+    """
+    def empty_body():
+        pass
+
+    def plugin_function():
+        return None
+
+    empty_slot = Slot(empty_body, signature=None, slot_name='empty_slot', max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    multi_plugin_slot = Slot(empty_body, signature=None, slot_name='multi_plugin_slot', max=None, type_check=True, entrypoint_group='pristan', unique=False)
+
+    cases = (
+        (
+            CallerWithPlugins(empty_slot.caller, []),
+            'empty_slot',
+            'Selection from slot "empty_slot" has no selected plugins and the slot body is empty.',
+        ),
+        (
+            CallerWithPlugins(multi_plugin_slot.caller, [Plugin('first', plugin_function, int, True, False), Plugin('second', plugin_function, int, True, False)]),
+            'multi_plugin_slot',
+            'Selection from slot "multi_plugin_slot" has 2 selected plugins, so .one cannot choose one.',
+        ),
+    )
+
+    for selection, slot_name, error_message in cases:
+        with pytest.warns(SyntaxWarning, match=match(f'Consider setting unique=True for slot "{slot_name}", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match(error_message)):
+            _ = selection.one
 
 
 def test_empty_list_and_dict_defaults_still_call_to_empty_containers():
