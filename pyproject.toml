@@ -13,7 +13,7 @@ dependencies = [
     'sigmatch>=0.0.10',
     'simtypes>=0.0.14',
     'denial>=0.0.13',
-    'printo>=0.0.27',
+    'printo>=0.0.29',
     'getsources>=0.0.4',
     'packaging>=26.0',
     'importlib-metadata; python_version < "3.10"',
