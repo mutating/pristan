@@ -34,6 +34,7 @@ But there are already other plugin libraries! How is this one different? Here ar
 - [**Plugins and finding them**](#plugins-and-finding-them)
 - [**Type safety**](#type-safety)
 - [**Slot as a collection**](#slot-as-a-collection)
+- [**Quick selection**](#quick-selection)
 - [**Additional restrictions**](#additional-restrictions)
 
 
@@ -366,28 +367,6 @@ some_slot['non_existent_key']()
 #> run the slot default function
 ```
 
-When a slot or selection should resolve to exactly one callable candidate, prefer `.one` to manual collection checks. It works on slots and on selections returned by `[...]` or `pop()`:
-
-```python
-@slot
-def sum_slot(a, b) -> list[int]:
-    ...
-
-@sum_slot.plugin
-def sum_plugin(a, b) -> int:
-    return a + b
-
-selected_from_slot = sum_slot.one
-selected_by_name = sum_slot['sum_plugin'].one
-
-print(selected_from_slot(1, 2))
-#> [3]
-print(selected_by_name(1, 2))
-#> [3]
-```
-
-`.one` returns a callable selection; it does not call it. The arguments above are passed to that returned selection. For `sum_slot.one`, the selection contains the only plugin registered in the slot; for `sum_slot['sum_plugin'].one`, the only plugin in that selection. If no plugin matches but the slot body is non-empty, that body is used as fallback. Otherwise, or if there is more than one candidate, `pristan.errors.OneResolutionError` is raised.
-
 You can use the [`len()`](https://docs.python.org/3/library/functions.html#len) function to find out how many plugins you have:
 
 ```python
@@ -434,6 +413,31 @@ some_slot.pop('unknown', None)
 ```
 
 > ⓘ If you use the base plugin name, all plugins with that declared name will be removed. If you use a name with a numeric suffix, only that specific plugin will be removed. The suffix `-1` refers to the first plugin, whose actual name has no suffix.
+
+
+## Quick selection
+
+When a slot or selection should resolve to exactly one callable candidate, prefer `.one` to manual collection checks. It works on slots and on selections returned by `[...]` or `pop()`:
+
+```python
+@slot
+def sum_slot(a, b) -> list[int]:
+    ...
+
+@sum_slot.plugin
+def sum_plugin(a, b) -> int:
+    return a + b
+
+selected_from_slot = sum_slot.one
+selected_by_name = sum_slot['sum_plugin'].one
+
+print(selected_from_slot(1, 2))
+#> [3]
+print(selected_by_name(1, 2))
+#> [3]
+```
+
+`.one` returns a callable selection; it does not call it. The arguments above are passed to that returned selection. For `sum_slot.one`, the selection contains the only plugin registered in the slot; for `sum_slot['sum_plugin'].one`, the only plugin in that selection. If no plugin matches but the slot body is non-empty, that body is used as fallback. Otherwise, or if there is more than one candidate, `pristan.errors.OneResolutionError` is raised.
 
 
 ## Additional restrictions
