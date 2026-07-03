@@ -8,4 +8,4 @@ ruff==0.14.6
 mutmut==3.2.3
 full_match==0.0.3
 transtests==0.0.2
-locklib==0.0.21
+locklib==0.0.23
