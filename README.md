@@ -376,6 +376,16 @@ print(len(some_slot['name']))
 #> 2
 ```
 
+You can iterate over a slot to inspect the currently registered plugins. Iteration uses a snapshot of the plugin list that is fixed before the first item is yielded. After iteration has started, this snapshot is not checked against the slot again, so changes made from another thread are not attached or synchronized to that already-started iteration.
+
+```python
+for plugin in some_slot:
+    print(plugin.name)
+#> name
+#> name-2
+#> name2
+```
+
 You can also convert a slot, a plugin selection, or a found result of `pop()` to [`bool`](https://docs.python.org/3/library/functions.html#bool). The result is `True` when it contains plugins or when the slot has a non-empty default function body:
 
 ```python
