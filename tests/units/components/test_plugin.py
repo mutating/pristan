@@ -3,6 +3,7 @@ from typing import List, Union
 
 import pytest
 from full_match import match
+from locklib import LockTraceWrapper
 
 from pristan.components.plugin import Plugin
 from pristan.errors import NumberOfCallsError
@@ -104,3 +105,57 @@ def test_run_once_on():
 
     with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "some_name". And this plugin has already been called previously.')):
         plugin(1, 3)
+
+
+def test_run_once_call_count_is_protected_without_locking_plugin_function():
+    """A run-once Plugin locks its call counter without locking user code."""
+    class TracedPlugin(Plugin):
+        def __getattribute__(self, name):
+            value = super().__getattribute__(name)
+            if name == 'call_count':
+                lock = getattr(self, 'lock', None)
+                if hasattr(lock, 'notify'):
+                    lock.notify('counter-read')
+            return value
+
+        def __setattr__(self, name, value):
+            if name == 'call_count':
+                lock = getattr(self, 'lock', None)
+                if hasattr(lock, 'notify'):
+                    lock.notify('counter-set')
+            super().__setattr__(name, value)
+
+    def plugin_function():
+        plugin.lock.notify('plugin-function')
+        return 3
+
+    plugin = TracedPlugin('some_name', plugin_function, int, True, True, run_once=True)
+    plugin.lock = LockTraceWrapper(plugin.lock)
+
+    assert plugin() == 3
+
+    assert plugin.lock.was_event_locked('counter-read')
+    assert plugin.lock.was_event_locked('counter-set')
+    assert not plugin.lock.was_event_locked('plugin-function', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in plugin.lock.trace] == [
+        ('acquire', None),
+        ('action', 'counter-read'),
+        ('action', 'counter-read'),
+        ('action', 'counter-set'),
+        ('release', None),
+        ('action', 'plugin-function'),
+    ]
+
+    plugin.lock.trace.clear()
+
+    with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "some_name". And this plugin has already been called previously.')):
+        plugin()
+
+    assert plugin.lock.was_event_locked('counter-read')
+    assert not plugin.lock.was_event_locked('counter-set', raise_exception=False)
+    assert not plugin.lock.was_event_locked('plugin-function', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in plugin.lock.trace] == [
+        ('acquire', None),
+        ('action', 'counter-read'),
+        ('release', None),
+    ]

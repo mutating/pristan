@@ -2,6 +2,7 @@ from typing import Dict, List
 
 import pytest
 from full_match import match
+from locklib import LockTraceWrapper
 from sigmatch.errors import SignatureMismatchError
 
 import pristan.components.slot as slot_module
@@ -16,6 +17,7 @@ from pristan.errors import (
     OneResolutionError,
     PrimadonnaPluginError,
     PristanException,
+    TooManyPluginsError,
 )
 
 
@@ -23,6 +25,738 @@ def test_set_max_less_than_zero():
     """Slot construction rejects negative plugin limits."""
     with pytest.raises(ValueError, match=match('The maximum number of plugins cannot be less than zero.')):
         Slot(lambda x: x, signature='.', slot_name='slot_name', max=-1, type_check=False, entrypoint_group='pristan', unique=False)
+
+
+def test_call_is_protected_by_slot_lock():
+    """Slot calls keep lazy loading and dispatch under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class BackedCaller:
+        def __call__(self):
+            slot.lock.notify('call')
+            return 'result'
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.backed_caller = BackedCaller()  # type: ignore[assignment]
+
+    assert slot() == 'result'
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('call')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'call'),
+        ('release', None),
+    ]
+
+
+def test_bool_is_protected_by_slot_lock():
+    """Slot truth-value checks keep lazy loading and backed-caller inspection under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class BackedCaller:
+        def __bool__(self):
+            slot.lock.notify('bool')
+            return True
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.backed_caller = BackedCaller()  # type: ignore[assignment]
+
+    assert bool(slot)
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('bool')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'bool'),
+        ('release', None),
+    ]
+
+
+def test_slot_one_is_protected_by_slot_lock(monkeypatch):
+    """Slot.one keeps loading, plugin-list snapshotting, and resolution checks under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class PluginsList:
+        def __iter__(self):
+            slot.lock.notify('read-plugins')
+            yield object()
+
+    class TracedCallerWithPlugins:
+        def __init__(self, _caller, plugins):
+            slot.lock.notify('snapshot')
+            assert isinstance(plugins, list)
+
+        def __bool__(self):
+            slot.lock.notify('snapshot-bool')
+            return True
+
+        def __len__(self):
+            slot.lock.notify('snapshot-len')
+            return 1
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins.plugins = PluginsList()  # type: ignore[assignment]
+    monkeypatch.setattr(slot_module, 'CallerWithPlugins', TracedCallerWithPlugins)
+
+    _ = slot.one
+
+    for identifier in ('load', 'read-plugins', 'snapshot', 'snapshot-bool', 'snapshot-len'):
+        assert slot.lock.was_event_locked(identifier)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'read-plugins'),
+        ('action', 'snapshot'),
+        ('action', 'snapshot-bool'),
+        ('action', 'snapshot-len'),
+        ('release', None),
+    ]
+
+
+def test_iter_snapshot_creation_is_protected_by_slot_lock():
+    """Slot iteration resolves entry points and snapshots plugins under the slot lock when first consumed."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __iter__(self):
+            slot.lock.notify('snapshot')
+            yield object()
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    next(iter(slot))
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('snapshot')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'snapshot'),
+        ('release', None),
+    ]
+
+
+def test_iter_snapshot_is_yielded_without_slot_lock():
+    """Slot iteration releases the slot lock before yielding snapshot items to consumer code."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __iter__(self):
+            slot.lock.notify('snapshot')
+            yield object()
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    iterator = iter(slot)
+    next(iterator)
+    slot.lock.notify('after-yield')
+
+    assert slot.lock.was_event_locked('snapshot')
+    assert not slot.lock.was_event_locked('after-yield', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'snapshot'),
+        ('release', None),
+        ('action', 'after-yield'),
+    ]
+
+
+def test_getitem_is_protected_by_slot_lock():
+    """Slot item lookup keeps lazy loading and plugin selection under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    selection = object()
+
+    class Plugins:
+        def __getitem__(self, key):
+            assert key == 'missing'
+            slot.lock.notify('getitem')
+            return selection
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    assert slot['missing'] is selection
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('getitem')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'getitem'),
+        ('release', None),
+    ]
+
+
+def test_delitem_loads_and_attempts_deletion_under_slot_lock():
+    """Slot item deletion loads entry points before attempting missing-key removal under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def pop(self, key):
+            slot.lock.notify('delete')
+            raise KeyError(key)
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    with pytest.raises(KeyError, match=match("'missing'")):
+        del slot['missing']
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('delete')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'delete'),
+        ('release', None),
+    ]
+
+
+def test_contains_is_protected_by_slot_lock():
+    """Slot membership checks keep lazy loading and plugin lookup under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __contains__(self, item):
+            assert item == 'plugin'
+            slot.lock.notify('contains')
+            return True
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    assert 'plugin' in slot
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('contains')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'contains'),
+        ('release', None),
+    ]
+
+
+def test_len_is_protected_by_slot_lock():
+    """Slot length checks keep lazy loading and plugin counting under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __len__(self):
+            slot.lock.notify('len')
+            return 1
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    assert len(slot) == 1
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('len')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'len'),
+        ('release', None),
+    ]
+
+
+def test_keys_is_protected_by_slot_lock():
+    """Slot key reads keep lazy loading and requested-name iteration under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class RequestedNames:
+        def keys(self):
+            slot.lock.notify('keys')
+            return self
+
+        def __iter__(self):
+            slot.lock.notify('keys-iter')
+            yield 'plugin'
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins.plugins_by_requested_names = RequestedNames()  # type: ignore[assignment]
+
+    assert slot.keys() == ('plugin',)
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('keys')
+    assert slot.lock.was_event_locked('keys-iter')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'keys'),
+        ('action', 'keys-iter'),
+        ('release', None),
+    ]
+
+
+@pytest.mark.parametrize(
+    'operation',
+    [
+        lambda slot: slot._pop_plugins('missing'),
+        lambda slot: slot.pop('missing'),
+    ],
+    ids=['private-helper', 'public-api'],
+)
+def test_pop_operation_loads_and_attempts_removal_under_slot_lock(operation):
+    """Slot pop operations load entry points before attempting missing-key removal under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def pop(self, key):
+            slot.lock.notify('pop')
+            raise KeyError(key)
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    with pytest.raises(KeyError, match=match("'missing'")):
+        operation(slot)
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('pop')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'pop'),
+        ('release', None),
+    ]
+
+
+def test_load_entrypoints_is_protected_by_slot_lock(monkeypatch):
+    """Slot entry point loading locks both initial loading and the already-loaded fast path."""
+    class TracedSlot(Slot):
+        def __getattribute__(self, name):
+            value = super().__getattribute__(name)
+            if name == 'loaded':
+                lock = getattr(self, 'lock', None)
+                if hasattr(lock, 'notify'):
+                    lock.notify('loaded-read')
+            return value
+
+        def __setattr__(self, name, value):
+            if name == 'loaded':
+                lock = getattr(self, 'lock', None)
+                if hasattr(lock, 'notify'):
+                    lock.notify('loaded-set')
+            super().__setattr__(name, value)
+
+    def empty_body():
+        pass
+
+    slot = TracedSlot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class EntryPoint:
+        def load(self):
+            slot.lock.notify('point-load')
+
+    class EntryPoints:
+        def __iter__(self):
+            slot.lock.notify('entrypoints-iter')
+            yield EntryPoint()
+
+    def get_entries(group=None):
+        assert group == 'pristan'
+        slot.lock.notify('provider')
+        return EntryPoints()
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    slot._load_entrypoints()
+
+    assert object.__getattribute__(slot, 'loaded') is True
+    for identifier in ('loaded-read', 'provider', 'entrypoints-iter', 'point-load', 'loaded-set'):
+        assert slot.lock.was_event_locked(identifier)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'loaded-read'),
+        ('action', 'provider'),
+        ('action', 'entrypoints-iter'),
+        ('action', 'point-load'),
+        ('action', 'loaded-set'),
+        ('release', None),
+    ]
+
+    slot.lock.trace.clear()
+
+    slot._load_entrypoints()
+
+    assert slot.lock.was_event_locked('loaded-read')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'loaded-read'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_is_protected_by_slot_lock(monkeypatch):
+    """Slot plugin registration keeps limit, engine, name, and insertion checks under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class TracedPlugin:
+        def __init__(self, *arguments):
+            pass
+
+        def set_name(self, name):
+            raise AssertionError(f'Unexpected duplicate rename to {name}.')
+
+    class PluginGroup:
+        def __len__(self):
+            slot.lock.notify('group-len')
+            return 1
+
+    class RequestedNames:
+        def __contains__(self, name):
+            assert name == 'plugin'
+            slot.lock.notify('name-check')
+            return False
+
+        def __getitem__(self, name):
+            assert name == 'plugin'
+            return PluginGroup()
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, _plugin):
+            slot.lock.notify('add')
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+    monkeypatch.setattr(slot_module, 'Plugin', TracedPlugin)
+
+    slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    for identifier in ('len', 'engine', 'name-check', 'add', 'group-len'):
+        assert slot.lock.was_event_locked(identifier)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'len'),
+        ('action', 'engine'),
+        ('action', 'name-check'),
+        ('action', 'add'),
+        ('action', 'group-len'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_max_limit_error_is_protected_by_slot_lock():
+    """Slot plugin registration checks the max limit and raises without mutating under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=0, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, _plugin):
+            slot.lock.notify('add')
+            raise AssertionError('Plugin should not be added after max-limit failure.')
+
+    def check_package_version(_engine):
+        slot.lock.notify('engine')
+        raise AssertionError('Engine should not be checked after max-limit failure.')
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+
+    with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 0.')):
+        slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    assert slot.lock.was_event_locked('len')
+    assert not slot.lock.was_event_locked('engine', raise_exception=False)
+    assert not slot.lock.was_event_locked('add', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'len'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_unique_name_error_is_protected_by_slot_lock():
+    """Slot plugin registration checks unique-name conflicts and raises without mutating under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class RequestedNames:
+        def __contains__(self, name):
+            assert name == 'plugin'
+            slot.lock.notify('name-check')
+            return True
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, _plugin):
+            slot.lock.notify('add')
+            raise AssertionError('Plugin should not be added after unique-name failure.')
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Slot "empty_body" requires unique plugin names, but "plugin" is already registered.')):
+        slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    assert slot.lock.was_event_locked('len')
+    assert slot.lock.was_event_locked('engine')
+    assert slot.lock.was_event_locked('name-check')
+    assert not slot.lock.was_event_locked('add', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'len'),
+        ('action', 'engine'),
+        ('action', 'name-check'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_renames_duplicate_under_slot_lock(monkeypatch):
+    """Slot plugin registration renames a newly added duplicate while continuously holding the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class TracedPlugin:
+        def __init__(self, _name, _function, _expected_result_type, _type_check, unique, _run_once):
+            self.unique = unique
+
+        def set_name(self, name):
+            assert name == 'plugin-2'
+            slot.lock.notify('rename')
+
+    class ExistingPlugin:
+        unique = False
+
+    class PluginGroup:
+        plugin = None
+
+        def __len__(self):
+            slot.lock.notify('group-len')
+            return 2
+
+        def __iter__(self):
+            slot.lock.notify('group-iter')
+            return iter([ExistingPlugin(), self.plugin])
+
+    plugin_group = PluginGroup()
+
+    class RequestedNames:
+        def __contains__(self, name):
+            raise AssertionError(f'Unexpected unique-name check for {name}.')
+
+        def __getitem__(self, name):
+            assert name == 'plugin'
+            return plugin_group
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, plugin):
+            slot.lock.notify('add')
+            plugin_group.plugin = plugin
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+    monkeypatch.setattr(slot_module, 'Plugin', TracedPlugin)
+
+    slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    trace = [(event.type.value, event.identifier) for event in slot.lock.trace]
+    action_identifiers = [identifier for _, identifier in trace if identifier is not None]
+
+    for identifier in ('len', 'engine', 'add', 'group-len', 'rename', 'group-iter'):
+        assert slot.lock.was_event_locked(identifier)
+    assert trace[0] == ('acquire', None)
+    assert trace[-1] == ('release', None)
+    assert ('release', None) not in trace[1:-1]
+    assert (
+        action_identifiers.index('len')
+        < action_identifiers.index('engine')
+        < action_identifiers.index('add')
+        < action_identifiers.index('group-len')
+        < action_identifiers.index('rename')
+        < action_identifiers.index('group-iter')
+    )
+
+
+def test_add_plugin_rolls_back_duplicate_with_existing_unique_plugin_under_slot_lock(monkeypatch):
+    """Slot plugin registration rolls back a new same-name plugin that conflicts with an existing unique plugin under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class TracedPlugin:
+        def __init__(self, _name, _function, _expected_result_type, _type_check, unique, _run_once):
+            self.unique = unique
+
+        def set_name(self, name):
+            assert name == 'plugin-2'
+            slot.lock.notify('rename')
+
+    class ExistingPlugin:
+        name = 'plugin'
+        unique = True
+
+    class PluginGroup:
+        plugin = None
+
+        def __len__(self):
+            slot.lock.notify('group-len')
+            return 2
+
+        def __iter__(self):
+            slot.lock.notify('group-iter')
+            return iter([ExistingPlugin(), self.plugin])
+
+    plugin_group = PluginGroup()
+
+    class RequestedNames:
+        def __contains__(self, name):
+            raise AssertionError(f'Unexpected unique-name check for {name}.')
+
+        def __getitem__(self, name):
+            assert name == 'plugin'
+            return plugin_group
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, plugin):
+            slot.lock.notify('add')
+            plugin_group.plugin = plugin
+
+        def delete_last_by_name(self, name):
+            assert name == 'plugin'
+            slot.lock.notify('delete-last')
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+    monkeypatch.setattr(slot_module, 'Plugin', TracedPlugin)
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Plugin "plugin" claims to be unique, but there are other plugins with the same name.')):
+        slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    trace = [(event.type.value, event.identifier) for event in slot.lock.trace]
+    action_identifiers = [identifier for _, identifier in trace if identifier is not None]
+
+    for identifier in ('len', 'engine', 'add', 'group-len', 'rename', 'group-iter', 'delete-last'):
+        assert slot.lock.was_event_locked(identifier)
+    assert trace[0] == ('acquire', None)
+    assert trace[-1] == ('release', None)
+    assert ('release', None) not in trace[1:-1]
+    assert (
+        action_identifiers.index('len')
+        < action_identifiers.index('engine')
+        < action_identifiers.index('add')
+        < action_identifiers.index('group-len')
+        < action_identifiers.index('rename')
+        < action_identifiers.index('group-iter')
+        < action_identifiers.index('delete-last')
+    )
 
 
 def test_bool_loads_entrypoints_before_checking_local_plugins(monkeypatch):

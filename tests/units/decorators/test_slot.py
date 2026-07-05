@@ -1,5 +1,4 @@
 from sys import version_info
-from threading import RLock
 from typing import List
 
 import pytest
@@ -2293,25 +2292,16 @@ def test_pop_is_loading_entry_points(folder_slot):
     assert some_slot.loaded
 
 
-def test_deleting_plugins_is_protected_by_slot_lock(folder_slot):
-    """Exact-key deletion of a duplicate plugin keeps both removal and survivor renumbering inside the slot lock."""
+def test_exact_duplicate_key_deletion_renumbers_under_slot_lock(folder_slot):
+    """Exact-key deletion keeps duplicate removal and survivor renumbering under the slot lock."""
     @folder_slot(slot)
     def some_slot():
         ...
 
-    @some_slot.plugin('plugin')
-    def plugin_1():
-        ...
+    for _ in range(3):
+        some_slot.plugin('plugin')(lambda: None)
 
-    @some_slot.plugin('plugin')
-    def plugin_2():
-        ...
-
-    @some_slot.plugin('plugin')
-    def plugin_3():
-        ...
-
-    some_slot.lock = LockTraceWrapper(RLock())
+    some_slot.lock = LockTraceWrapper(some_slot.lock)
     original_pop = some_slot.plugins.pop
     original_rename = some_slot.plugins._rename_duplicates
 
@@ -2323,6 +2313,7 @@ def test_deleting_plugins_is_protected_by_slot_lock(folder_slot):
         some_slot.lock.notify('renumber')
         return original_rename(name)
 
+    some_slot._load_entrypoints = lambda: None  # type: ignore[method-assign]
     some_slot.plugins.pop = traced_pop
     some_slot.plugins._rename_duplicates = traced_rename
 
@@ -2330,6 +2321,12 @@ def test_deleting_plugins_is_protected_by_slot_lock(folder_slot):
 
     assert some_slot.lock.was_event_locked('delete')
     assert some_slot.lock.was_event_locked('renumber')
+    assert [(event.type.value, event.identifier) for event in some_slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'delete'),
+        ('action', 'renumber'),
+        ('release', None),
+    ]
 
 
 def test_pass_to_plugin_decorator_something_wrong(folder_slot):
