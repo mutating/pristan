@@ -107,22 +107,25 @@ class Slot(Generic[PluginResult]):
         self.loaded = False
 
     def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:
-        self._load_entrypoints()
-        return self.backed_caller(*args, **kwargs)
+        with self.lock:
+            self._load_entrypoints()
+            return self.backed_caller(*args, **kwargs)
 
     def __bool__(self) -> bool:
-        self._load_entrypoints()
-        return bool(self.backed_caller)
+        with self.lock:
+            self._load_entrypoints()
+            return bool(self.backed_caller)
 
     @property
     def one(self) -> CallerWithPlugins[PluginResult]:
-        self._load_entrypoints()
-        snapshot = CallerWithPlugins(self.caller, list(self.plugins.plugins))
-        if not snapshot:
-            raise OneResolutionError(f'Slot "{self.slot_name}" has no registered plugins and its body is empty.')
-        if len(snapshot) > 1:
-            raise OneResolutionError(f'Slot "{self.slot_name}" has {len(snapshot)} registered plugins, so .one cannot choose one.')
-        return snapshot
+        with self.lock:
+            self._load_entrypoints()
+            snapshot = CallerWithPlugins(self.caller, list(self.plugins.plugins))
+            if not snapshot:
+                raise OneResolutionError(f'Slot "{self.slot_name}" has no registered plugins and its body is empty.')
+            if len(snapshot) > 1:
+                raise OneResolutionError(f'Slot "{self.slot_name}" has {len(snapshot)} registered plugins, so .one cannot choose one.')
+            return snapshot
 
     @one.setter
     def one(self, value: Any) -> NoReturn:  # noqa: ARG002
@@ -133,23 +136,31 @@ class Slot(Generic[PluginResult]):
         raise AttributeError('Attribute ".one" is read-only.')
 
     def __iter__(self) -> Generator[PluginProtocol[SlotParameters, PluginResult], None, None]:
-        self._load_entrypoints()
-        yield from self.plugins
+        with self.lock:
+            self._load_entrypoints()
+            plugins_snapshot = tuple(self.plugins)
+
+        yield from plugins_snapshot
 
     def __getitem__(self, key: str) -> CallerWithPlugins[PluginResult]:
-        self._load_entrypoints()
-        return self.plugins[key]  # type: ignore[no-any-return]
+        with self.lock:
+            self._load_entrypoints()
+            return self.plugins[key]  # type: ignore[no-any-return]
 
     def __delitem__(self, key: str) -> None:
-        self._pop_plugins(key)
+        with self.lock:
+            self._load_entrypoints()
+            self.plugins.pop(key)
 
     def __contains__(self, item: Any) -> bool:
-        self._load_entrypoints()
-        return item in self.plugins
+        with self.lock:
+            self._load_entrypoints()
+            return item in self.plugins
 
     def __len__(self) -> int:
-        self._load_entrypoints()
-        return len(self.plugins)
+        with self.lock:
+            self._load_entrypoints()
+            return len(self.plugins)
 
     @overload
     def pop(self, key: str) -> CallerWithPlugins[PluginResult]:
@@ -170,8 +181,8 @@ class Slot(Generic[PluginResult]):
         return CallerWithPlugins(self.caller, removed_plugins)
 
     def _pop_plugins(self, key: str) -> List[Plugin[PluginResult]]:
-        self._load_entrypoints()
         with self.lock:
+            self._load_entrypoints()
             return self.plugins.pop(key)
 
     @overload
@@ -210,8 +221,9 @@ class Slot(Generic[PluginResult]):
         return decorator(plugin_function_or_name)
 
     def keys(self) -> Tuple[str, ...]:
-        self._load_entrypoints()
-        return tuple(self.plugins.plugins_by_requested_names.keys())
+        with self.lock:
+            self._load_entrypoints()
+            return tuple(self.plugins.plugins_by_requested_names.keys())
 
     def _load_entrypoints(self) -> None:
         with self.lock:
