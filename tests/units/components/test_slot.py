@@ -2,6 +2,7 @@ from typing import Dict, List
 
 import pytest
 from full_match import match
+from locklib import LockTraceWrapper
 from sigmatch.errors import SignatureMismatchError
 
 import pristan.components.slot as slot_module
@@ -16,12 +17,746 @@ from pristan.errors import (
     OneResolutionError,
     PrimadonnaPluginError,
     PristanException,
+    TooManyPluginsError,
 )
 
 
 def test_set_max_less_than_zero():
+    """Slot construction rejects negative plugin limits."""
     with pytest.raises(ValueError, match=match('The maximum number of plugins cannot be less than zero.')):
         Slot(lambda x: x, signature='.', slot_name='slot_name', max=-1, type_check=False, entrypoint_group='pristan', unique=False)
+
+
+def test_call_is_protected_by_slot_lock():
+    """Slot calls keep lazy loading and dispatch under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class BackedCaller:
+        def __call__(self):
+            slot.lock.notify('call')
+            return 'result'
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.backed_caller = BackedCaller()  # type: ignore[assignment]
+
+    assert slot() == 'result'
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('call')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'call'),
+        ('release', None),
+    ]
+
+
+def test_bool_is_protected_by_slot_lock():
+    """Slot truth-value checks keep lazy loading and backed-caller inspection under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class BackedCaller:
+        def __bool__(self):
+            slot.lock.notify('bool')
+            return True
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.backed_caller = BackedCaller()  # type: ignore[assignment]
+
+    assert bool(slot)
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('bool')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'bool'),
+        ('release', None),
+    ]
+
+
+def test_slot_one_is_protected_by_slot_lock(monkeypatch):
+    """Slot.one keeps loading, plugin-list snapshotting, and resolution checks under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class PluginsList:
+        def __iter__(self):
+            slot.lock.notify('read-plugins')
+            yield object()
+
+    class TracedCallerWithPlugins:
+        def __init__(self, _caller, plugins):
+            slot.lock.notify('snapshot')
+            assert isinstance(plugins, list)
+
+        def __bool__(self):
+            slot.lock.notify('snapshot-bool')
+            return True
+
+        def __len__(self):
+            slot.lock.notify('snapshot-len')
+            return 1
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins.plugins = PluginsList()  # type: ignore[assignment]
+    monkeypatch.setattr(slot_module, 'CallerWithPlugins', TracedCallerWithPlugins)
+
+    _ = slot.one
+
+    for identifier in ('load', 'read-plugins', 'snapshot', 'snapshot-bool', 'snapshot-len'):
+        assert slot.lock.was_event_locked(identifier)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'read-plugins'),
+        ('action', 'snapshot'),
+        ('action', 'snapshot-bool'),
+        ('action', 'snapshot-len'),
+        ('release', None),
+    ]
+
+
+def test_iter_snapshot_creation_is_protected_by_slot_lock():
+    """Slot iteration resolves entry points and snapshots plugins under the slot lock when first consumed."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __iter__(self):
+            slot.lock.notify('snapshot')
+            yield object()
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    next(iter(slot))
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('snapshot')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'snapshot'),
+        ('release', None),
+    ]
+
+
+def test_iter_snapshot_is_yielded_without_slot_lock():
+    """Slot iteration releases the slot lock before yielding snapshot items to consumer code."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __iter__(self):
+            slot.lock.notify('snapshot')
+            yield object()
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    iterator = iter(slot)
+    next(iterator)
+    slot.lock.notify('after-yield')
+
+    assert slot.lock.was_event_locked('snapshot')
+    assert not slot.lock.was_event_locked('after-yield', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'snapshot'),
+        ('release', None),
+        ('action', 'after-yield'),
+    ]
+
+
+def test_getitem_is_protected_by_slot_lock():
+    """Slot item lookup keeps lazy loading and plugin selection under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    selection = object()
+
+    class Plugins:
+        def __getitem__(self, key):
+            assert key == 'missing'
+            slot.lock.notify('getitem')
+            return selection
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    assert slot['missing'] is selection
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('getitem')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'getitem'),
+        ('release', None),
+    ]
+
+
+def test_delitem_loads_and_attempts_deletion_under_slot_lock():
+    """Slot item deletion loads entry points before attempting missing-key removal under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def pop(self, key):
+            slot.lock.notify('delete')
+            raise KeyError(key)
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    with pytest.raises(KeyError, match=match("'missing'")):
+        del slot['missing']
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('delete')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'delete'),
+        ('release', None),
+    ]
+
+
+def test_contains_is_protected_by_slot_lock():
+    """Slot membership checks keep lazy loading and plugin lookup under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __contains__(self, item):
+            assert item == 'plugin'
+            slot.lock.notify('contains')
+            return True
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    assert 'plugin' in slot
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('contains')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'contains'),
+        ('release', None),
+    ]
+
+
+def test_len_is_protected_by_slot_lock():
+    """Slot length checks keep lazy loading and plugin counting under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __len__(self):
+            slot.lock.notify('len')
+            return 1
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    assert len(slot) == 1
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('len')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'len'),
+        ('release', None),
+    ]
+
+
+def test_keys_is_protected_by_slot_lock():
+    """Slot key reads keep lazy loading and requested-name iteration under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class RequestedNames:
+        def keys(self):
+            slot.lock.notify('keys')
+            return self
+
+        def __iter__(self):
+            slot.lock.notify('keys-iter')
+            yield 'plugin'
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins.plugins_by_requested_names = RequestedNames()  # type: ignore[assignment]
+
+    assert slot.keys() == ('plugin',)
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('keys')
+    assert slot.lock.was_event_locked('keys-iter')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'keys'),
+        ('action', 'keys-iter'),
+        ('release', None),
+    ]
+
+
+@pytest.mark.parametrize(
+    'operation',
+    [
+        lambda slot: slot._pop_plugins('missing'),
+        lambda slot: slot.pop('missing'),
+    ],
+    ids=['private-helper', 'public-api'],
+)
+def test_pop_operation_loads_and_attempts_removal_under_slot_lock(operation):
+    """Slot pop operations load entry points before attempting missing-key removal under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def pop(self, key):
+            slot.lock.notify('pop')
+            raise KeyError(key)
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins = Plugins()  # type: ignore[assignment]
+
+    with pytest.raises(KeyError, match=match("'missing'")):
+        operation(slot)
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('pop')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'pop'),
+        ('release', None),
+    ]
+
+
+def test_load_entrypoints_is_protected_by_slot_lock(monkeypatch):
+    """Slot entry point loading locks both initial loading and the already-loaded fast path."""
+    class TracedSlot(Slot):
+        def __getattribute__(self, name):
+            value = super().__getattribute__(name)
+            if name == 'loaded':
+                lock = getattr(self, 'lock', None)
+                if hasattr(lock, 'notify'):
+                    lock.notify('loaded-read')
+            return value
+
+        def __setattr__(self, name, value):
+            if name == 'loaded':
+                lock = getattr(self, 'lock', None)
+                if hasattr(lock, 'notify'):
+                    lock.notify('loaded-set')
+            super().__setattr__(name, value)
+
+    def empty_body():
+        pass
+
+    slot = TracedSlot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class EntryPoint:
+        def load(self):
+            slot.lock.notify('point-load')
+
+    class EntryPoints:
+        def __iter__(self):
+            slot.lock.notify('entrypoints-iter')
+            yield EntryPoint()
+
+    def get_entries(group=None):
+        assert group == 'pristan'
+        slot.lock.notify('provider')
+        return EntryPoints()
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    slot._load_entrypoints()
+
+    assert object.__getattribute__(slot, 'loaded') is True
+    for identifier in ('loaded-read', 'provider', 'entrypoints-iter', 'point-load', 'loaded-set'):
+        assert slot.lock.was_event_locked(identifier)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'loaded-read'),
+        ('action', 'provider'),
+        ('action', 'entrypoints-iter'),
+        ('action', 'point-load'),
+        ('action', 'loaded-set'),
+        ('release', None),
+    ]
+
+    slot.lock.trace.clear()
+
+    slot._load_entrypoints()
+
+    assert slot.lock.was_event_locked('loaded-read')
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'loaded-read'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_is_protected_by_slot_lock(monkeypatch):
+    """Slot plugin registration keeps limit, engine, name, and insertion checks under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class TracedPlugin:
+        def __init__(self, *arguments):
+            pass
+
+        def set_name(self, name):
+            raise AssertionError(f'Unexpected duplicate rename to {name}.')
+
+    class PluginGroup:
+        def __len__(self):
+            slot.lock.notify('group-len')
+            return 1
+
+    class RequestedNames:
+        def __contains__(self, name):
+            assert name == 'plugin'
+            slot.lock.notify('name-check')
+            return False
+
+        def __getitem__(self, name):
+            assert name == 'plugin'
+            return PluginGroup()
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, _plugin):
+            slot.lock.notify('add')
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+    monkeypatch.setattr(slot_module, 'Plugin', TracedPlugin)
+
+    slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    for identifier in ('len', 'engine', 'name-check', 'add', 'group-len'):
+        assert slot.lock.was_event_locked(identifier)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'len'),
+        ('action', 'engine'),
+        ('action', 'name-check'),
+        ('action', 'add'),
+        ('action', 'group-len'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_max_limit_error_is_protected_by_slot_lock():
+    """Slot plugin registration checks the max limit and raises without mutating under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=0, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class Plugins:
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, _plugin):
+            slot.lock.notify('add')
+            raise AssertionError('Plugin should not be added after max-limit failure.')
+
+    def check_package_version(_engine):
+        slot.lock.notify('engine')
+        raise AssertionError('Engine should not be checked after max-limit failure.')
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+
+    with pytest.raises(TooManyPluginsError, match=match('The maximum number of plugins for this slot is 0.')):
+        slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    assert slot.lock.was_event_locked('len')
+    assert not slot.lock.was_event_locked('engine', raise_exception=False)
+    assert not slot.lock.was_event_locked('add', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'len'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_unique_name_error_is_protected_by_slot_lock():
+    """Slot plugin registration checks unique-name conflicts and raises without mutating under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class RequestedNames:
+        def __contains__(self, name):
+            assert name == 'plugin'
+            slot.lock.notify('name-check')
+            return True
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, _plugin):
+            slot.lock.notify('add')
+            raise AssertionError('Plugin should not be added after unique-name failure.')
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Slot "empty_body" requires unique plugin names, but "plugin" is already registered.')):
+        slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    assert slot.lock.was_event_locked('len')
+    assert slot.lock.was_event_locked('engine')
+    assert slot.lock.was_event_locked('name-check')
+    assert not slot.lock.was_event_locked('add', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'len'),
+        ('action', 'engine'),
+        ('action', 'name-check'),
+        ('release', None),
+    ]
+
+
+def test_add_plugin_renames_duplicate_under_slot_lock(monkeypatch):
+    """Slot plugin registration renames a newly added duplicate while continuously holding the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class TracedPlugin:
+        def __init__(self, _name, _function, _expected_result_type, _type_check, unique, _run_once):
+            self.unique = unique
+
+        def set_name(self, name):
+            assert name == 'plugin-2'
+            slot.lock.notify('rename')
+
+    class ExistingPlugin:
+        unique = False
+
+    class PluginGroup:
+        plugin = None
+
+        def __len__(self):
+            slot.lock.notify('group-len')
+            return 2
+
+        def __iter__(self):
+            slot.lock.notify('group-iter')
+            return iter([ExistingPlugin(), self.plugin])
+
+    plugin_group = PluginGroup()
+
+    class RequestedNames:
+        def __contains__(self, name):
+            raise AssertionError(f'Unexpected unique-name check for {name}.')
+
+        def __getitem__(self, name):
+            assert name == 'plugin'
+            return plugin_group
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, plugin):
+            slot.lock.notify('add')
+            plugin_group.plugin = plugin
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+    monkeypatch.setattr(slot_module, 'Plugin', TracedPlugin)
+
+    slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    trace = [(event.type.value, event.identifier) for event in slot.lock.trace]
+    action_identifiers = [identifier for _, identifier in trace if identifier is not None]
+
+    for identifier in ('len', 'engine', 'add', 'group-len', 'rename', 'group-iter'):
+        assert slot.lock.was_event_locked(identifier)
+    assert trace[0] == ('acquire', None)
+    assert trace[-1] == ('release', None)
+    assert ('release', None) not in trace[1:-1]
+    assert (
+        action_identifiers.index('len')
+        < action_identifiers.index('engine')
+        < action_identifiers.index('add')
+        < action_identifiers.index('group-len')
+        < action_identifiers.index('rename')
+        < action_identifiers.index('group-iter')
+    )
+
+
+def test_add_plugin_rolls_back_duplicate_with_existing_unique_plugin_under_slot_lock(monkeypatch):
+    """Slot plugin registration rolls back a new same-name plugin that conflicts with an existing unique plugin under the slot lock."""
+    def empty_body():
+        pass
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class TracedPlugin:
+        def __init__(self, _name, _function, _expected_result_type, _type_check, unique, _run_once):
+            self.unique = unique
+
+        def set_name(self, name):
+            assert name == 'plugin-2'
+            slot.lock.notify('rename')
+
+    class ExistingPlugin:
+        name = 'plugin'
+        unique = True
+
+    class PluginGroup:
+        plugin = None
+
+        def __len__(self):
+            slot.lock.notify('group-len')
+            return 2
+
+        def __iter__(self):
+            slot.lock.notify('group-iter')
+            return iter([ExistingPlugin(), self.plugin])
+
+    plugin_group = PluginGroup()
+
+    class RequestedNames:
+        def __contains__(self, name):
+            raise AssertionError(f'Unexpected unique-name check for {name}.')
+
+        def __getitem__(self, name):
+            assert name == 'plugin'
+            return plugin_group
+
+    class Plugins:
+        plugins_by_requested_names = RequestedNames()
+
+        def __len__(self):
+            slot.lock.notify('len')
+            return 0
+
+        def add(self, plugin):
+            slot.lock.notify('add')
+            plugin_group.plugin = plugin
+
+        def delete_last_by_name(self, name):
+            assert name == 'plugin'
+            slot.lock.notify('delete-last')
+
+    def check_package_version(engine):
+        assert engine is None
+        slot.lock.notify('engine')
+        return True
+
+    slot.plugins = Plugins()  # type: ignore[assignment]
+    slot.code_representation.check_package_version = check_package_version  # type: ignore[method-assign]
+    monkeypatch.setattr(slot_module, 'Plugin', TracedPlugin)
+
+    with pytest.raises(PrimadonnaPluginError, match=match('Plugin "plugin" claims to be unique, but there are other plugins with the same name.')):
+        slot._add_plugin('plugin', lambda: None, False, None, False)
+
+    trace = [(event.type.value, event.identifier) for event in slot.lock.trace]
+    action_identifiers = [identifier for _, identifier in trace if identifier is not None]
+
+    for identifier in ('len', 'engine', 'add', 'group-len', 'rename', 'group-iter', 'delete-last'):
+        assert slot.lock.was_event_locked(identifier)
+    assert trace[0] == ('acquire', None)
+    assert trace[-1] == ('release', None)
+    assert ('release', None) not in trace[1:-1]
+    assert (
+        action_identifiers.index('len')
+        < action_identifiers.index('engine')
+        < action_identifiers.index('add')
+        < action_identifiers.index('group-len')
+        < action_identifiers.index('rename')
+        < action_identifiers.index('group-iter')
+        < action_identifiers.index('delete-last')
+    )
 
 
 def test_bool_loads_entrypoints_before_checking_local_plugins(monkeypatch):
@@ -142,7 +877,7 @@ def test_bool_short_circuits_default_body_when_plugins_exist(monkeypatch):
         assert group == 'pristan'
         return []
 
-    slot.caller.code_representation = BrokenCodeRepresentation()
+    slot.code_representation = BrokenCodeRepresentation()
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert bool(slot)
@@ -246,7 +981,7 @@ def test_bool_keeps_loaded_after_successful_load_and_inspection_error(monkeypatc
         return []
 
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
-    slot.caller.code_representation = BrokenCodeRepresentation()
+    slot.code_representation = BrokenCodeRepresentation()
 
     with pytest.raises(RuntimeError, match=match('inspection failed')):
         bool(slot)
@@ -432,7 +1167,12 @@ def test_getitem_and_delitem_load_errors_dominate_key_validation(monkeypatch):
 
 
 def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
-    """Saved selections keep their plugin snapshots for `.one` after parent mutation."""
+    """
+    Saved selections keep their plugin snapshots for `.one` after parent mutation.
+
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
+    """
     def empty_body():
         pass
 
@@ -474,18 +1214,19 @@ def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
 
     assert bool(singleton_selection)
     assert len(singleton_selection) == 1
-    assert singleton_selection.one is singleton_selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert singleton_selection.one is singleton_selection
     assert len(slot['plugin']) == 0
     with pytest.raises(OneResolutionError, match=match('Slot "empty_body" has 2 registered plugins, so .one cannot choose one.')):
         _ = slot.one
     assert len(grouped_selection) == 2
     assert [plugin.name for plugin in grouped_selection] == ['group', 'group-2']
     assert [plugin.name for plugin in slot['group']] == ['group']
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
         _ = grouped_selection.one
     assert not bool(empty_selection)
     assert len(empty_selection) == 0
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
         _ = empty_selection.one
     assert bool(slot)
     assert requested_groups == ['pristan']
@@ -515,7 +1256,7 @@ def test_selection_bool_branches(monkeypatch):
     def plugin():
         return None
 
-    slot_with_plugin.caller.code_representation = BrokenCodeRepresentation()
+    slot_with_plugin.code_representation = BrokenCodeRepresentation()
 
     assert bool(slot_with_plugin['plugin'])
 
@@ -697,7 +1438,12 @@ def test_duplicate_plugin_selection_keys(monkeypatch):
 
 
 def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
-    """`.one` is read-only and cannot be shadowed by failed assignment or deletion."""
+    """
+    `.one` is read-only and cannot be shadowed by failed assignment or deletion.
+
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
+    """
     @public_slot
     def empty_body():
         pass
@@ -714,9 +1460,9 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
         return None
 
     selection = slot['plugin']
-
     assert [plugin.name for plugin in slot.one] == ['plugin']
-    assert selection.one is selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
 
     with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         slot.one = object()  # type: ignore[misc]
@@ -728,7 +1474,8 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
         del selection.one  # type: ignore[misc]
 
     assert [plugin.name for plugin in slot.one] == ['plugin']
-    assert selection.one is selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
 
 
 def test_slot_one_returns_caller_with_plugins_for_singleton_and_fallback(monkeypatch, subscribable_list_type, subscribable_dict_type):
@@ -844,7 +1591,12 @@ def test_slot_one_returns_caller_with_plugins_for_singleton_and_fallback(monkeyp
 
 
 def test_caller_with_plugins_one_resolves_by_count_and_fallback():
-    """Selections return themselves for one plugin or fallback, else raise selection-specific errors."""
+    """
+    Selections return themselves for one plugin or fallback, else raise selection-specific errors.
+
+    Catching selection warnings keeps these slots non-unique; changing them to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
+    """
     @public_slot
     def empty_body():
         pass
@@ -873,21 +1625,28 @@ def test_caller_with_plugins_one_resolves_by_count_and_fallback():
     def second_group_plugin():
         return None
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has no selected plugins and the slot body is empty.')):
         _ = CallerWithPlugins(empty_slot.caller, []).one
 
     fallback_selection = CallerWithPlugins(fallback_slot.caller, [])
-    assert fallback_selection.one is fallback_selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_slot", because this code uses .one to work with a single plugin.')):
+        assert fallback_selection.one is fallback_selection
 
     singleton_selection = plugin_slot.plugins['plugin']
-    assert singleton_selection.one is singleton_selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "plugin_slot", because this code uses .one to work with a single plugin.')):
+        assert singleton_selection.one is singleton_selection
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "plugin_slot" has 2 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "plugin_slot", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "plugin_slot" has 2 selected plugins, so .one cannot choose one.')):
         _ = plugin_slot.plugins['group'].one
 
 
 def test_caller_with_plugins_one_does_not_load_entrypoints(monkeypatch):
-    """A saved selection does not trigger entry point loading again."""
+    """
+    A saved selection does not trigger entry point loading again.
+
+    Catching the warning keeps the slot non-unique; changing it to unique=True
+    would bias coverage, while leaving it uncaught would add warning noise.
+    """
     @public_slot
     def empty_body():
         pass
@@ -910,12 +1669,18 @@ def test_caller_with_plugins_one_does_not_load_entrypoints(monkeypatch):
 
     slot._load_entrypoints = raise_loading_error  # type: ignore[method-assign]
 
-    assert selection.one is selection
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one is selection
 
 
 @pytest.mark.parametrize(('operation_name', 'remaining_plugin_count'), [('getitem', 1), ('pop', 0)])
 def test_getitem_and_pop_selections_resolve_loaded_plugins_through_one(monkeypatch, subscribable_list_type, operation_name, remaining_plugin_count):
-    """Getitem/pop selections resolve newly loaded plugins through `.one`; pop mutates after successful loading."""
+    """
+    Getitem/pop selections resolve newly loaded plugins through `.one`; pop mutates after successful loading.
+
+    Catching the warning keeps the slot non-unique; changing it to unique=True
+    would bias coverage, while leaving it uncaught would add warning noise.
+    """
     @public_slot
     def empty_body() -> subscribable_list_type[int]:
         return []
@@ -940,7 +1705,8 @@ def test_getitem_and_pop_selections_resolve_loaded_plugins_through_one(monkeypat
     }
     selection = operations[operation_name]()
 
-    assert selection.one() == [1]
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert selection.one() == [1]
     assert slot.loaded
     assert len(slot) == remaining_plugin_count
 
@@ -980,18 +1746,21 @@ def test_getitem_and_pop_loading_errors_prevent_selection_creation(monkeypatch, 
 
 
 @pytest.mark.parametrize(
-    ('access_selection', 'remaining_plugin_count'),
+    ('access_selection', 'remaining_plugin_count', 'selection_access_warns'),
     [
-        (lambda slot: slot.one, 1),
-        (lambda slot: slot['name'].one, 1),
-        (lambda slot: slot.pop('name').one, 0),
+        (lambda slot: slot.one, 1, False),
+        (lambda slot: slot['name'].one, 1, True),
+        (lambda slot: slot.pop('name').one, 0, True),
     ],
     ids=('slot', 'getitem', 'pop'),
 )
-def test_public_one_single_plugin_access_paths_return_callable_selections(monkeypatch, subscribable_list_type, access_selection, remaining_plugin_count):
-    """Public singleton access paths return callable selections.
+def test_public_one_single_plugin_access_paths_return_callable_selections(monkeypatch, subscribable_list_type, access_selection, remaining_plugin_count, selection_access_warns):
+    """
+    Public singleton access paths return callable selections.
 
     The pop row proves parent mutation does not affect the returned selection.
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
     """
     @public_slot
     def empty_body() -> subscribable_list_type[int]:
@@ -1008,7 +1777,11 @@ def test_public_one_single_plugin_access_paths_return_callable_selections(monkey
     def plugin():
         return 1
 
-    selection = access_selection(slot)
+    if selection_access_warns:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            selection = access_selection(slot)
+    else:
+        selection = access_selection(slot)
 
     assert selection() == [1]
     assert len(slot) == remaining_plugin_count
@@ -1214,9 +1987,13 @@ def test_slot_one_raises_slot_specific_resolution_errors(monkeypatch):
 
 
 def test_one_raises_for_empty_bodies_without_plugins(monkeypatch, list_type, dict_type):
-    """`Slot.one` uses existing empty-body rules for slots and selections.
+    """
+    `.one` uses existing empty-body rules for slots and selections.
 
     Annotated empty list/dict returns are not fallback candidates.
+    Catching the selection warning keeps the representative slot non-unique;
+    changing it to unique=True would bias coverage, while leaving it uncaught
+    would add warning noise.
     """
     def empty_body():
         pass
@@ -1258,7 +2035,7 @@ def test_one_raises_for_empty_bodies_without_plugins(monkeypatch, list_type, dic
 
     representative_slot = public_slot(empty_list_body, name='representative')
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "representative" has no selected plugins and the slot body is empty.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "representative", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "representative" has no selected plugins and the slot body is empty.')):
         _ = representative_slot['missing'].one
 
 
@@ -1364,7 +2141,7 @@ def test_slot_one_plugin_count_resolution_skips_fallback_body():
             def plugin():
                 return None
 
-        slot.caller.code_representation = BrokenCodeRepresentation()
+        slot.code_representation = BrokenCodeRepresentation()
         slot._load_entrypoints = lambda: None  # type: ignore[method-assign]
 
         if plugin_count == 1:
@@ -1450,7 +2227,7 @@ def test_slot_one_propagates_body_inspection_errors_without_plugins(monkeypatch)
         return []
 
     slot = empty_body
-    slot.caller.code_representation = BrokenCodeRepresentation()
+    slot.code_representation = BrokenCodeRepresentation()
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     with pytest.raises(RuntimeError, match=match('inspection failed')):
@@ -1489,7 +2266,7 @@ def test_one_result_type_checks_happen_on_call_for_plugins_and_fallback(monkeypa
 
     fallback_slot = fallback_body
     fallback_selection = fallback_slot.one
-    fallback_expected_type = List[fallback_selection.caller.code_representation.returning_type]
+    fallback_expected_type = List[fallback_slot.code_representation.returning_type]
     fallback_expected_type_name = getattr(fallback_expected_type, '__name__', str(fallback_expected_type))
 
     with pytest.raises(TypeError, match=match(f'The type list of the plugin\'s "fallback_body" return value [1] does not match the expected type {fallback_expected_type_name}.')):
@@ -1556,9 +2333,12 @@ def test_slot_one_returns_independent_snapshots_with_shared_plugins(monkeypatch)
 
 
 def test_duplicate_plugin_selection_keys_and_pop_resolve_through_one(monkeypatch, subscribable_list_type):
-    """Duplicate numbered keys and exact-key pops resolve through `.one`.
+    """
+    Duplicate numbered keys and exact-key pops resolve through `.one`.
 
     Base-name lookup remains ambiguous; pop renumbers survivors.
+    Catching selection warnings keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving them uncaught would add warning noise.
     """
     @public_slot
     def empty_body() -> subscribable_list_type[int]:
@@ -1583,22 +2363,30 @@ def test_duplicate_plugin_selection_keys_and_pop_resolve_through_one(monkeypatch
     def third():
         return 3
 
-    for key, expected_result in (('name-1', [1]), ('name-2', [2]), ('name-3', [3])):
-        assert slot[key].one() == expected_result
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        for key, expected_result in (('name-1', [1]), ('name-2', [2]), ('name-3', [3])):
+            assert slot[key].one() == expected_result
 
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 3 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 3 selected plugins, so .one cannot choose one.')):
         _ = slot['name'].one
 
     popped_selection = slot.pop('name-2')
 
-    assert popped_selection.one() == [2]
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        assert popped_selection.one() == [2]
     assert [plugin.name for plugin in slot.plugins.plugins] == ['name', 'name-2']
-    for key, expected_result in (('name-1', [1]), ('name-2', [3])):
-        assert slot[key].one() == expected_result
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        for key, expected_result in (('name-1', [1]), ('name-2', [3])):
+            assert slot[key].one() == expected_result
 
 
 def test_popped_group_one_resolution_error_happens_after_parent_mutation(monkeypatch):
-    """A popped multi-plugin selection raises OneResolutionError after parent mutation."""
+    """
+    A popped multi-plugin selection raises OneResolutionError after parent mutation.
+
+    Catching the selection warning keeps the slot non-unique; changing it to
+    unique=True would bias coverage, while leaving it uncaught would add warning noise.
+    """
     @public_slot
     def empty_body() -> List[int]:
         return []
@@ -1622,7 +2410,7 @@ def test_popped_group_one_resolution_error_happens_after_parent_mutation(monkeyp
 
     assert len(slot) == 0
     assert [plugin.name for plugin in popped_selection] == ['name', 'name-2']
-    with pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 2 selected plugins, so .one cannot choose one.')):
         _ = popped_selection.one
 
 

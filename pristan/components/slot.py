@@ -75,32 +75,6 @@ pop_default_sentinel = InnerNoneType()
     },
 )
 class Slot(Generic[PluginResult]):
-    """
-    A callable plugin slot created by the public ``@slot`` decorator.
-
-    Slots are usually created by decorating a function. Plugins can be attached
-    next to the slot with the slot's ``.plugin`` decorator:
-
-    >>> from pristan import slot
-    >>> @slot
-    ... def collect_values() -> list[int]:
-    ...     return []
-    >>> @collect_values.plugin
-    ... def collect_integer() -> int:
-    ...     return 1
-    >>> collect_values()
-    [1]
-
-    Plugins exposed through Python entry points are discovered lazily. Operations
-    that call the slot, select plugins, report the slot's internal plugin state,
-    or mutate that state resolve entry points before they inspect or change the
-    plugin collection.
-
-    Operations that mutate the slot's plugin collection are protected by the slot
-    mutex. Plugin registration through ``.plugin(...)`` is synchronized as well
-    and is the registration path used by modules loaded from entry points.
-    """
-
     def __init__(self, slot_function: SlotFunction[SlotParameters, SlotResult[PluginResult]], *, signature: Optional[SlotSignature], slot_name: Optional[str], max: Optional[int], type_check: bool, entrypoint_group: str, unique: bool, explicit_plugin_names: bool = False) -> None:  # noqa: PLR0913, A002
         if max is not None and max < 0:
             raise ValueError('The maximum number of plugins cannot be less than zero.')
@@ -124,7 +98,7 @@ class Slot(Generic[PluginResult]):
 
         self.lock = RLock()
 
-        self.caller: SlotCaller[PluginResult] = SlotCaller(self.code_representation, self.slot_name, self.slot_function, self.type_check)
+        self.caller: SlotCaller[PluginResult] = SlotCaller(self)
         self.plugins: PluginsGroup[PluginResult] = PluginsGroup(self.caller)
         self.backed_caller = CallerWithPlugins(self.caller, self.plugins.plugins)
 
@@ -133,22 +107,25 @@ class Slot(Generic[PluginResult]):
         self.loaded = False
 
     def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:
-        self._load_entrypoints()
-        return self.backed_caller(*args, **kwargs)
+        with self.lock:
+            self._load_entrypoints()
+            return self.backed_caller(*args, **kwargs)
 
     def __bool__(self) -> bool:
-        self._load_entrypoints()
-        return bool(self.backed_caller)
+        with self.lock:
+            self._load_entrypoints()
+            return bool(self.backed_caller)
 
     @property
     def one(self) -> CallerWithPlugins[PluginResult]:
-        self._load_entrypoints()
-        snapshot = CallerWithPlugins(self.caller, list(self.plugins.plugins))
-        if not snapshot:
-            raise OneResolutionError(f'Slot "{self.slot_name}" has no registered plugins and its body is empty.')
-        if len(snapshot) > 1:
-            raise OneResolutionError(f'Slot "{self.slot_name}" has {len(snapshot)} registered plugins, so .one cannot choose one.')
-        return snapshot
+        with self.lock:
+            self._load_entrypoints()
+            snapshot = CallerWithPlugins(self.caller, list(self.plugins.plugins))
+            if not snapshot:
+                raise OneResolutionError(f'Slot "{self.slot_name}" has no registered plugins and its body is empty.')
+            if len(snapshot) > 1:
+                raise OneResolutionError(f'Slot "{self.slot_name}" has {len(snapshot)} registered plugins, so .one cannot choose one.')
+            return snapshot
 
     @one.setter
     def one(self, value: Any) -> NoReturn:  # noqa: ARG002
@@ -159,23 +136,31 @@ class Slot(Generic[PluginResult]):
         raise AttributeError('Attribute ".one" is read-only.')
 
     def __iter__(self) -> Generator[PluginProtocol[SlotParameters, PluginResult], None, None]:
-        self._load_entrypoints()
-        yield from self.plugins
+        with self.lock:
+            self._load_entrypoints()
+            plugins_snapshot = tuple(self.plugins)
+
+        yield from plugins_snapshot
 
     def __getitem__(self, key: str) -> CallerWithPlugins[PluginResult]:
-        self._load_entrypoints()
-        return self.plugins[key]  # type: ignore[no-any-return]
+        with self.lock:
+            self._load_entrypoints()
+            return self.plugins[key]  # type: ignore[no-any-return]
 
     def __delitem__(self, key: str) -> None:
-        self._pop_plugins(key)
+        with self.lock:
+            self._load_entrypoints()
+            self.plugins.pop(key)
 
     def __contains__(self, item: Any) -> bool:
-        self._load_entrypoints()
-        return item in self.plugins
+        with self.lock:
+            self._load_entrypoints()
+            return item in self.plugins
 
     def __len__(self) -> int:
-        self._load_entrypoints()
-        return len(self.plugins)
+        with self.lock:
+            self._load_entrypoints()
+            return len(self.plugins)
 
     @overload
     def pop(self, key: str) -> CallerWithPlugins[PluginResult]:
@@ -196,13 +181,12 @@ class Slot(Generic[PluginResult]):
         return CallerWithPlugins(self.caller, removed_plugins)
 
     def _pop_plugins(self, key: str) -> List[Plugin[PluginResult]]:
-        self._load_entrypoints()
         with self.lock:
+            self._load_entrypoints()
             return self.plugins.pop(key)
 
     @overload
-    def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]:
-        ...  # pragma: no cover
+    def plugin(self, plugin_function_or_name: Optional[str] = None, unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[[Callable[SlotParameters, PluginResult]], Callable[SlotParameters, PluginResult]]: ...  # pragma: no cover
 
     @overload
     def plugin(self, plugin_function_or_name: Callable[SlotParameters, PluginResult], unique: bool = False, engine: Optional[Union[List[str], str]] = None, run_once: bool = False) -> Callable[SlotParameters, PluginResult]: ...  # pragma: no cover
@@ -237,8 +221,9 @@ class Slot(Generic[PluginResult]):
         return decorator(plugin_function_or_name)
 
     def keys(self) -> Tuple[str, ...]:
-        self._load_entrypoints()
-        return tuple(self.plugins.plugins_by_requested_names.keys())
+        with self.lock:
+            self._load_entrypoints()
+            return tuple(self.plugins.plugins_by_requested_names.keys())
 
     def _load_entrypoints(self) -> None:
         with self.lock:
