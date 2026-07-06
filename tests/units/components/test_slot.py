@@ -27,32 +27,97 @@ def test_set_max_less_than_zero():
         Slot(lambda x: x, signature='.', slot_name='slot_name', max=-1, type_check=False, entrypoint_group='pristan', unique=False)
 
 
-def test_call_is_protected_by_slot_lock():
-    """Slot calls keep lazy loading and dispatch under the slot lock."""
-    def empty_body():
-        pass
+def test_call_snapshots_registered_plugins_under_slot_lock_but_runs_plugins_after_release():
+    """Slot loads entry points and snapshots registered plugins under its lock, then runs plugin bodies after release."""
+    def empty_body() -> List[str]:
+        return []
 
     slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+
+    @slot.plugin
+    def plugin():
+        slot.lock.notify('plugin-body')
+        return 'plugin'
+
     slot.lock = LockTraceWrapper(slot.lock)
 
-    class BackedCaller:
-        def __call__(self):
-            slot.lock.notify('call')
-            return 'result'
+    class PluginsList(list):
+        def __iter__(self):
+            slot.lock.notify('snapshot')
+            yield from super().__iter__()
 
     slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
-    slot.backed_caller = BackedCaller()  # type: ignore[assignment]
+    slot.plugins.plugins = PluginsList(slot.plugins.plugins)
 
-    assert slot() == 'result'
+    assert slot() == ['plugin']
 
     assert slot.lock.was_event_locked('load')
-    assert slot.lock.was_event_locked('call')
+    assert slot.lock.was_event_locked('snapshot')
+    assert not slot.lock.was_event_locked('plugin-body', raise_exception=False)
     assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
         ('acquire', None),
         ('action', 'load'),
-        ('action', 'call'),
+        ('action', 'snapshot'),
         ('release', None),
+        ('action', 'plugin-body'),
     ]
+
+
+def test_call_snapshots_empty_plugins_under_lock_but_runs_fallback_after_release():
+    """Slot loads entry points and snapshots an empty plugin list under its lock, then runs the fallback body after release."""
+    def fallback_body() -> List[str]:
+        slot.lock.notify('fallback-body')
+        return ['fallback']
+
+    slot = Slot(fallback_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.lock = LockTraceWrapper(slot.lock)
+
+    class PluginsList(list):
+        def __iter__(self):
+            slot.lock.notify('snapshot')
+            yield from super().__iter__()
+
+    slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
+    slot.plugins.plugins = PluginsList()
+
+    assert slot() == ['fallback']
+
+    assert slot.lock.was_event_locked('load')
+    assert slot.lock.was_event_locked('snapshot')
+    assert not slot.lock.was_event_locked('fallback-body', raise_exception=False)
+    assert [(event.type.value, event.identifier) for event in slot.lock.trace] == [
+        ('acquire', None),
+        ('action', 'load'),
+        ('action', 'snapshot'),
+        ('release', None),
+        ('action', 'fallback-body'),
+    ]
+
+
+def test_plugins_registered_during_dispatch_are_called_on_later_calls_only():
+    """Slot uses a stable plugin snapshot, so plugins registered during a call run only on later calls."""
+    def empty_body() -> List[str]:
+        return []
+
+    slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot._load_entrypoints = lambda: None  # type: ignore[method-assign]
+    late_was_registered = False
+
+    @slot.plugin
+    def registrar():
+        nonlocal late_was_registered
+
+        if not late_was_registered:
+            late_was_registered = True
+
+            @slot.plugin
+            def late():
+                return 'late'
+
+        return 'registrar'
+
+    assert slot() == ['registrar']
+    assert slot() == ['registrar', 'late']
 
 
 def test_bool_is_protected_by_slot_lock():
