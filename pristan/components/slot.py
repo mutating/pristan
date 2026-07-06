@@ -109,7 +109,9 @@ class Slot(Generic[PluginResult]):
     def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> SlotResult[PluginResult]:
         with self.lock:
             self._load_entrypoints()
-            return self.backed_caller(*args, **kwargs)
+            backed_caller = CallerWithPlugins(self.caller, list(self.plugins.plugins))
+
+        return backed_caller(*args, **kwargs)
 
     def __bool__(self) -> bool:
         with self.lock:
