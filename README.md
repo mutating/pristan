@@ -442,12 +442,12 @@ selected_from_slot = sum_slot.one
 selected_by_name = sum_slot['sum_plugin'].one
 
 print(selected_from_slot(1, 2))
-#> [3]
+#> 3
 print(selected_by_name(1, 2))
-#> [3]
+#> 3
 ```
 
-`.one` returns a callable selection; it does not call it. The arguments above are passed to that returned selection. For `sum_slot.one`, the selection contains the only plugin registered in the slot; for `sum_slot['sum_plugin'].one`, the only plugin in that selection. If no plugin matches but the slot body is non-empty, that body is used as fallback. Otherwise, or if there is more than one candidate, `pristan.errors.OneResolutionError` is raised.
+`.one` returns a callable selection without calling it. For parameterized list/dict slots like this one, calling that selection forwards the arguments and returns the sole plugin or fallback result contained in the aggregate. `sum_slot.one` selects the only registered plugin; `sum_slot['sum_plugin'].one` selects the only plugin in that named selection. If no plugin matches, a non-empty slot body is used as fallback. `pristan.errors.OneResolutionError` is raised when there is no matching plugin or fallback, more than one candidate matches, or a parameterized list/dict aggregate yields zero or multiple results.
 
 
 ## Additional restrictions
