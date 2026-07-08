@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Dict, Generator, Generic, List, NoReturn, Type, Union
+from typing import Any, Dict, Generator, Generic, List, NoReturn, Type, Union, cast
 
 from denial import InnerNoneType
 from printo import repred
@@ -65,6 +65,15 @@ class SlotCaller(Generic[PluginResult]):
 
 @repred
 class CallerWithPlugins(Generic[PluginResult]):
+    """
+    Callable plugin selection returned by regular slot filtering.
+
+    `CallerWithPlugins` preserves the normal slot contract: dispatch returns
+    the full aggregate `SlotResult`. Its `.one` property creates a
+    `OneCallerWithPlugins`, which keeps the same selected plugins but unwraps a
+    single payload after dispatch.
+    """
+
     def __init__(self, caller: SlotCaller[PluginResult], plugins: List[Plugin[PluginResult]]) -> None:
         self.caller = caller
         self.plugins = plugins
@@ -82,14 +91,14 @@ class CallerWithPlugins(Generic[PluginResult]):
         return len(self.plugins)
 
     @property
-    def one(self) -> 'CallerWithPlugins[PluginResult]':
+    def one(self) -> 'OneCallerWithPlugins[PluginResult]':
         if not self.caller.slot.unique:
             warnings.warn(f'Consider setting unique=True for slot "{self.caller.slot.slot_name}", because this code uses .one to work with a single plugin.', SyntaxWarning, stacklevel=2)
         if not self:
             raise OneResolutionError(f'Selection from slot "{self.caller.slot.slot_name}" has no selected plugins and the slot body is empty.')
         if len(self) > 1:
             raise OneResolutionError(f'Selection from slot "{self.caller.slot.slot_name}" has {len(self)} selected plugins, so .one cannot choose one.')
-        return self
+        return OneCallerWithPlugins(self.caller, list(self.plugins))
 
     @one.setter
     def one(self, value: Any) -> NoReturn:  # noqa: ARG002
@@ -98,3 +107,32 @@ class CallerWithPlugins(Generic[PluginResult]):
     @one.deleter
     def one(self) -> NoReturn:
         raise AttributeError('Attribute ".one" is read-only.')
+
+
+class OneCallerWithPlugins(CallerWithPlugins[PluginResult]):
+    """
+    Callable selection returned by `.one`.
+
+    `CallerWithPlugins` keeps the regular slot contract and returns the full
+    aggregate `SlotResult`. This subclass is used only for `.one`: it delegates
+    dispatch to `CallerWithPlugins`, then verifies that an aggregate has exactly
+    one result and unwraps that result to the plugin payload.
+    """
+
+    def __call__(self, *args: SlotParameters.args, **kwargs: SlotParameters.kwargs) -> PluginResult:  # type: ignore[override]
+        result = super().__call__(*args, **kwargs)
+
+        if self.caller.slot.code_representation.returning_type is return_type_sentinel:
+            return None  # type: ignore[return-value]
+
+        if isinstance(result, (list, dict)):
+            result_count = len(result)
+            if result_count != 1:
+                raise OneResolutionError(f'Slot "{self.caller.slot.slot_name}" .one returned {result_count} results, so .one cannot choose one.')
+
+            payload = result[0] if isinstance(result, list) else next(iter(result.values()))
+
+        else:
+            payload = cast(PluginResult, result)
+
+        return payload
