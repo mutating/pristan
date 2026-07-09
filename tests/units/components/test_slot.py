@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, List
 
 import pytest
@@ -8,7 +9,7 @@ from sigmatch.errors import SignatureMismatchError
 import pristan.components.slot as slot_module
 from pristan import slot as public_slot
 from pristan.components.slot import Slot
-from pristan.components.slot_caller import CallerWithPlugins
+from pristan.components.slot_caller import CallerWithPlugins, OneCallerWithPlugins
 from pristan.errors import (
     CannotGetVersionsError,
     EntrypointLoadingError,
@@ -161,7 +162,7 @@ def test_slot_one_is_protected_by_slot_lock(monkeypatch):
             slot.lock.notify('read-plugins')
             yield object()
 
-    class TracedCallerWithPlugins:
+    class TracedOneCallerWithPlugins:
         def __init__(self, _caller, plugins):
             slot.lock.notify('snapshot')
             assert isinstance(plugins, list)
@@ -176,7 +177,7 @@ def test_slot_one_is_protected_by_slot_lock(monkeypatch):
 
     slot._load_entrypoints = lambda: slot.lock.notify('load')  # type: ignore[method-assign]
     slot.plugins.plugins = PluginsList()  # type: ignore[assignment]
-    monkeypatch.setattr(slot_module, 'CallerWithPlugins', TracedCallerWithPlugins)
+    monkeypatch.setattr(slot_module, 'OneCallerWithPlugins', TracedOneCallerWithPlugins)
 
     _ = slot.one
 
@@ -1233,7 +1234,7 @@ def test_getitem_and_delitem_load_errors_dominate_key_validation(monkeypatch):
 
 def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
     """
-    Saved selections keep their plugin snapshots for `.one` after parent mutation.
+    Saved selections resolve `.one` from original plugin snapshots after parent mutation without reloading entry points.
 
     Catching selection warnings keeps the slot non-unique; changing it to
     unique=True would bias coverage, while leaving them uncaught would add warning noise.
@@ -1280,7 +1281,10 @@ def test_saved_selection_is_snapshot_and_does_not_load_again(monkeypatch):
     assert bool(singleton_selection)
     assert len(singleton_selection) == 1
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert singleton_selection.one is singleton_selection
+        resolved_singleton_selection = singleton_selection.one
+    assert isinstance(resolved_singleton_selection, OneCallerWithPlugins)
+    assert resolved_singleton_selection is not singleton_selection
+    assert resolved_singleton_selection.plugins[0] is singleton_selection.plugins[0]
     assert len(slot['plugin']) == 0
     with pytest.raises(OneResolutionError, match=match('Slot "empty_body" has 2 registered plugins, so .one cannot choose one.')):
         _ = slot.one
@@ -1527,7 +1531,8 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
     selection = slot['plugin']
     assert [plugin.name for plugin in slot.one] == ['plugin']
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert selection.one is selection
+        resolved_selection = selection.one
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
 
     with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
         slot.one = object()  # type: ignore[misc]
@@ -1540,11 +1545,36 @@ def test_slot_and_caller_with_plugins_one_are_read_only_properties(monkeypatch):
 
     assert [plugin.name for plugin in slot.one] == ['plugin']
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert selection.one is selection
+        assert isinstance(selection.one, OneCallerWithPlugins)
+
+
+def test_one_caller_with_plugins_one_is_read_only(monkeypatch):
+    """`.one` is read-only on one-caller snapshots."""
+    @public_slot
+    def empty_body():
+        pass
+
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    slot = empty_body
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @slot.plugin('plugin')
+    def plugin():
+        return None
+
+    resolved_selection = slot.one
+
+    with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
+        resolved_selection.one = object()  # type: ignore[misc]
+    with pytest.raises(AttributeError, match=match('Attribute ".one" is read-only.')):
+        del resolved_selection.one  # type: ignore[misc]
 
 
 def test_slot_one_returns_caller_with_plugins_for_singleton_and_fallback(monkeypatch, subscribable_list_type, subscribable_dict_type):
-    """`Slot.one` returns callable selections for singleton plugins and non-empty fallback bodies across public forms."""
+    """`Slot.one` returns one-caller snapshots for singleton plugins and non-empty fallback bodies across public forms."""
     def get_entries(group=None):
         assert group == 'pristan'
         return []
@@ -1633,31 +1663,41 @@ def test_slot_one_returns_caller_with_plugins_for_singleton_and_fallback(monkeyp
 
     direct_named_fallback_slot = public_slot(direct_named_fallback_body, name='direct_named_fallback_slot')
 
-    for current_slot, call_arguments, expected_plugin_count, expected_result in (
-        (bare_slot, (), 1, ['bare']),
-        (factory_slot, (), 1, {'factory': 1}),
-        (named_slot, (), 1, [3]),
-        (configured_slot, (1,), 1, [1]),
-        (direct_slot, (), 1, {'direct': 2}),
-        (direct_named_slot, (), 1, {'direct_named': 4}),
-        (bare_fallback_slot, (), 0, []),
-        (factory_fallback_slot, (), 0, {}),
-        (named_fallback_slot, (), 0, []),
-        (configured_fallback_slot, (1,), 0, []),
-        (direct_fallback_slot, (), 0, []),
-        (direct_named_fallback_slot, (), 0, {}),
+    for current_slot, call_arguments, expected_aggregate, expected_result in (
+        (bare_slot, (), ['bare'], 'bare'),
+        (factory_slot, (), {'factory': 1}, 1),
+        (named_slot, (), [3], 3),
+        (configured_slot, (1,), [1], 1),
+        (direct_slot, (), {'direct': 2}, 2),
+        (direct_named_slot, (), {'direct_named': 4}, 4),
     ):
+        assert current_slot(*call_arguments) == expected_aggregate
         resolved_selection = current_slot.one
 
-        assert isinstance(resolved_selection, CallerWithPlugins)
+        assert isinstance(resolved_selection, OneCallerWithPlugins)
         assert bool(resolved_selection)
-        assert len(resolved_selection) == expected_plugin_count
+        assert len(resolved_selection) == 1
         assert resolved_selection(*call_arguments) == expected_result
+
+    for current_slot, call_arguments, expected_aggregate in (
+        (bare_fallback_slot, (), []),
+        (factory_fallback_slot, (), {}),
+        (named_fallback_slot, (), []),
+        (configured_fallback_slot, (1,), []),
+        (direct_fallback_slot, (), []),
+        (direct_named_fallback_slot, (), {}),
+    ):
+        assert current_slot(*call_arguments) == expected_aggregate
+        resolved_selection = current_slot.one
+
+        assert isinstance(resolved_selection, OneCallerWithPlugins)
+        assert bool(resolved_selection)
+        assert len(resolved_selection) == 0
 
 
 def test_caller_with_plugins_one_resolves_by_count_and_fallback():
     """
-    Selections return themselves for one plugin or fallback, else raise selection-specific errors.
+    Selections return one-callers for singleton plugin or fallback, else raise selection-specific errors.
 
     Catching selection warnings keeps these slots non-unique; changing them to
     unique=True would bias coverage, while leaving them uncaught would add warning noise.
@@ -1695,11 +1735,17 @@ def test_caller_with_plugins_one_resolves_by_count_and_fallback():
 
     fallback_selection = CallerWithPlugins(fallback_slot.caller, [])
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_slot", because this code uses .one to work with a single plugin.')):
-        assert fallback_selection.one is fallback_selection
+        resolved_fallback_selection = fallback_selection.one
+    assert isinstance(resolved_fallback_selection, OneCallerWithPlugins)
+    assert resolved_fallback_selection is not fallback_selection
+    assert resolved_fallback_selection() is None
 
     singleton_selection = plugin_slot.plugins['plugin']
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "plugin_slot", because this code uses .one to work with a single plugin.')):
-        assert singleton_selection.one is singleton_selection
+        resolved_singleton_selection = singleton_selection.one
+    assert isinstance(resolved_singleton_selection, OneCallerWithPlugins)
+    assert resolved_singleton_selection is not singleton_selection
+    assert resolved_singleton_selection.plugins[0] is singleton_selection.plugins[0]
 
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "plugin_slot", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "plugin_slot" has 2 selected plugins, so .one cannot choose one.')):
         _ = plugin_slot.plugins['group'].one
@@ -1735,7 +1781,7 @@ def test_caller_with_plugins_one_does_not_load_entrypoints(monkeypatch):
     slot._load_entrypoints = raise_loading_error  # type: ignore[method-assign]
 
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert selection.one is selection
+        assert isinstance(selection.one, OneCallerWithPlugins)
 
 
 @pytest.mark.parametrize(('operation_name', 'remaining_plugin_count'), [('getitem', 1), ('pop', 0)])
@@ -1770,8 +1816,9 @@ def test_getitem_and_pop_selections_resolve_loaded_plugins_through_one(monkeypat
     }
     selection = operations[operation_name]()
 
+    assert selection() == [1]
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert selection.one() == [1]
+        assert selection.one() == 1
     assert slot.loaded
     assert len(slot) == remaining_plugin_count
 
@@ -1821,7 +1868,7 @@ def test_getitem_and_pop_loading_errors_prevent_selection_creation(monkeypatch, 
 )
 def test_public_one_single_plugin_access_paths_return_callable_selections(monkeypatch, subscribable_list_type, access_selection, remaining_plugin_count, selection_access_warns):
     """
-    Public singleton access paths return callable selections.
+    Public singleton paths return callable one-selections that unwrap plugin payloads.
 
     The pop row proves parent mutation does not affect the returned selection.
     Catching selection warnings keeps the slot non-unique; changing it to
@@ -1842,15 +1889,72 @@ def test_public_one_single_plugin_access_paths_return_callable_selections(monkey
     def plugin():
         return 1
 
+    assert slot() == [1]
     if selection_access_warns:
         with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
             selection = access_selection(slot)
     else:
         selection = access_selection(slot)
 
-    assert selection() == [1]
+    assert selection() == 1
     assert len(slot) == remaining_plugin_count
     assert slot.loaded
+
+
+@pytest.mark.parametrize(
+    'get_selection',
+    [
+        lambda slot: slot['name'],
+        lambda slot: slot.pop('name'),
+    ],
+    ids=('getitem', 'pop'),
+)
+def test_public_list_selection_calls_without_one_keep_aggregate_result(monkeypatch, subscribable_list_type, get_selection):
+    """Public list selections called without `.one` keep returning list aggregates."""
+    @public_slot
+    def empty_body() -> subscribable_list_type[int]:
+        return []
+
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    slot = empty_body
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @slot.plugin('name')
+    def plugin():
+        return 1
+
+    assert get_selection(slot)() == [1]
+
+
+@pytest.mark.parametrize(
+    'get_selection',
+    [
+        lambda slot: slot['name'],
+        lambda slot: slot.pop('name'),
+    ],
+    ids=('getitem', 'pop'),
+)
+def test_public_dict_selection_calls_without_one_keep_aggregate_result(monkeypatch, subscribable_dict_type, get_selection):
+    """Public dict selections called without `.one` keep returning dict aggregates."""
+    @public_slot
+    def empty_body() -> subscribable_dict_type[str, int]:
+        return {}
+
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    slot = empty_body
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @slot.plugin('name')
+    def plugin():
+        return 1
+
+    assert get_selection(slot)() == {'name': 1}
 
 
 def test_slot_one_calls_load_entrypoints_once_per_access():
@@ -1898,7 +2002,7 @@ def test_slot_one_uses_plugins_loaded_before_snapshot():
 
 
 def test_slot_one_load_error_dominates_local_singleton():
-    """Entry point loading failures dominate a locally resolvable singleton."""
+    """Entry point loading failures are raised before `Slot.one` resolves a local singleton."""
     @public_slot
     def empty_body():
         pass
@@ -2105,7 +2209,8 @@ def test_one_raises_for_empty_bodies_without_plugins(monkeypatch, list_type, dic
 
 
 def test_slot_one_resolves_non_empty_fallback_bodies(monkeypatch, subscribable_list_type, subscribable_dict_type):
-    """`Slot.one` treats non-empty fallback bodies as one candidate.
+    """
+    `Slot.one` treats non-empty fallback bodies as one candidate.
 
     Rows cover unannotated None normalization and list/dict results of any size.
     """
@@ -2160,12 +2265,475 @@ def test_slot_one_resolves_non_empty_fallback_bodies(monkeypatch, subscribable_l
         (docstring_with_annotated_dict_body, {}),
     ):
         slot = public_slot(body_function)
+        assert slot() == expected_result
         resolved_selection = slot.one
 
-        assert isinstance(resolved_selection, CallerWithPlugins)
+        assert isinstance(resolved_selection, OneCallerWithPlugins)
         assert bool(resolved_selection)
         assert len(resolved_selection) == 0
-        assert resolved_selection() == expected_result
+
+
+@pytest.mark.parametrize(
+    ('payload_value', 'payload_annotation'),
+    [
+        (1, int),
+        ('value', str),
+        ((1, 2), tuple),
+        ([1, 2], List[int]),
+        ({'value': 1}, Dict[str, int]),
+        (None, None),
+    ],
+    ids=('int', 'str', 'tuple', 'list', 'dict', 'none'),
+)
+@pytest.mark.parametrize('access_path', ['slot', 'getitem', 'pop', 'direct'])
+def test_slot_one_unwraps_parameterized_list_plugin_payloads(monkeypatch, subscribable_list_type, access_path, payload_value, payload_annotation):
+    """Parameterized list slot, selection, pop, and direct one-caller paths return the selected plugin payload."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @public_slot
+    def empty_body() -> subscribable_list_type[payload_annotation]:
+        return []
+
+    slot = empty_body
+
+    @slot.plugin('name')
+    def plugin():
+        return payload_value
+
+    if access_path == 'slot':
+        assert slot.one() == payload_value
+    elif access_path == 'direct':
+        assert OneCallerWithPlugins(slot.caller, slot.plugins.plugins)() == payload_value
+    else:
+        selection = slot['name'] if access_path == 'getitem' else slot.pop('name')
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            assert selection.one() == payload_value
+
+
+@pytest.mark.parametrize(
+    ('payload_value', 'payload_annotation'),
+    [
+        (1, int),
+        ('value', str),
+        ((1, 2), tuple),
+        ([1, 2], List[int]),
+        ({'value': 1}, Dict[str, int]),
+        (None, None),
+    ],
+    ids=('int', 'str', 'tuple', 'list', 'dict', 'none'),
+)
+@pytest.mark.parametrize('access_path', ['slot', 'getitem', 'pop', 'direct'])
+def test_slot_one_unwraps_parameterized_dict_plugin_payloads(monkeypatch, subscribable_dict_type, access_path, payload_value, payload_annotation):
+    """Parameterized dict slot, selection, pop, and direct one-caller paths return the selected plugin payload."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @public_slot
+    def empty_body() -> subscribable_dict_type[str, payload_annotation]:
+        return {}
+
+    slot = empty_body
+
+    @slot.plugin('name')
+    def plugin():
+        return payload_value
+
+    if access_path == 'slot':
+        assert slot.one() == payload_value
+    elif access_path == 'direct':
+        assert OneCallerWithPlugins(slot.caller, slot.plugins.plugins)() == payload_value
+    else:
+        selection = slot['name'] if access_path == 'getitem' else slot.pop('name')
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            assert selection.one() == payload_value
+
+
+@pytest.mark.parametrize(
+    ('payload_value', 'payload_annotation'),
+    [
+        (1, int),
+        ('value', str),
+        ((1, 2), tuple),
+        ([1, 2], List[int]),
+        ({'value': 1}, Dict[str, int]),
+        (None, None),
+    ],
+    ids=('int', 'str', 'tuple', 'list', 'dict', 'none'),
+)
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+def test_slot_one_unwraps_parameterized_list_fallback_singletons(monkeypatch, subscribable_list_type, access_path, payload_value, payload_annotation):
+    """Parameterized list `.one` unwraps singleton fallback results for slots and empty selections."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @public_slot
+    def fallback_body() -> subscribable_list_type[payload_annotation]:
+        return [payload_value]
+
+    slot = fallback_body
+
+    if access_path == 'slot':
+        assert slot.one() == payload_value
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['missing'].one() == payload_value
+
+
+@pytest.mark.parametrize(
+    ('payload_value', 'payload_annotation'),
+    [
+        (1, int),
+        ('value', str),
+        ((1, 2), tuple),
+        ([1, 2], List[int]),
+        ({'value': 1}, Dict[str, int]),
+        (None, None),
+    ],
+    ids=('int', 'str', 'tuple', 'list', 'dict', 'none'),
+)
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+def test_slot_one_unwraps_parameterized_dict_fallback_singletons(monkeypatch, subscribable_dict_type, access_path, payload_value, payload_annotation):
+    """Parameterized dict `.one` unwraps singleton fallback results for slots and empty selections."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @public_slot
+    def fallback_body() -> subscribable_dict_type[str, payload_annotation]:
+        return {'only': payload_value}
+
+    slot = fallback_body
+
+    if access_path == 'slot':
+        assert slot.one() == payload_value
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['missing'].one() == payload_value
+
+
+def test_empty_selection_one_uses_fallback_even_when_parent_slot_has_plugins(monkeypatch, subscribable_list_type):
+    """An empty selection uses the parent fallback body even when other plugins are registered on the slot."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @public_slot
+    def fallback_body() -> subscribable_list_type[int]:
+        return [1]
+
+    slot = fallback_body
+
+    @slot.plugin
+    def plugin():
+        raise AssertionError('plugin was executed')
+
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_body", because this code uses .one to work with a single plugin.')):
+        assert slot['missing'].one() == 1
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_result', [[], [1, 2]])
+def test_slot_one_call_raises_when_parameterized_list_fallback_returns_non_singleton(monkeypatch, subscribable_list_type, access_path, fallback_result):
+    """Parameterized list `.one` creates a one-caller, then rejects non-singleton fallback results on call."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    def fallback_body() -> subscribable_list_type[int]:
+        return fallback_result
+
+    slot = public_slot(fallback_body, name='list_fallback_body')
+
+    if access_path == 'slot':
+        resolved_selection = slot.one
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "list_fallback_body", because this code uses .one to work with a single plugin.')):
+            resolved_selection = slot['missing'].one
+
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
+    with pytest.raises(OneResolutionError, match=match(f'Slot "list_fallback_body" .one returned {len(fallback_result)} results, so .one cannot choose one.')):
+        resolved_selection()
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_result', [{}, {'first': 1, 'second': 2}])
+def test_slot_one_call_raises_when_parameterized_dict_fallback_returns_non_singleton(monkeypatch, subscribable_dict_type, access_path, fallback_result):
+    """Parameterized dict `.one` creates a one-caller, then rejects non-singleton fallback results on call."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    def fallback_body() -> subscribable_dict_type[str, int]:
+        return fallback_result
+
+    slot = public_slot(fallback_body, name='dict_fallback_body')
+
+    if access_path == 'slot':
+        resolved_selection = slot.one
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "dict_fallback_body", because this code uses .one to work with a single plugin.')):
+            resolved_selection = slot['missing'].one
+
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
+    with pytest.raises(OneResolutionError, match=match(f'Slot "dict_fallback_body" .one returned {len(fallback_result)} results, so .one cannot choose one.')):
+        resolved_selection()
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+def test_slot_one_raises_on_call_when_list_fallback_with_docstring_returns_empty_list(monkeypatch, subscribable_list_type, access_path):
+    """Annotated list docstring fallbacks resolve through slot/selection `.one`, then reject empty results on call."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    def fallback_body() -> subscribable_list_type[int]:
+        """Docstring keeps the body non-empty while returning empty."""
+        return []
+
+    slot = public_slot(fallback_body, name='list_docstring_fallback_body')
+    if access_path == 'slot':
+        resolved_selection = slot.one
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "list_docstring_fallback_body", because this code uses .one to work with a single plugin.')):
+            resolved_selection = slot['missing'].one
+
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
+    with pytest.raises(OneResolutionError, match=match('Slot "list_docstring_fallback_body" .one returned 0 results, so .one cannot choose one.')):
+        resolved_selection()
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+def test_slot_one_raises_on_call_when_dict_fallback_with_docstring_returns_empty_dict(monkeypatch, subscribable_dict_type, access_path):
+    """Annotated dict docstring fallbacks resolve through slot/selection `.one`, then reject empty results on call."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    def fallback_body() -> subscribable_dict_type[str, int]:
+        """Docstring keeps the body non-empty while returning empty."""
+        return {}
+
+    slot = public_slot(fallback_body, name='dict_docstring_fallback_body')
+    if access_path == 'slot':
+        resolved_selection = slot.one
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "dict_docstring_fallback_body", because this code uses .one to work with a single plugin.')):
+            resolved_selection = slot['missing'].one
+
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
+    with pytest.raises(OneResolutionError, match=match('Slot "dict_docstring_fallback_body" .one returned 0 results, so .one cannot choose one.')):
+        resolved_selection()
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_result', [None, 1, [], [1], [1, 2], {}, {'only': 1}, {'first': 1, 'second': 2}])
+def test_slot_one_normalizes_unannotated_fallback_results_to_none(monkeypatch, access_path, fallback_result):
+    """Unannotated fallbacks normalize `.one` to None for any value or container size."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    fallback_calls = []
+
+    def fallback_body():
+        fallback_calls.append('fallback')
+        return fallback_result
+
+    slot = public_slot(fallback_body, name='unannotated_fallback_body')
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "unannotated_fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['missing'].one() is None
+    assert fallback_calls == ['fallback']
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+def test_slot_one_normalizes_bare_return_fallback_result_to_none(monkeypatch, access_path):
+    """Bare-return unannotated fallbacks run under `.one` but normalize to None."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    fallback_calls = []
+
+    def fallback_body():
+        fallback_calls.append('fallback')
+        return  # noqa: PLR1711
+
+    slot = public_slot(fallback_body, name='bare_return_fallback_body')
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "bare_return_fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['missing'].one() is None
+    assert fallback_calls == ['fallback']
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_result', [[], [1], [1, 2]])
+def test_slot_one_normalizes_bare_list_fallback_results_to_none(monkeypatch, list_type, access_path, fallback_result):
+    """Bare list/List fallbacks normalize `.one` to None for any list size."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    fallback_calls = []
+
+    def fallback_body() -> list_type:
+        fallback_calls.append('fallback')
+        return fallback_result
+
+    slot = public_slot(fallback_body, name='bare_list_fallback_body')
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "bare_list_fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['missing'].one() is None
+    assert fallback_calls == ['fallback']
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_result', [{}, {'only': 1}, {'first': 1, 'second': 2}])
+def test_slot_one_normalizes_bare_dict_fallback_results_to_none(monkeypatch, dict_type, access_path, fallback_result):
+    """Bare dict/Dict fallbacks normalize `.one` to None for any dict size."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    fallback_calls = []
+
+    def fallback_body() -> dict_type:
+        fallback_calls.append('fallback')
+        return fallback_result
+
+    slot = public_slot(fallback_body, name='bare_dict_fallback_body')
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "bare_dict_fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['missing'].one() is None
+    assert fallback_calls == ['fallback']
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('plugin_result', [1, [1, 2], {'value': 1}])
+def test_slot_one_normalizes_unannotated_plugin_results_to_none(monkeypatch, access_path, plugin_result):
+    """On an unannotated slot, `.one` runs the selected plugin but normalizes its result to None."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    plugin_calls = []
+
+    @public_slot
+    def empty_body():
+        pass
+
+    slot = empty_body
+
+    @slot.plugin('name')
+    def plugin():
+        plugin_calls.append('plugin')
+        return plugin_result
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            assert slot['name'].one() is None
+    assert plugin_calls == ['plugin']
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('plugin_result', [1, [1, 2], {'value': 1}])
+def test_slot_one_normalizes_plugin_results_to_none_for_bare_list_slots(monkeypatch, list_type, access_path, plugin_result):
+    """Bare list/List slots dispatch the selected plugin, but `.one` returns None."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    plugin_calls = []
+
+    @public_slot
+    def empty_body() -> list_type:
+        return []
+
+    slot = empty_body
+
+    @slot.plugin('name')
+    def plugin():
+        plugin_calls.append('plugin')
+        return plugin_result
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            assert slot['name'].one() is None
+    assert plugin_calls == ['plugin']
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('plugin_result', [1, [1, 2], {'value': 1}])
+def test_slot_one_normalizes_plugin_results_to_none_for_bare_dict_slots(monkeypatch, dict_type, access_path, plugin_result):
+    """Bare dict/Dict slots dispatch the selected plugin, but `.one` returns None."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    plugin_calls = []
+
+    @public_slot
+    def empty_body() -> dict_type:
+        return {}
+
+    slot = empty_body
+
+    @slot.plugin('name')
+    def plugin():
+        plugin_calls.append('plugin')
+        return plugin_result
+
+    if access_path == 'slot':
+        assert slot.one() is None
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+            assert slot['name'].one() is None
+    assert plugin_calls == ['plugin']
 
 
 def test_slot_one_prefers_single_plugin_over_non_empty_fallback_body(monkeypatch, subscribable_list_type):
@@ -2185,7 +2753,78 @@ def test_slot_one_prefers_single_plugin_over_non_empty_fallback_body(monkeypatch
     def plugin():
         return 'plugin'
 
-    assert slot.one() == ['plugin']
+    assert slot() == ['plugin']
+    assert slot.one() == 'plugin'
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_behavior', ['raises', 'empty', 'multi'])
+def test_slot_one_prefers_single_list_plugin_over_failing_or_non_singleton_fallback(monkeypatch, subscribable_list_type, access_path, fallback_behavior):
+    """A single plugin on a parameterized list slot resolves without running a failing or non-singleton fallback body."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    fallback_events = []
+
+    @public_slot
+    def fallback_body() -> subscribable_list_type[str]:
+        fallback_events.append('fallback')
+        if fallback_behavior == 'raises':
+            raise AssertionError('fallback was executed')
+        if fallback_behavior == 'empty':
+            return []
+        return ['first', 'second']
+
+    slot = fallback_body
+
+    @slot.plugin('plugin')
+    def plugin():
+        return 'plugin'
+
+    if access_path == 'slot':
+        assert slot.one() == 'plugin'
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['plugin'].one() == 'plugin'
+
+    assert not fallback_events
+
+
+@pytest.mark.parametrize('access_path', ['slot', 'selection'])
+@pytest.mark.parametrize('fallback_behavior', ['raises', 'empty', 'multi'])
+def test_slot_one_prefers_single_dict_plugin_over_failing_or_non_singleton_fallback(monkeypatch, subscribable_dict_type, access_path, fallback_behavior):
+    """A single plugin on a parameterized dict slot resolves without running a failing or non-singleton fallback body."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+    fallback_events = []
+
+    @public_slot
+    def fallback_body() -> subscribable_dict_type[str, str]:
+        fallback_events.append('fallback')
+        if fallback_behavior == 'raises':
+            raise AssertionError('fallback was executed')
+        if fallback_behavior == 'empty':
+            return {}
+        return {'first': 'first', 'second': 'second'}
+
+    slot = fallback_body
+
+    @slot.plugin('plugin')
+    def plugin():
+        return 'plugin'
+
+    if access_path == 'slot':
+        assert slot.one() == 'plugin'
+    else:
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_body", because this code uses .one to work with a single plugin.')):
+            assert slot['plugin'].one() == 'plugin'
+
+    assert not fallback_events
 
 
 def test_slot_one_plugin_count_resolution_skips_fallback_body():
@@ -2199,7 +2838,7 @@ def test_slot_one_plugin_count_resolution_skips_fallback_body():
         raise AssertionError('default body was executed')
 
     for plugin_count in (1, 2):
-        slot = public_slot(default_body, name='default_body')
+        slot = public_slot(default_body)
 
         for index in range(plugin_count):
             @slot.plugin(f'plugin_{index}')
@@ -2234,6 +2873,10 @@ def test_one_property_access_does_not_execute_plugin_or_fallback_body(monkeypatc
     fallback_selection = fallback_slot.one
 
     assert not fallback_events
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "fallback_body", because this code uses .one to work with a single plugin.')):
+        _ = fallback_slot['missing'].one
+
+    assert not fallback_events
     fallback_selection()
     assert fallback_events == ['fallback-called']
 
@@ -2250,6 +2893,10 @@ def test_one_property_access_does_not_execute_plugin_or_fallback_body(monkeypatc
         plugin_events.append('plugin-called')
 
     plugin_selection = plugin_slot.one
+
+    assert not plugin_events
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
+        _ = plugin_slot['plugin'].one
 
     assert not plugin_events
     plugin_selection()
@@ -2301,6 +2948,52 @@ def test_slot_one_propagates_body_inspection_errors_without_plugins(monkeypatch)
     assert slot.loaded
 
 
+def test_slot_level_one_does_not_warn_for_non_unique_slots(monkeypatch, subscribable_list_type):
+    """Slot-level `.one` does not warn on non-unique slots for successful calls or count-resolution errors."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    @public_slot
+    def plugin_backed_slot() -> subscribable_list_type[int]:
+        return []
+
+    @public_slot
+    def fallback_body() -> subscribable_list_type[int]:
+        return [2]
+
+    @public_slot
+    def empty_slot():
+        pass
+
+    @public_slot
+    def multiple_plugins_slot() -> subscribable_list_type[int]:
+        return []
+
+    @plugin_backed_slot.plugin
+    def plugin():
+        return 1
+
+    @multiple_plugins_slot.plugin
+    def first_plugin():
+        return 1
+
+    @multiple_plugins_slot.plugin
+    def second_plugin():
+        return 2
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', SyntaxWarning)
+        assert plugin_backed_slot.one() == 1
+        assert fallback_body.one() == 2
+        with pytest.raises(OneResolutionError, match=match('Slot "empty_slot" has no registered plugins and its body is empty.')):
+            _ = empty_slot.one
+        with pytest.raises(OneResolutionError, match=match('Slot "multiple_plugins_slot" has 2 registered plugins, so .one cannot choose one.')):
+            _ = multiple_plugins_slot.one
+
+
 def test_one_result_type_checks_happen_on_call_for_plugins_and_fallback(monkeypatch, subscribable_list_type):
     """Plugin and fallback result checks happen when the resolved selection is called."""
     def get_entries(group=None):
@@ -2338,6 +3031,40 @@ def test_one_result_type_checks_happen_on_call_for_plugins_and_fallback(monkeypa
         fallback_selection()
 
 
+@pytest.mark.parametrize('error_source', ['plugin', 'fallback'])
+def test_slot_one_call_propagates_plugin_and_fallback_body_errors(monkeypatch, subscribable_list_type, error_source):
+    """Plugin or fallback body exceptions are not replaced by OneResolutionError."""
+    def get_entries(group=None):
+        assert group == 'pristan'
+        return []
+
+    monkeypatch.setattr(slot_module, 'entry_points', get_entries)
+
+    expected_error = RuntimeError('failed')
+
+    if error_source == 'plugin':
+        @public_slot
+        def empty_body() -> subscribable_list_type[int]:
+            return []
+
+        slot = empty_body
+
+        @slot.plugin
+        def plugin():
+            raise expected_error
+
+    else:
+        @public_slot
+        def fallback_body() -> subscribable_list_type[int]:
+            raise expected_error
+
+        slot = fallback_body
+
+    with pytest.raises(RuntimeError) as exception_info:
+        slot.one()
+    assert exception_info.value is expected_error
+
+
 def test_slot_one_preserves_run_once_plugin_state(monkeypatch, subscribable_list_type):
     """`Slot.one` snapshots share plugin objects, so run-once state is preserved."""
     @public_slot
@@ -2355,7 +3082,7 @@ def test_slot_one_preserves_run_once_plugin_state(monkeypatch, subscribable_list
     def plugin():
         return 1
 
-    assert slot.one() == [1]
+    assert slot.one() == 1
 
     with pytest.raises(NumberOfCallsError, match=match('A limit of 1 has been set on the number of calls for plugin "plugin". And this plugin has already been called previously.')):
         slot.one()
@@ -2428,8 +3155,9 @@ def test_duplicate_plugin_selection_keys_and_pop_resolve_through_one(monkeypatch
     def third():
         return 3
 
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        for key, expected_result in (('name-1', [1]), ('name-2', [2]), ('name-3', [3])):
+    for key, expected_result in (('name-1', 1), ('name-2', 2), ('name-3', 3)):
+        assert slot[key]() == [expected_result]
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
             assert slot[key].one() == expected_result
 
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_body" has 3 selected plugins, so .one cannot choose one.')):
@@ -2437,11 +3165,13 @@ def test_duplicate_plugin_selection_keys_and_pop_resolve_through_one(monkeypatch
 
     popped_selection = slot.pop('name-2')
 
+    assert popped_selection() == [2]
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert popped_selection.one() == [2]
+        assert popped_selection.one() == 2
     assert [plugin.name for plugin in slot.plugins.plugins] == ['name', 'name-2']
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        for key, expected_result in (('name-1', [1]), ('name-2', [3])):
+    for key, expected_result in (('name-1', 1), ('name-2', 3)):
+        assert slot[key]() == [expected_result]
+        with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
             assert slot[key].one() == expected_result
 
 

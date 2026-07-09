@@ -6,7 +6,7 @@ from full_match import match
 
 from pristan.components.plugin import Plugin
 from pristan.components.slot import Slot
-from pristan.components.slot_caller import CallerWithPlugins
+from pristan.components.slot_caller import CallerWithPlugins, OneCallerWithPlugins
 from pristan.errors import OneResolutionError
 
 
@@ -93,40 +93,44 @@ def test_bool_does_not_execute_plugins_or_default():
     assert CallerWithPlugins(slot.caller, [Plugin('plugin', plugin_function, int, True, False)])
 
 
-def test_caller_with_plugins_one_warns_when_slot_is_not_unique():
-    """Non-unique slot selection `.one` warns on success."""
+def test_caller_with_plugins_one_warns_when_slot_is_not_unique(caller_class):
+    """Non-unique selections warn when `.one` returns an independent one-caller snapshot."""
     def empty_body():
         pass
-
-    def plugin_function():
-        return None
 
     slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
-    selection = CallerWithPlugins(slot.caller, [Plugin('plugin', plugin_function, int, True, False)])
+    plugin = Plugin('plugin', empty_body, int, True, False)
+    selection = caller_class(slot.caller, [plugin])
 
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_body", because this code uses .one to work with a single plugin.')):
-        assert selection.one is selection
+        resolved_selection = selection.one
+
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
+    assert resolved_selection is not selection
+    assert resolved_selection.plugins is not selection.plugins
+    assert resolved_selection.plugins == [plugin]
 
 
-def test_caller_with_plugins_one_does_not_warn_when_slot_is_unique():
-    """Unique slot selection `.one` does not warn on success."""
+def test_caller_with_plugins_one_does_not_warn_when_slot_is_unique(caller_class):
+    """Unique selections return an independent one-caller snapshot without warning."""
     def empty_body():
         pass
 
-    def plugin_function():
-        return None
-
     slot = Slot(empty_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=True)
-    selection = CallerWithPlugins(slot.caller, [Plugin('plugin', plugin_function, int, True, False)])
+    plugin = Plugin('plugin', empty_body, int, True, False)
+    selection = caller_class(slot.caller, [plugin])
 
-    with warnings.catch_warnings(record=True) as caught_warnings:
-        warnings.simplefilter('always')
-        assert selection.one is selection
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', SyntaxWarning)
+        resolved_selection = selection.one
 
-    assert not any(issubclass(warning.category, SyntaxWarning) for warning in caught_warnings)
+    assert isinstance(resolved_selection, OneCallerWithPlugins)
+    assert resolved_selection is not selection
+    assert resolved_selection.plugins is not selection.plugins
+    assert resolved_selection.plugins == [plugin]
 
 
-def test_caller_with_plugins_one_resolution_errors_warn_when_slot_is_not_unique():
+def test_caller_with_plugins_one_resolution_errors_warn_when_slot_is_not_unique(caller_class):
     """
     Selections from non-unique slots warn before `.one` resolution errors.
 
@@ -136,32 +140,83 @@ def test_caller_with_plugins_one_resolution_errors_warn_when_slot_is_not_unique(
     def empty_body():
         pass
 
-    def plugin_function():
-        return None
-
     empty_slot = Slot(empty_body, signature=None, slot_name='empty_slot', max=None, type_check=True, entrypoint_group='pristan', unique=False)
     multi_plugin_slot = Slot(empty_body, signature=None, slot_name='multi_plugin_slot', max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
-    cases = (
-        (
-            CallerWithPlugins(empty_slot.caller, []),
-            'empty_slot',
-            'Selection from slot "empty_slot" has no selected plugins and the slot body is empty.',
-        ),
-        (
-            CallerWithPlugins(multi_plugin_slot.caller, [Plugin('first', plugin_function, int, True, False), Plugin('second', plugin_function, int, True, False)]),
-            'multi_plugin_slot',
-            'Selection from slot "multi_plugin_slot" has 2 selected plugins, so .one cannot choose one.',
-        ),
-    )
+    empty_selection = caller_class(empty_slot.caller, [])
+    multi_plugin_selection = caller_class(multi_plugin_slot.caller, [Plugin('first', empty_body, int, True, False), Plugin('second', empty_body, int, True, False)])
 
-    for selection, slot_name, error_message in cases:
-        with pytest.warns(SyntaxWarning, match=match(f'Consider setting unique=True for slot "{slot_name}", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match(error_message)):
-            _ = selection.one
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "empty_slot", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "empty_slot" has no selected plugins and the slot body is empty.')):
+        _ = empty_selection.one
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "multi_plugin_slot", because this code uses .one to work with a single plugin.')), pytest.raises(OneResolutionError, match=match('Selection from slot "multi_plugin_slot" has 2 selected plugins, so .one cannot choose one.')):
+        _ = multi_plugin_selection.one
+
+
+def test_one_caller_with_plugins_rejects_multiple_list_aggregate_results(subscribable_list_type):
+    """Direct OneCallerWithPlugins calls reject multi-result list aggregates."""
+    def empty_list_body() -> subscribable_list_type[int]:
+        return []
+
+    plugin_calls = []
+
+    def first_plugin():
+        plugin_calls.append('first')
+        return 1
+
+    def second_plugin():
+        plugin_calls.append('second')
+        return 2
+
+    slot = Slot(empty_list_body, signature=None, slot_name='list_slot', max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    one_selection = OneCallerWithPlugins(slot.caller, [Plugin('first', first_plugin, int, True, False), Plugin('second', second_plugin, int, True, False)])
+
+    with pytest.raises(OneResolutionError, match=match('Slot "list_slot" .one returned 2 results, so .one cannot choose one.')):
+        one_selection()
+    assert plugin_calls == ['first', 'second']
+
+
+def test_one_caller_with_plugins_rejects_multiple_dict_aggregate_results(subscribable_dict_type):
+    """Direct OneCallerWithPlugins calls reject multi-result dict aggregates."""
+    def empty_dict_body() -> subscribable_dict_type[str, int]:
+        return {}
+
+    plugin_calls = []
+
+    def first_plugin():
+        plugin_calls.append('first')
+        return 1
+
+    def second_plugin():
+        plugin_calls.append('second')
+        return 2
+
+    slot = Slot(empty_dict_body, signature=None, slot_name='dict_slot', max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    one_selection = OneCallerWithPlugins(slot.caller, [Plugin('first', first_plugin, int, True, False), Plugin('second', second_plugin, int, True, False)])
+
+    with pytest.raises(OneResolutionError, match=match('Slot "dict_slot" .one returned 2 results, so .one cannot choose one.')):
+        one_selection()
+    assert plugin_calls == ['first', 'second']
+
+
+def test_one_caller_with_plugins_passes_through_non_aggregate_fallback_result():
+    """OneCallerWithPlugins passes through non-aggregate fallback results."""
+    class ScalarCodeRepresentation:
+        is_empty = False
+        returns_list = False
+        returns_dict = False
+        returning_type = int
+
+    def fallback_body(value, *, multiplier):
+        return value * multiplier
+
+    slot = Slot(fallback_body, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
+    slot.code_representation = ScalarCodeRepresentation()
+
+    assert OneCallerWithPlugins(slot.caller, [])(6, multiplier=7) == 42
 
 
 def test_empty_list_and_dict_defaults_still_call_to_empty_containers():
-    """SlotCaller.__call__ still returns empty list and dict defaults without plugins."""
+    """SlotCaller.__call__ and empty CallerWithPlugins selections return empty containers without plugins."""
     def empty_list_body() -> List[int]:
         return []
 
@@ -175,6 +230,7 @@ def test_empty_list_and_dict_defaults_still_call_to_empty_containers():
         slot = Slot(function, signature=None, slot_name=None, max=None, type_check=True, entrypoint_group='pristan', unique=False)
 
         assert slot.caller([]) == expected_result
+        assert CallerWithPlugins(slot.caller, [])() == expected_result
 
 
 def test_repr():

@@ -121,8 +121,8 @@ def test_bool_loads_plugins_from_real_entrypoint_once(monkeypatch):
     assert requested_groups == ['pristan']
 
 
-def test_slot_one_loads_plugin_from_real_entrypoint_and_calls_result(monkeypatch):
-    """`Slot.one` loads a real entry point once and returns a callable selection."""
+def test_slot_one_loads_plugin_from_real_entrypoint_once_and_returns_payload(monkeypatch):
+    """`Slot.one` loads and registers a real entry point once, then returns its payload on repeated calls."""
     requested_groups = []
 
     def get_entries(group=None):
@@ -132,10 +132,11 @@ def test_slot_one_loads_plugin_from_real_entrypoint_and_calls_result(monkeypatch
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_one_slot.loaded
-    assert simple_one_slot.one() == {'name': 7}
+    assert simple_one_slot.one() == 7
     assert simple_one_slot.loaded
+    assert simple_one_slot.keys() == ('name',)
 
-    assert simple_one_slot.one() == {'name': 7}
+    assert simple_one_slot.one() == 7
     assert requested_groups == ['pristan']
 
 
@@ -179,8 +180,8 @@ def test_contains_loads_plugins_from_real_entrypoint(monkeypatch):
     assert requested_groups == ['pristan']
 
 
-def test_slot_one_loads_plugin_from_custom_entrypoint_group(monkeypatch):
-    """`Slot.one` loads a custom-group entry point once into a callable selection."""
+def test_slot_one_loads_plugin_from_custom_entrypoint_group_once_and_returns_payload(monkeypatch):
+    """`Slot.one` loads and registers a custom-group entry point once, then returns its payload on repeated calls."""
     requested_groups = []
 
     def get_entries(group=None):
@@ -190,10 +191,11 @@ def test_slot_one_loads_plugin_from_custom_entrypoint_group(monkeypatch):
     monkeypatch.setattr(slot_module, 'entry_points', get_entries)
 
     assert not simple_custom_one_slot.loaded
-    assert simple_custom_one_slot.one() == {'name2': 8}
+    assert simple_custom_one_slot.one() == 8
     assert simple_custom_one_slot.loaded
+    assert simple_custom_one_slot.keys() == ('name2',)
 
-    assert simple_custom_one_slot.one() == {'name2': 8}
+    assert simple_custom_one_slot.one() == 8
     assert requested_groups == ['another_name']
 
 

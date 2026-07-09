@@ -40,6 +40,7 @@ from pristan.components.plugin import Plugin
 from pristan.components.plugins_group import PluginsGroup
 from pristan.components.slot_caller import (
     CallerWithPlugins,
+    OneCallerWithPlugins,
     SlotCaller,
 )
 from pristan.components.slot_code_representer import SlotCodeRepresenter
@@ -119,10 +120,10 @@ class Slot(Generic[PluginResult]):
             return bool(self.backed_caller)
 
     @property
-    def one(self) -> CallerWithPlugins[PluginResult]:
+    def one(self) -> OneCallerWithPlugins[PluginResult]:
         with self.lock:
             self._load_entrypoints()
-            snapshot = CallerWithPlugins(self.caller, list(self.plugins.plugins))
+            snapshot = OneCallerWithPlugins(self.caller, list(self.plugins.plugins))
             if not snapshot:
                 raise OneResolutionError(f'Slot "{self.slot_name}" has no registered plugins and its body is empty.')
             if len(snapshot) > 1:
