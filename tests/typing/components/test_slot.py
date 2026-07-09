@@ -24,8 +24,8 @@ def test_concrete_slot_bool_method_is_typed_as_bool(monkeypatch):
 
 
 @pytest.mark.mypy_testing
-def test_concrete_slot_one_is_typed_as_caller_with_plugins(monkeypatch):
-    """Concrete `Slot.one` returns `CallerWithPlugins` with the same plugin result generic."""
+def test_concrete_slot_one_is_typed_as_one_caller_with_plugins(monkeypatch):
+    """Concrete `Slot.one` returns `OneCallerWithPlugins` with the same plugin result generic."""
     def collect() -> List[int]:
         return []
 
@@ -40,4 +40,4 @@ def test_concrete_slot_one_is_typed_as_caller_with_plugins(monkeypatch):
     def plugin() -> int:
         return 1
 
-    reveal_type(slot_view.one)  # R: pristan.components.slot_caller.CallerWithPlugins[builtins.int]
+    reveal_type(slot_view.one)  # R: pristan.components.slot_caller.OneCallerWithPlugins[builtins.int]
