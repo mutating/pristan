@@ -10,6 +10,7 @@ from typing_extensions import reveal_type
 import pristan.components.slot as slot_module
 from pristan import slot
 from pristan.common_types import (
+    OneSlotSelectionProtocol,
     SlotDecoratorProtocol,
     SlotProtocol,
     SlotSelectionProtocol,
@@ -25,7 +26,8 @@ def clean_entrypoints(monkeypatch):
 
 @pytest.mark.mypy_testing
 def test_typing_collection_result_matrix_preserves_exact_slot_types():
-    """Cover decorator, `.one`, and typing collection combinations.
+    """
+    Cover decorator and typing collection combinations.
 
     Mypy sees this file statically, so the matrix keeps normal calls,
     `@slot`/`@slot()`, and `List`/`Dict` variants explicit.
@@ -66,12 +68,49 @@ def test_typing_collection_result_matrix_preserves_exact_slot_types():
     reveal_type(bare_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(factory_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(factory_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(bare_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(bare_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(factory_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(factory_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(bare_dictionary_slot.keys())  # R: builtins.tuple[builtins.str, ...]
     reveal_type(factory_dictionary_slot.keys())  # R: builtins.tuple[builtins.str, ...]
+
+
+@pytest.mark.mypy_testing
+def test_typing_collection_one_unwraps_payload_types():
+    """Typing List/Dict `.one` calls unwrap list items and dict values."""
+    @slot
+    def bare_list_slot(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot
+    def bare_dictionary_slot(value: int) -> Dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @slot()
+    def factory_list_slot(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot()
+    def factory_dictionary_slot(value: int) -> Dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @bare_list_slot.plugin('bare_list')
+    def bare_list_plugin(value: int) -> int:
+        return value
+
+    @bare_dictionary_slot.plugin('bare_dictionary')
+    def bare_dictionary_plugin(value: int) -> int:
+        return value
+
+    @factory_list_slot.plugin('factory_list')
+    def factory_list_plugin(value: int) -> int:
+        return value
+
+    @factory_dictionary_slot.plugin('factory_dictionary')
+    def factory_dictionary_plugin(value: int) -> int:
+        return value
+
+    reveal_type(bare_list_slot.one(1))  # R: builtins.int
+    reveal_type(bare_dictionary_slot.one(1))  # R: builtins.int
+    reveal_type(factory_list_slot.one(1))  # R: builtins.int
+    reveal_type(factory_dictionary_slot.one(1))  # R: builtins.int
 
 
 @pytest.mark.mypy_testing
@@ -114,7 +153,7 @@ def test_slot_without_return_annotation_is_typed_as_any_in_both_forms():
 
 @pytest.mark.mypy_testing
 def test_slot_configuration_arguments_include_explicit_plugin_names():
-    """Configured decorators keep normal and `.one` calls typed under strict naming."""
+    """Configured decorators keep normal calls typed under strict naming."""
     @slot('some_another_slot_name')
     def slot_with_positional_name(value: int) -> List[int]:  # noqa: ARG001
         return []
@@ -179,20 +218,82 @@ def test_slot_configuration_arguments_include_explicit_plugin_names():
     reveal_type(configured_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot_with_signature_list(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_slot_with_signature_list(1, 'context'))  # R: builtins.list[builtins.int]
-    reveal_type(slot_with_positional_name.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(unique_slot_with_positional_name.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(slot_with_keyword_name.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(unique_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(explicit_plugin_names_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(configured_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(configured_slot_with_signature_list.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(configured_slot_with_signature_list.one(1, 'context'))  # R: builtins.list[builtins.int]
     configured_slot_with_signature_list(1, 2)  # E: [arg-type]
 
 
 @pytest.mark.mypy_testing
+def test_slot_configuration_arguments_expose_one_payload_types():
+    """Configured decorators type `.one` calls as payload values."""
+    @slot('some_another_slot_name')
+    def slot_with_positional_name(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot('some_unique_slot_name', unique=True)
+    def unique_slot_with_positional_name(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot(name='some_named_slot')
+    def slot_with_keyword_name(value: int) -> Dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @slot(unique=True)
+    def unique_slot(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot(explicit_plugin_names=True)
+    def explicit_plugin_names_slot(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot(signature='.', max=1, type_check=False, entrypoint_group='new_namespace', unique=True)
+    def configured_slot(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot(signature=['..', '.'])
+    def configured_slot_with_signature_list(value: int, context: str = '') -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot_with_positional_name.plugin('positional_plugin')
+    def positional_plugin(value: int) -> int:
+        return value
+
+    @unique_slot_with_positional_name.plugin('unique_positional_plugin')
+    def unique_positional_plugin(value: int) -> int:
+        return value
+
+    @slot_with_keyword_name.plugin('keyword_plugin')
+    def keyword_plugin(value: int) -> int:
+        return value
+
+    @unique_slot.plugin('unique_plugin')
+    def unique_plugin(value: int) -> int:
+        return value
+
+    @explicit_plugin_names_slot.plugin('explicit_plugin')
+    def explicit_plugin(value: int) -> int:
+        return value
+
+    @configured_slot.plugin('configured_plugin')
+    def configured_plugin(value: int) -> int:
+        return value
+
+    @configured_slot_with_signature_list.plugin('signature_list_plugin')
+    def signature_list_plugin(value: int, context: str = '') -> int:  # noqa: ARG001
+        return value
+
+    reveal_type(slot_with_positional_name.one(1))  # R: builtins.int
+    reveal_type(unique_slot_with_positional_name.one(1))  # R: builtins.int
+    reveal_type(slot_with_keyword_name.one(1))  # R: builtins.int
+    reveal_type(unique_slot.one(1))  # R: builtins.int
+    reveal_type(explicit_plugin_names_slot.one(1))  # R: builtins.int
+    reveal_type(configured_slot.one(1))  # R: builtins.int
+    reveal_type(configured_slot_with_signature_list.one(1))  # R: builtins.int
+    reveal_type(configured_slot_with_signature_list.one(1, 'context'))  # R: builtins.int
+
+
+@pytest.mark.mypy_testing
 def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names():
-    """Direct-call overloads preserve call, plugin, and `.one` result types.
+    """
+    Direct-call overloads preserve call, plugin, and iteration types.
 
     Covers factory options, signatures, result shapes, and plugin iteration.
     """
@@ -219,8 +320,8 @@ def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names(
         signature_list_notify_slot = slot(typed_notify, signature=['.'])
         signature_list_notify_view: SlotProtocol[[int], None, Any] = signature_list_notify_slot
         reveal_type(signature_list_notify_slot(1))  # R: None
-        reveal_type(signature_list_notify_slot.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], None, Any]
-        reveal_type(signature_list_notify_slot.one(1))  # R: None
+        reveal_type(signature_list_notify_slot.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], Any]
+        reveal_type(signature_list_notify_slot.one(1))  # R: Any
         signature_list_notify_view(1)
 
         for signature_list_notify_plugin in signature_list_notify_slot:
@@ -263,7 +364,7 @@ def test_slot_direct_call_configuration_arguments_include_explicit_plugin_names(
 
 @pytest.mark.mypy_testing
 def test_slot_direct_call_one_preserves_result_types():
-    """Direct-call slot forms expose `.one` with the same result types."""
+    """Direct-call slot forms expose `.one` payload result types."""
     def collect_list(value: int) -> List[int]:  # noqa: ARG001
         return []
 
@@ -274,6 +375,7 @@ def test_slot_direct_call_one_preserves_result_types():
         return None
 
     default_list_slot = slot(collect_list)
+    default_dict_slot = slot(collect_dict)
     list_slot = slot(collect_list, unique=True, explicit_plugin_names=True)
     signature_list_slot = slot(collect_list, signature=['.'])
     dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
@@ -282,6 +384,10 @@ def test_slot_direct_call_one_preserves_result_types():
 
     @default_list_slot.plugin('default_list')
     def default_list_plugin(value: int) -> int:
+        return value
+
+    @default_dict_slot.plugin('default_dict')
+    def default_dict_plugin(value: int) -> int:
         return value
 
     @list_slot.plugin('list_plugin')
@@ -304,18 +410,19 @@ def test_slot_direct_call_one_preserves_result_types():
     def notify_plugin(value: int) -> str:
         return str(value)
 
-    reveal_type(default_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(signature_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(signature_list_dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(default_list_slot.one(1))  # R: builtins.int
+    reveal_type(default_dict_slot.one(1))  # R: builtins.int
+    reveal_type(list_slot.one(1))  # R: builtins.int
+    reveal_type(signature_list_slot.one(1))  # R: builtins.int
+    reveal_type(dict_slot.one(1))  # R: builtins.int
+    reveal_type(signature_list_dict_slot.one(1))  # R: builtins.int
     reveal_type(notify_slot.one(1))  # R: Any
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_slot_direct_call_one_preserves_built_in_result_types():
-    """Direct-call slot forms expose `.one` with built-in generic result types."""
+    """Direct-call slot forms expose `.one` built-in generic payload types."""
     def collect_list(value: int) -> list[int]:  # noqa: ARG001
         return []
 
@@ -323,6 +430,7 @@ def test_slot_direct_call_one_preserves_built_in_result_types():
         return {}
 
     default_list_slot = slot(collect_list)
+    default_dict_slot = slot(collect_dict)
     list_slot = slot(collect_list, unique=True, explicit_plugin_names=True)
     signature_list_slot = slot(collect_list, signature=['.'])
     dict_slot = slot(collect_dict, signature='.', name='collect', max=2, type_check=False, entrypoint_group='custom', unique=True)
@@ -330,6 +438,10 @@ def test_slot_direct_call_one_preserves_built_in_result_types():
 
     @default_list_slot.plugin('default_list')
     def default_list_plugin(value: int) -> int:
+        return value
+
+    @default_dict_slot.plugin('default_dict')
+    def default_dict_plugin(value: int) -> int:
         return value
 
     @list_slot.plugin('list_plugin')
@@ -348,11 +460,12 @@ def test_slot_direct_call_one_preserves_built_in_result_types():
     def signature_list_dict_plugin(value: int) -> int:
         return value
 
-    reveal_type(default_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(signature_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(signature_list_dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(default_list_slot.one(1))  # R: builtins.int
+    reveal_type(default_dict_slot.one(1))  # R: builtins.int
+    reveal_type(list_slot.one(1))  # R: builtins.int
+    reveal_type(signature_list_slot.one(1))  # R: builtins.int
+    reveal_type(dict_slot.one(1))  # R: builtins.int
+    reveal_type(signature_list_dict_slot.one(1))  # R: builtins.int
 
 
 @pytest.mark.mypy_testing
@@ -448,8 +561,40 @@ def test_non_existent_slot_selection_keeps_slot_call_contract():
 
 @pytest.mark.mypy_testing
 def test_slot_pop_returns_selection_type():
+    """Popped selections keep aggregate call types."""
+    @slot
+    def collect_list(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @slot
+    def collect_dict(value: int) -> Dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @collect_list.plugin('name')
+    def list_plugin(value: int) -> int:
+        return value
+
+    @collect_dict.plugin('name')
+    def dict_plugin(value: int) -> int:
+        return value
+
+    popped_list_selection = collect_list.pop('name')
+    popped_dict_selection = collect_dict.pop('name')
+
+    popped_list_selection_view: SlotSelectionProtocol[[int], List[int], int] = popped_list_selection
+    popped_dict_selection_view: SlotSelectionProtocol[[int], Dict[str, int], int] = popped_dict_selection
+
+    reveal_type(popped_list_selection(1))  # R: builtins.list[builtins.int]
+    reveal_type(popped_dict_selection(1))  # R: builtins.dict[builtins.str, builtins.int]
+
+    popped_list_selection_view(1)
+    popped_dict_selection_view(1)
+
+
+@pytest.mark.mypy_testing
+def test_slot_pop_selection_exposes_one_payload_types():
     """
-    Popped selections keep their call and `.one` result types.
+    Popped selections expose `.one` payload types.
 
     Catching selection warnings keeps these slots non-unique; changing them to
     unique=True would bias coverage, while leaving them uncaught would add warning noise.
@@ -473,22 +618,14 @@ def test_slot_pop_returns_selection_type():
     popped_list_selection = collect_list.pop('name')
     popped_dict_selection = collect_dict.pop('name')
 
-    popped_list_selection_view: SlotSelectionProtocol[[int], List[int], int] = popped_list_selection
-    popped_dict_selection_view: SlotSelectionProtocol[[int], Dict[str, int], int] = popped_dict_selection
-
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(popped_list_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(popped_list_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(popped_list_selection.one(1))  # R: builtins.list[builtins.int]
+        reveal_type(popped_list_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(popped_list_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(popped_list_selection.one(1))  # R: builtins.int
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(popped_dict_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
-        reveal_type(popped_dict_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
-        reveal_type(popped_dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(popped_list_selection(1))  # R: builtins.list[builtins.int]
-    reveal_type(popped_dict_selection(1))  # R: builtins.dict[builtins.str, builtins.int]
-
-    popped_list_selection_view(1)
-    popped_dict_selection_view(1)
+        reveal_type(popped_dict_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(popped_dict_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(popped_dict_selection.one(1))  # R: builtins.int
 
 
 @pytest.mark.mypy_testing
@@ -846,12 +983,12 @@ def test_slot_with_loose_list_and_dict_annotations_keeps_any_payload_type():
 
     reveal_type(collect_list())  # R: builtins.list[Any]
     reveal_type(collect_dict())  # R: builtins.dict[builtins.str, Any]
-    reveal_type(collect_list.one())  # R: builtins.list[Any]
-    reveal_type(collect_dict.one())  # R: builtins.dict[builtins.str, Any]
+    reveal_type(collect_list.one())  # R: Any
+    reveal_type(collect_dict.one())  # R: Any
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):
-        reveal_type(collect_list['list_plugin'].one())  # R: builtins.list[Any]
+        reveal_type(collect_list['list_plugin'].one())  # R: Any
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):
-        reveal_type(collect_dict['dict_plugin'].one())  # R: builtins.dict[builtins.str, Any]
+        reveal_type(collect_dict['dict_plugin'].one())  # R: Any
 
 
 @pytest.mark.mypy_testing
@@ -880,12 +1017,83 @@ def test_slot_with_loose_typing_list_and_dict_annotations_keeps_any_payload_type
 
     reveal_type(collect_list())  # R: builtins.list[Any]
     reveal_type(collect_dict())  # R: builtins.dict[builtins.str, Any]
-    reveal_type(collect_list.one())  # R: builtins.list[Any]
-    reveal_type(collect_dict.one())  # R: builtins.dict[builtins.str, Any]
+    reveal_type(collect_list.one())  # R: Any
+    reveal_type(collect_dict.one())  # R: Any
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):
-        reveal_type(collect_list['list_plugin'].one())  # R: builtins.list[Any]
+        reveal_type(collect_list['list_plugin'].one())  # R: Any
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):
-        reveal_type(collect_dict['dict_plugin'].one())  # R: builtins.dict[builtins.str, Any]
+        reveal_type(collect_dict['dict_plugin'].one())  # R: Any
+
+
+@pytest.mark.mypy_testing
+def test_nested_none_and_any_typing_payloads_are_unwrapped_by_one():
+    """Typing List/Dict `.one` unwraps only the outer aggregate, preserving nested, None, and explicit Any payloads."""
+    @slot
+    def nested_list_slot(value: int) -> List[List[int]]:
+        return [[value]]
+
+    @slot
+    def nested_dict_slot(value: int) -> Dict[str, Dict[str, int]]:
+        return {'only': {'value': value}}
+
+    @slot
+    def none_list_slot(value: int) -> List[None]:  # noqa: ARG001
+        return [None]
+
+    @slot
+    def none_dict_slot(value: int) -> Dict[str, None]:  # noqa: ARG001
+        return {'only': None}
+
+    @slot
+    def any_list_slot(value: int) -> List[Any]:
+        return [str(value)]
+
+    @slot
+    def any_dict_slot(value: int) -> Dict[str, Any]:
+        return {'only': str(value)}
+
+    reveal_type(nested_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(nested_dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(none_list_slot.one(1))  # R: None
+    reveal_type(none_dict_slot.one(1))  # R: None
+    reveal_type(any_list_slot.one(1))  # R: Any
+    reveal_type(any_dict_slot.one(1))  # R: Any
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
+@pytest.mark.mypy_testing
+def test_nested_none_and_any_built_in_payloads_are_unwrapped_by_one():
+    """Built-in list/dict `.one` unwraps only the outer aggregate, preserving nested, None, and explicit Any payloads."""
+    @slot
+    def nested_list_slot(value: int) -> list[list[int]]:
+        return [[value]]
+
+    @slot
+    def nested_dict_slot(value: int) -> dict[str, dict[str, int]]:
+        return {'only': {'value': value}}
+
+    @slot
+    def none_list_slot(value: int) -> list[None]:  # noqa: ARG001
+        return [None]
+
+    @slot
+    def none_dict_slot(value: int) -> dict[str, None]:  # noqa: ARG001
+        return {'only': None}
+
+    @slot
+    def any_list_slot(value: int) -> list[Any]:
+        return [str(value)]
+
+    @slot
+    def any_dict_slot(value: int) -> dict[str, Any]:
+        return {'only': str(value)}
+
+    reveal_type(nested_list_slot.one(1))  # R: builtins.list[builtins.int]
+    reveal_type(nested_dict_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+    reveal_type(none_list_slot.one(1))  # R: None
+    reveal_type(none_dict_slot.one(1))  # R: None
+    reveal_type(any_list_slot.one(1))  # R: Any
+    reveal_type(any_dict_slot.one(1))  # R: Any
 
 
 @pytest.mark.mypy_testing
@@ -914,7 +1122,8 @@ def test_decorated_plugin_type_is_not_widened():
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_built_in_generic_result_matrix_preserves_exact_slot_types():
-    """Cover decorator, `.one`, and built-in collection combinations.
+    """
+    Covers decorator forms and built-in collection combinations.
 
     Mypy sees this file statically, so the matrix keeps built-in list/dict and
     configured variants explicit.
@@ -954,6 +1163,10 @@ def test_built_in_generic_result_matrix_preserves_exact_slot_types():
     @slot(signature='.', max=1, type_check=False)
     def configured_list_slot(value: int) -> list[int]:  # noqa: ARG001
         return []
+
+    @slot(name='builtin_configured_dictionary', max=1, type_check=False)
+    def configured_dictionary_slot(value: int) -> dict[str, int]:  # noqa: ARG001
+        return {}
 
     @slot(signature=['..', '.'])
     def configured_list_slot_with_signature_list(value: int, context: str = '') -> list[int]:  # noqa: ARG001
@@ -995,6 +1208,10 @@ def test_built_in_generic_result_matrix_preserves_exact_slot_types():
     def configured_plugin(value: int) -> int:
         return value
 
+    @configured_dictionary_slot.plugin('configured_dictionary')
+    def configured_dictionary_plugin(value: int) -> int:
+        return value
+
     @configured_list_slot_with_signature_list.plugin('signature_list')
     def signature_list_plugin(value: int, context: str = '') -> int:  # noqa: ARG001
         return value
@@ -1008,21 +1225,117 @@ def test_built_in_generic_result_matrix_preserves_exact_slot_types():
     reveal_type(unique_list_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(explicit_plugin_names_slot(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_list_slot(1))  # R: builtins.list[builtins.int]
+    reveal_type(configured_dictionary_slot(1))  # R: builtins.dict[builtins.str, builtins.int]
     reveal_type(configured_list_slot_with_signature_list(1))  # R: builtins.list[builtins.int]
     reveal_type(configured_list_slot_with_signature_list(1, 'context'))  # R: builtins.list[builtins.int]
-    reveal_type(bare_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(bare_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(factory_dictionary_slot.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(factory_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(keyword_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(positional_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(unique_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(explicit_plugin_names_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(configured_list_slot.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(configured_list_slot_with_signature_list.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(configured_list_slot_with_signature_list.one(1, 'context'))  # R: builtins.list[builtins.int]
     reveal_type(bare_list_slot['name'](1))  # R: builtins.list[builtins.int]
     reveal_type(factory_list_slot['name'](1))  # R: builtins.list[builtins.int]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
+@pytest.mark.mypy_testing
+def test_built_in_generic_one_unwraps_payload_types():
+    """Built-in generic `.one` calls unwrap list items and dict values."""
+    @slot
+    def bare_dictionary_slot(value: int) -> dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @slot
+    def bare_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot()
+    def factory_dictionary_slot(value: int) -> dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @slot()
+    def factory_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(name='builtin_keyword')
+    def keyword_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot('builtin_positional')
+    def positional_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(unique=True)
+    def unique_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(explicit_plugin_names=True)
+    def explicit_plugin_names_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(signature='.', max=1, type_check=False)
+    def configured_list_slot(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @slot(name='builtin_configured_dictionary', max=1, type_check=False)
+    def configured_dictionary_slot(value: int) -> dict[str, int]:  # noqa: ARG001
+        return {}
+
+    @slot(signature=['..', '.'])
+    def configured_list_slot_with_signature_list(value: int, context: str = '') -> list[int]:  # noqa: ARG001
+        return []
+
+    @bare_dictionary_slot.plugin('bare_dictionary')
+    def bare_dictionary_plugin(value: int) -> int:
+        return value
+
+    @bare_list_slot.plugin('bare_list')
+    def bare_list_plugin(value: int) -> int:
+        return value
+
+    @factory_dictionary_slot.plugin('factory_dictionary')
+    def factory_dictionary_plugin(value: int) -> int:
+        return value
+
+    @factory_list_slot.plugin('factory_list')
+    def factory_list_plugin(value: int) -> int:
+        return value
+
+    @keyword_list_slot.plugin('keyword')
+    def keyword_plugin(value: int) -> int:
+        return value
+
+    @positional_list_slot.plugin('positional')
+    def positional_plugin(value: int) -> int:
+        return value
+
+    @unique_list_slot.plugin('unique')
+    def unique_plugin(value: int) -> int:
+        return value
+
+    @explicit_plugin_names_slot.plugin('explicit')
+    def explicit_plugin(value: int) -> int:
+        return value
+
+    @configured_list_slot.plugin('configured')
+    def configured_plugin(value: int) -> int:
+        return value
+
+    @configured_dictionary_slot.plugin('configured_dictionary')
+    def configured_dictionary_plugin(value: int) -> int:
+        return value
+
+    @configured_list_slot_with_signature_list.plugin('signature_list')
+    def signature_list_plugin(value: int, context: str = '') -> int:  # noqa: ARG001
+        return value
+
+    reveal_type(bare_dictionary_slot.one(1))  # R: builtins.int
+    reveal_type(bare_list_slot.one(1))  # R: builtins.int
+    reveal_type(factory_dictionary_slot.one(1))  # R: builtins.int
+    reveal_type(factory_list_slot.one(1))  # R: builtins.int
+    reveal_type(keyword_list_slot.one(1))  # R: builtins.int
+    reveal_type(positional_list_slot.one(1))  # R: builtins.int
+    reveal_type(unique_list_slot.one(1))  # R: builtins.int
+    reveal_type(explicit_plugin_names_slot.one(1))  # R: builtins.int
+    reveal_type(configured_list_slot.one(1))  # R: builtins.int
+    reveal_type(configured_dictionary_slot.one(1))  # R: builtins.int
+    reveal_type(configured_list_slot_with_signature_list.one(1))  # R: builtins.int
+    reveal_type(configured_list_slot_with_signature_list.one(1, 'context'))  # R: builtins.int
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
@@ -1051,8 +1364,25 @@ def test_built_in_generic_results_are_not_widened():
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_slot_pop_returns_selection_type_for_built_in_generics():
+    """Popped built-in generic selections expose aggregate and default-pop types."""
+    @slot
+    def collect(value: int) -> list[int]:  # noqa: ARG001
+        return []
+
+    @collect.plugin('name')
+    def plugin(value: int) -> int:
+        return value
+
+    popped_selection = collect.pop('name')
+    reveal_type(popped_selection(1))  # R: builtins.list[builtins.int]
+    reveal_type(collect.pop('name', 'fallback'))  # R: Union[pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int], builtins.str]
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
+@pytest.mark.mypy_testing
+def test_slot_pop_built_in_list_exposes_one_payload_types():
     """
-    Popped built-in generic selections keep call, `.one`, and default-pop types.
+    Popped built-in generic selections expose `.one` payload types.
 
     Catching the selection warning keeps this slot non-unique; changing it to
     unique=True would bias coverage, while leaving it uncaught would add warning noise.
@@ -1067,11 +1397,9 @@ def test_slot_pop_returns_selection_type_for_built_in_generics():
 
     popped_selection = collect.pop('name')
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(popped_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(popped_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(popped_selection.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(popped_selection(1))  # R: builtins.list[builtins.int]
-    reveal_type(collect.pop('name', 'fallback'))  # R: Union[pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int], builtins.str]
+        reveal_type(popped_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(popped_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(popped_selection.one(1))  # R: builtins.int
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
@@ -1098,7 +1426,7 @@ def test_plugin_return_type_mismatch_is_reported_for_built_in_generics():
 @pytest.mark.mypy_testing
 def test_typing_generics_one_preserves_result_types():
     """
-    `.one` keeps typing-generic call result types for slots and selections.
+    `.one` preserves typing-generic payload result types for slots and selections.
 
     Catching selection warnings keeps these slots non-unique; changing them to
     unique=True would bias coverage, while leaving them uncaught would add warning noise.
@@ -1122,29 +1450,36 @@ def test_typing_generics_one_preserves_result_types():
     list_selection = collect_list['list_plugin']
     dict_selection = collect_dict['dict_plugin']
 
-    reveal_type(collect_list.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-    reveal_type(collect_dict.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(collect_list.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+    reveal_type(collect_dict.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(list_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(list_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
+        reveal_type(list_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(list_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        selected_list_payload: int = reveal_type(list_selection.one(1))  # R: builtins.int
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(dict_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
-        reveal_type(dict_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
-        reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(collect_list.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(collect_dict.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+        reveal_type(dict_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(dict_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        selected_dict_payload: int = reveal_type(dict_selection.one(1))  # R: builtins.int
+    list_payload: int = reveal_type(collect_list.one(1))  # R: builtins.int
+    dict_payload: int = reveal_type(collect_dict.one(1))  # R: builtins.int
+    list_payload_call: Callable[[int], int] = collect_list.one.__call__
+    dict_payload_call: Callable[[int], int] = collect_dict.one.__call__
+    wrong_slot_list_one_call_shape: Callable[[str], int] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_slot_dict_one_call_shape: Callable[[str], int] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_list_one_as_aggregate_call: Callable[[int], List[int]] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_dict_one_as_aggregate_call: Callable[[int], Dict[str, int]] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        wrong_selected_list_one_call_shape: Callable[[str], int] = list_selection.one.__call__  # E: [assignment]  # noqa: F841
+        wrong_selection_list_aggregate_result: List[int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        wrong_selected_dict_one_call_shape: Callable[[str], int] = dict_selection.one.__call__  # E: [assignment]  # noqa: F841
+        wrong_selection_dict_aggregate_result: Dict[str, int] = dict_selection.one(1)  # E: [assignment]  # noqa: F841
+    wrong_list_aggregate_result: List[int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
+    wrong_dict_aggregate_result: Dict[str, int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
+    wrong_scalar_from_list_slot_call: int = collect_list(1)  # E: [assignment]  # noqa: F841
+    wrong_scalar_from_list_selection_call: int = list_selection(1)  # E: [assignment]  # noqa: F841
 
-    wrong_list_selection_call: Callable[[str], List[int]] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
-    wrong_dict_selection_call: Callable[[str], Dict[str, int]] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        wrong_selected_list_selection_call: Callable[[str], List[int]] = list_selection.one.__call__  # E: [assignment]  # noqa: F841
-        wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        wrong_selected_dict_selection_call: Callable[[str], Dict[str, int]] = dict_selection.one.__call__  # E: [assignment]  # noqa: F841
-        wrong_selection_dict_result: List[int] = dict_selection.one(1)  # E: [assignment]  # noqa: F841
-    wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
-    wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
+    assert (list_payload, dict_payload, selected_list_payload, selected_dict_payload, list_payload_call(1), dict_payload_call(1)) == (1, 1, 1, 1, 1, 1)
 
 
 @pytest.mark.mypy_testing
@@ -1164,12 +1499,18 @@ def test_one_preserves_accepted_and_rejected_call_shapes():
         return f'{value + 1}:{label}:{enabled}'
 
     selection = collect['name']
+    one_warning_match = match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')
 
-    reveal_type(collect.one(1))  # R: builtins.list[builtins.str]
-    reveal_type(collect.one(1, 'label', enabled=False))  # R: builtins.list[builtins.str]
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(selection.one(1))  # R: builtins.list[builtins.str]
-        reveal_type(selection.one(1, 'label', enabled=False))  # R: builtins.list[builtins.str]
+    reveal_type(collect.one(1))  # R: builtins.str
+    reveal_type(collect.one(1, 'label', enabled=False))  # R: builtins.str
+    with pytest.warns(SyntaxWarning, match=one_warning_match):  # noqa: PT031
+        reveal_type(collect.one.one(1))  # R: builtins.str
+        reveal_type(collect.one.one(1, 'label', enabled=False))  # R: builtins.str
+    with pytest.warns(SyntaxWarning, match=one_warning_match):  # noqa: PT031
+        reveal_type(selection.one(1))  # R: builtins.str
+        reveal_type(selection.one(1, 'label', enabled=False))  # R: builtins.str
+        reveal_type(selection.one.one(1))  # R: builtins.str
+        reveal_type(selection.one.one(1, 'label', enabled=False))  # R: builtins.str
 
     with pytest.raises(TypeError):
         collect.one('value')  # E: [arg-type]
@@ -1177,19 +1518,31 @@ def test_one_preserves_accepted_and_rejected_call_shapes():
         collect.one()  # E: [call-arg]
     with pytest.raises(TypeError):
         collect.one(1, unknown=True)  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+        collect.one.one('value')  # E: [arg-type]
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+        collect.one.one()  # E: [call-arg]
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+        collect.one.one(1, unknown=True)  # E: [call-arg]
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
         selection.one('value')  # E: [arg-type]
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
         selection.one()  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
         selection.one(1, unknown=True)  # E: [call-arg]
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+        selection.one.one('value')  # E: [arg-type]
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+        selection.one.one()  # E: [call-arg]
+    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+        selection.one.one(1, unknown=True)  # E: [call-arg]
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason='built-in generics require Python 3.9+')
 @pytest.mark.mypy_testing
 def test_built_in_generics_one_preserves_result_types():
     """
-    `.one` keeps built-in generic call result types for slots and selections.
+    `.one` preserves built-in generic payload result types for slots and selections.
 
     Catching selection warnings keeps these slots non-unique; changing them to
     unique=True would bias coverage, while leaving them uncaught would add warning noise.
@@ -1213,35 +1566,38 @@ def test_built_in_generics_one_preserves_result_types():
     list_selection = collect_list['list_plugin']
     dict_selection = collect_dict['dict_plugin']
 
-    reveal_type(collect_list.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-    reveal_type(collect_dict.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
+    reveal_type(collect_list.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+    reveal_type(collect_dict.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(list_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(list_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.list[builtins.int], builtins.int]
-        reveal_type(list_selection.one(1))  # R: builtins.list[builtins.int]
+        reveal_type(list_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(list_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        selected_list_payload: int = reveal_type(list_selection.one(1))  # R: builtins.int
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        reveal_type(dict_selection.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
-        reveal_type(dict_selection.one.one)  # R: pristan.common_types.SlotSelectionProtocol[[value: builtins.int], builtins.dict[builtins.str, builtins.int], builtins.int]
-        reveal_type(dict_selection.one(1))  # R: builtins.dict[builtins.str, builtins.int]
-    reveal_type(collect_list.one(1))  # R: builtins.list[builtins.int]
-    reveal_type(collect_dict.one(1))  # R: builtins.dict[builtins.str, builtins.int]
+        reveal_type(dict_selection.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        reveal_type(dict_selection.one.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[value: builtins.int], builtins.int]
+        selected_dict_payload: int = reveal_type(dict_selection.one(1))  # R: builtins.int
+    list_payload: int = reveal_type(collect_list.one(1))  # R: builtins.int
+    dict_payload: int = reveal_type(collect_dict.one(1))  # R: builtins.int
+    wrong_slot_list_one_call_shape: Callable[[str], int] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_slot_dict_one_call_shape: Callable[[str], int] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_list_one_as_aggregate_call: Callable[[int], list[int]] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
+    wrong_dict_one_as_aggregate_call: Callable[[int], dict[str, int]] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        wrong_selected_list_one_call_shape: Callable[[str], int] = list_selection.one.__call__  # E: [assignment]  # noqa: F841
+        wrong_selection_list_aggregate_result: list[int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
+        wrong_selected_dict_one_call_shape: Callable[[str], int] = dict_selection.one.__call__  # E: [assignment]  # noqa: F841
+        wrong_selection_dict_aggregate_result: dict[str, int] = dict_selection.one(1)  # E: [assignment]  # noqa: F841
+    wrong_list_aggregate_result: list[int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
+    wrong_dict_aggregate_result: dict[str, int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
 
-    wrong_list_selection_call: Callable[[str], list[int]] = collect_list.one.__call__  # E: [assignment]  # noqa: F841
-    wrong_dict_selection_call: Callable[[str], dict[str, int]] = collect_dict.one.__call__  # E: [assignment]  # noqa: F841
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_list", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        wrong_selected_list_selection_call: Callable[[str], list[int]] = list_selection.one.__call__  # E: [assignment]  # noqa: F841
-        wrong_selection_list_result: Dict[str, int] = list_selection.one(1)  # E: [assignment]  # noqa: F841
-    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect_dict", because this code uses .one to work with a single plugin.')):  # noqa: PT031
-        wrong_selected_dict_selection_call: Callable[[str], dict[str, int]] = dict_selection.one.__call__  # E: [assignment]  # noqa: F841
-        wrong_selection_dict_result: List[int] = dict_selection.one(1)  # E: [assignment]  # noqa: F841
-    wrong_list_result: Dict[str, int] = collect_list.one(1)  # E: [assignment]  # noqa: F841
-    wrong_dict_result: List[int] = collect_dict.one(1)  # E: [assignment]  # noqa: F841
+    assert (list_payload, dict_payload, selected_list_payload, selected_dict_payload) == (1, 1, 1, 1)
 
 
 @pytest.mark.mypy_testing
 def test_one_protocols_accept_slot_and_selection():
     """
-    Protocols expose `.one` with the same callable surface as concrete values.
+    Protocols accept slots and selections while `.one` returns payload values.
 
     Catching the selection warning keeps this slot non-unique; changing it to
     unique=True would bias coverage, while leaving it uncaught would add warning noise.
@@ -1254,15 +1610,41 @@ def test_one_protocols_accept_slot_and_selection():
     def plugin(value: int) -> int:
         return value
 
-    def call_slot(target: 'SlotProtocol[[int], List[int], int]') -> List[int]:
+    def call_slot(target: 'SlotProtocol[[int], List[int], int]') -> int:
         return target.one(1)
 
-    def call_selection(target: 'SlotSelectionProtocol[[int], List[int], int]') -> List[int]:
+    def call_selection(target: 'SlotSelectionProtocol[[int], List[int], int]') -> int:
         return target.one(1)
 
-    reveal_type(call_slot(collect))  # R: builtins.list[builtins.int]
+    reveal_type(call_slot(collect))  # R: builtins.int
     with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):
-        reveal_type(call_selection(collect['name']))  # R: builtins.list[builtins.int]
+        reveal_type(call_selection(collect['name']))  # R: builtins.int
+
+
+@pytest.mark.mypy_testing
+def test_slot_and_selection_protocols_expose_aggregate_and_one_payload_calls():
+    """Protocols preserve aggregate calls and expose `.one` payload calls for slots and selections."""
+    @slot
+    def collect(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @collect.plugin('name')
+    def plugin(value: int) -> int:
+        return value
+
+    selection = collect['name']
+    collect_view: SlotProtocol[[int], List[int], int] = collect
+    selection_view: SlotSelectionProtocol[[int], List[int], int] = selection
+
+    reveal_type(collect_view(1))  # R: builtins.list[builtins.int]
+    reveal_type(collect_view.one(1))  # R: builtins.int
+    reveal_type(collect_view.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[builtins.int], builtins.int]
+    reveal_type(selection_view(1))  # R: builtins.list[builtins.int]
+    selection_warning_match = match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')
+    with pytest.warns(SyntaxWarning, match=selection_warning_match):
+        reveal_type(selection_view.one(1))  # R: builtins.int
+    with pytest.warns(SyntaxWarning, match=selection_warning_match):
+        reveal_type(selection_view.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[builtins.int], builtins.int]
 
 
 @pytest.mark.mypy_testing
@@ -1272,14 +1654,23 @@ def test_one_read_only_surface_rejects_assignment_and_deletion():
     def collect(value: int) -> List[int]:  # noqa: ARG001
         return []
 
+    @collect.plugin('name')
+    def plugin(value: int) -> int:
+        return value
+
     selection = collect['name']
     collect_view: SlotProtocol[[int], List[int], int] = collect
     selection_view: SlotSelectionProtocol[[int], List[int], int] = selection
+    one_selection = collect.one
 
     with pytest.raises(AttributeError):
-        collect.one = selection  # E: [misc]
+        collect.one = one_selection  # E: [misc]
     with pytest.raises(AttributeError):
-        selection.one = selection  # E: [misc]
+        selection.one = one_selection  # E: [misc]
+    with pytest.raises(AttributeError):
+        collect_view.one = one_selection  # E: [misc]
+    with pytest.raises(AttributeError):
+        selection_view.one = one_selection  # E: [misc]
     with pytest.raises(AttributeError):
         del collect_view.one
     with pytest.raises(AttributeError):
@@ -1287,9 +1678,56 @@ def test_one_read_only_surface_rejects_assignment_and_deletion():
 
 
 @pytest.mark.mypy_testing
+def test_one_selection_read_only_surface_rejects_assignment_and_deletion():
+    """`.one` rejects assignment and deletion on one-selections."""
+    @slot
+    def collect(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @collect.plugin('name')
+    def plugin(value: int) -> int:
+        return value
+
+    one_selection_view: OneSlotSelectionProtocol[[int], int] = collect.one
+
+    with pytest.raises(AttributeError):
+        one_selection_view.one = one_selection_view  # E: [misc]
+    with pytest.raises(AttributeError):
+        del one_selection_view.one
+
+
+@pytest.mark.mypy_testing
+def test_one_selection_protocol_exposes_bool_len_and_iteration_only():
+    """One-selections expose bool, len, and iteration, but not plugin, keys, pop, or indexing."""
+    @slot
+    def collect(value: int) -> List[int]:  # noqa: ARG001
+        return []
+
+    @collect.plugin
+    def plugin(value: int) -> int:
+        return value
+
+    one_selection_view: OneSlotSelectionProtocol[[int], int] = collect.one
+
+    reveal_type(one_selection_view.__bool__())  # R: builtins.bool
+    reveal_type(len(one_selection_view))  # R: builtins.int
+    for loaded_plugin in one_selection_view:
+        reveal_type(loaded_plugin(1))  # R: builtins.int
+
+    with pytest.raises(AttributeError):
+        one_selection_view.plugin('name')  # E: [attr-defined]
+    with pytest.raises(AttributeError):
+        one_selection_view.keys()  # E: [attr-defined]
+    with pytest.raises(AttributeError):
+        one_selection_view.pop('name')  # E: [attr-defined]
+    with pytest.raises(TypeError):
+        one_selection_view['nested']  # E: [index]
+
+
+@pytest.mark.mypy_testing
 def test_pop_with_default_exposes_one_after_selection_narrowing():
     """
-    Pop with a default exposes `.one` in the narrowed selection branch.
+    Pop with a default exposes `.one` payload calls in the narrowed selection branch.
 
     Catching the selection warning keeps this slot non-unique; changing it to
     unique=True would bias coverage, while leaving it uncaught would add warning noise.
@@ -1308,4 +1746,4 @@ def test_pop_with_default_exposes_one_after_selection_narrowing():
         reveal_type(popped_or_default)  # R: builtins.str
     else:
         with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):
-            reveal_type(popped_or_default.one(1))  # R: builtins.list[builtins.int]
+            reveal_type(popped_or_default.one(1))  # R: builtins.int
