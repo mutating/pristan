@@ -1499,14 +1499,13 @@ def test_one_preserves_accepted_and_rejected_call_shapes():
         return f'{value + 1}:{label}:{enabled}'
 
     selection = collect['name']
-    one_warning_match = match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')
 
     reveal_type(collect.one(1))  # R: builtins.str
     reveal_type(collect.one(1, 'label', enabled=False))  # R: builtins.str
-    with pytest.warns(SyntaxWarning, match=one_warning_match):  # noqa: PT031
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):  # noqa: PT031
         reveal_type(collect.one.one(1))  # R: builtins.str
         reveal_type(collect.one.one(1, 'label', enabled=False))  # R: builtins.str
-    with pytest.warns(SyntaxWarning, match=one_warning_match):  # noqa: PT031
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):  # noqa: PT031
         reveal_type(selection.one(1))  # R: builtins.str
         reveal_type(selection.one(1, 'label', enabled=False))  # R: builtins.str
         reveal_type(selection.one.one(1))  # R: builtins.str
@@ -1518,23 +1517,23 @@ def test_one_preserves_accepted_and_rejected_call_shapes():
         collect.one()  # E: [call-arg]
     with pytest.raises(TypeError):
         collect.one(1, unknown=True)  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         collect.one.one('value')  # E: [arg-type]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         collect.one.one()  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         collect.one.one(1, unknown=True)  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         selection.one('value')  # E: [arg-type]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         selection.one()  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         selection.one(1, unknown=True)  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         selection.one.one('value')  # E: [arg-type]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         selection.one.one()  # E: [call-arg]
-    with pytest.warns(SyntaxWarning, match=one_warning_match), pytest.raises(TypeError):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')), pytest.raises(TypeError):
         selection.one.one(1, unknown=True)  # E: [call-arg]
 
 
@@ -1640,10 +1639,9 @@ def test_slot_and_selection_protocols_expose_aggregate_and_one_payload_calls():
     reveal_type(collect_view.one(1))  # R: builtins.int
     reveal_type(collect_view.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[builtins.int], builtins.int]
     reveal_type(selection_view(1))  # R: builtins.list[builtins.int]
-    selection_warning_match = match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')
-    with pytest.warns(SyntaxWarning, match=selection_warning_match):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):
         reveal_type(selection_view.one(1))  # R: builtins.int
-    with pytest.warns(SyntaxWarning, match=selection_warning_match):
+    with pytest.warns(SyntaxWarning, match=match('Consider setting unique=True for slot "collect", because this code uses .one to work with a single plugin.')):
         reveal_type(selection_view.one)  # R: pristan.common_types.OneSlotSelectionProtocol[[builtins.int], builtins.int]
 
 
