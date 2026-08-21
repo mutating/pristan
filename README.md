@@ -3,7 +3,7 @@
 
 [![Downloads](https://static.pepy.tech/badge/pristan/month)](https://pepy.tech/project/pristan)
 [![Downloads](https://static.pepy.tech/badge/pristan)](https://pepy.tech/project/pristan)
-[![Coverage Status](https://coveralls.io/repos/github/mutating/transfunctions/badge.svg?branch=main)](https://coveralls.io/github/mutating/pristan?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/mutating/pristan/badge.svg?branch=main)](https://coveralls.io/github/mutating/pristan?branch=main)
 [![Lines of code](https://sloc.xyz/github/mutating/pristan/?category=code)](https://github.com/boyter/scc/)
 [![Hits-of-Code](https://hitsofcode.com/github/mutating/pristan?branch=main)](https://hitsofcode.com/github/mutating/pristan/view?branch=main)
 [![Test-Package](https://github.com/mutating/pristan/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/mutating/pristan/actions/workflows/tests_and_coverage.yml)
